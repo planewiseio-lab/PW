@@ -84,12 +84,18 @@ export default function AircraftHistoryPage() {
         if (data.flights) {
           const correctedFlights = data.flights.map((flight: FlightHistory) => {
             const now = new Date();
-            const scheduledArrival = new Date(flight.arrival.scheduledTime);
-            const hoursDiff =
-              (now.getTime() - scheduledArrival.getTime()) / (1000 * 60 * 60);
+            const departureTime = new Date(flight.departure.scheduledTime);
+            const hoursSinceDeparture =
+              (now.getTime() - departureTime.getTime()) / (1000 * 60 * 60);
 
-            // Si plus de 4h après l'arrivée prévue et statut pas "Arrived"
-            if (hoursDiff > 4 && flight.status.toLowerCase() !== "arrived") {
+            // Si pas d'arrivée prévue (N/A) ET départ il y a plus de 20h ET statut "Departed"
+            const hasNoArrival = !flight.arrival.scheduledTime || 
+                                flight.arrival.scheduledTime === "N/A" || 
+                                flight.arrival.scheduledTime === "";
+            
+            if (hasNoArrival && 
+                hoursSinceDeparture > 20 && 
+                flight.status.toLowerCase() === "departed") {
               return {
                 ...flight,
                 status: "Arrived",
