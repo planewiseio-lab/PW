@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { useParams, useSearchParams } from "next/navigation";
+import { useParams, useSearchParams, useRouter } from "next/navigation";
 import { useProgressiveAirportData } from "@/hooks/useProgressiveAirportData";
 import EnhancedFlightSkeleton from "@/components/EnhancedFlightSkeleton";
 import PullToRefresh from "@/components/PullToRefresh";
@@ -23,6 +23,7 @@ type FlightRow = {
 export default function AirportBoardPage() {
   const { icao } = useParams<{ icao: string }>();
   const searchParams = useSearchParams();
+  const router = useRouter();
   const code = (icao || "").toUpperCase();
   const [dir, setDir] = useState<Direction>("departures");
   const [q, setQ] = useState("");
@@ -521,7 +522,7 @@ export default function AirportBoardPage() {
                     </div>
                     <button
                       onClick={() =>
-                        (window.location.href = `/flight/${r.number}?date=${searchDate}`)
+                        (router.push = `/flight/${r.number}?date=${searchDate}`)
                       }
                       className="text-sm font-medium text-blue-600 hover:text-blue-700 hover:underline transition cursor-pointer text-left"
                     >
@@ -569,7 +570,7 @@ export default function AirportBoardPage() {
                       {r.reg ? (
                         <button
                           onClick={() =>
-                            (window.location.href = `/aircraft/${r.reg}`)
+                            (router.push = `/aircraft/${r.reg}`)
                           }
                           className="text-sm font-medium text-blue-600 hover:text-blue-700 hover:underline transition cursor-pointer"
                         >
@@ -973,7 +974,7 @@ export default function AirportBoardPage() {
                         <td className="px-4 py-3 font-medium text-center">
                           <button
                             onClick={() =>
-                              (window.location.href = `/flight/${r.number}?date=${searchDate}`)
+                              (router.push = `/flight/${r.number}?date=${searchDate}`)
                             }
                             className="text-blue-600 hover:text-blue-700 hover:underline transition cursor-pointer"
                           >
@@ -1010,7 +1011,7 @@ export default function AirportBoardPage() {
                           {r.reg ? (
                             <button
                               onClick={() =>
-                                (window.location.href = `/aircraft/${r.reg}`)
+                                (router.push = `/aircraft/${r.reg}`)
                               }
                               className="text-blue-600 hover:text-blue-700 hover:underline transition cursor-pointer"
                             >

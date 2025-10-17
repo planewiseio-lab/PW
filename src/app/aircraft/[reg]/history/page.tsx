@@ -92,9 +92,11 @@ export default function AircraftHistoryPage() {
             let shouldChangeToArrived = false;
 
             // Vérifier si le vol a une arrivée prévue
-            if (flight.arrival.scheduledTime && 
-                flight.arrival.scheduledTime !== "N/A" && 
-                flight.arrival.scheduledTime !== "") {
+            if (
+              flight.arrival.scheduledTime &&
+              flight.arrival.scheduledTime !== "N/A" &&
+              flight.arrival.scheduledTime !== ""
+            ) {
               // Cas 1: Arrivée prévue ET arrivée dépassée depuis plus de 4h
               const arrivalTime = new Date(flight.arrival.scheduledTime);
               const hoursSinceArrival =
@@ -108,9 +110,9 @@ export default function AircraftHistoryPage() {
             if (
               shouldChangeToArrived &&
               (flight.status.toLowerCase() === "departed" ||
-               flight.status.toLowerCase() === "expected" ||
-               flight.status.toLowerCase() === "in flight" ||
-               flight.status.toLowerCase() === "approaching")
+                flight.status.toLowerCase() === "expected" ||
+                flight.status.toLowerCase() === "in flight" ||
+                flight.status.toLowerCase() === "approaching")
             ) {
               return {
                 ...flight,
@@ -392,7 +394,7 @@ export default function AircraftHistoryPage() {
                     "0 10px 25px rgba(0, 0, 0, 0.1), 0 4px 6px rgba(0, 0, 0, 0.05)",
                 }}
                 onClick={() =>
-                  (window.location.href = `/flight/${flight.number}?date=${flight.date}`)
+                  router.push(`/flight/${flight.number}?date=${flight.date}`)
                 }
               >
                 <div className="flex items-center justify-between mb-4">
@@ -562,7 +564,7 @@ export default function AircraftHistoryPage() {
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
-                        window.location.href = `/flight/${flight.number}?date=${flight.date}`;
+                        router.push(`/flight/${flight.number}?date=${flight.date}`);
                       }}
                       className="text-blue-600 hover:text-blue-700 font-medium group-hover:underline"
                     >
