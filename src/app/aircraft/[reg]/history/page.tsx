@@ -100,13 +100,17 @@ export default function AircraftHistoryPage() {
               // Cas 1: Pas d'arrivée prévue ET départ il y a plus de 20h
               shouldChangeToArrived = hoursSinceDeparture > 20;
             } else {
-              // Cas 2: Arrivée prévue ET arrivée dépassée depuis plus de 20h
+              // Cas 2: Arrivée prévue ET arrivée dépassée depuis plus de 4h
               const arrivalTime = new Date(flight.arrival.scheduledTime);
-              const hoursSinceArrival = (now.getTime() - arrivalTime.getTime()) / (1000 * 60 * 60);
-              shouldChangeToArrived = hoursSinceArrival > 20;
+              const hoursSinceArrival =
+                (now.getTime() - arrivalTime.getTime()) / (1000 * 60 * 60);
+              shouldChangeToArrived = hoursSinceArrival > 4;
             }
 
-            if (shouldChangeToArrived && flight.status.toLowerCase() === "departed") {
+            if (
+              shouldChangeToArrived &&
+              flight.status.toLowerCase() === "departed"
+            ) {
               return {
                 ...flight,
                 status: "Arrived",
