@@ -88,28 +88,29 @@ export default function AircraftHistoryPage() {
             const hoursSinceDeparture =
               (now.getTime() - departureTime.getTime()) / (1000 * 60 * 60);
 
-            // Logique de correction de statut
-            const hasNoArrival =
-              !flight.arrival.scheduledTime ||
-              flight.arrival.scheduledTime === "N/A" ||
-              flight.arrival.scheduledTime === "";
-
+            // Logique de correction de statut (harmonisée avec l'API)
             let shouldChangeToArrived = false;
 
-            if (hasNoArrival) {
-              // Cas 1: Pas d'arrivée prévue ET départ il y a plus de 20h
-              shouldChangeToArrived = hoursSinceDeparture > 20;
-            } else {
-              // Cas 2: Arrivée prévue ET arrivée dépassée depuis plus de 4h
+            // Vérifier si le vol a une arrivée prévue
+            if (flight.arrival.scheduledTime && 
+                flight.arrival.scheduledTime !== "N/A" && 
+                flight.arrival.scheduledTime !== "") {
+              // Cas 1: Arrivée prévue ET arrivée dépassée depuis plus de 4h
               const arrivalTime = new Date(flight.arrival.scheduledTime);
               const hoursSinceArrival =
                 (now.getTime() - arrivalTime.getTime()) / (1000 * 60 * 60);
               shouldChangeToArrived = hoursSinceArrival > 4;
+            } else {
+              // Cas 2: Pas d'arrivée prévue ET départ il y a plus de 20h
+              shouldChangeToArrived = hoursSinceDeparture > 20;
             }
 
             if (
               shouldChangeToArrived &&
-              flight.status.toLowerCase() === "departed"
+              (flight.status.toLowerCase() === "departed" ||
+               flight.status.toLowerCase() === "expected" ||
+               flight.status.toLowerCase() === "in flight" ||
+               flight.status.toLowerCase() === "approaching")
             ) {
               return {
                 ...flight,
