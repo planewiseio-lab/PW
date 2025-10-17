@@ -1,0 +1,38 @@
+{
+  "name": "PlaneWise - Aviation Information",
+  "short_name": "PlaneWise",
+  "description": "Application d'information aéronautique pour suivre les vols, avions et aéroports",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#2563eb",
+  "orientation": "portrait-primary",
+  "scope": "/",
+  "lang": "fr",
+  "icons": [
+    {
+      "src": "/Assets/logo.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/Assets/logo.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["travel", "utilities", "productivity"],
+  "screenshots": [
+    {
+      "src": "/Assets/airplane.jpg",
+      "sizes": "1280x720",
+      "type": "image/jpeg",
+      "form_factor": "wide"
+    }
+  ]
+}
+
+
+
