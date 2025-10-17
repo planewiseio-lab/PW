@@ -253,6 +253,16 @@ export async function GET(
               1
             )}h late)`
           );
+        } else if (
+          correctedStatus.toLowerCase() === "expected" &&
+          hoursDiff > 4
+        ) {
+          correctedStatus = "Arrived";
+          console.log(
+            `[Flight Logic] Status corrected from "Expected" to "Arrived" for ${numberRaw} (${hoursDiff.toFixed(
+              1
+            )}h late)`
+          );
         }
       } catch (error) {
         console.log(
