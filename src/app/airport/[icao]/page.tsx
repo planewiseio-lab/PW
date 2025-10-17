@@ -522,7 +522,7 @@ export default function AirportBoardPage() {
                     </div>
                     <button
                       onClick={() =>
-                        (router.push = `/flight/${r.number}?date=${searchDate}`)
+                        router.push(`/flight/${r.number}?date=${searchDate}`)
                       }
                       className="text-sm font-medium text-blue-600 hover:text-blue-700 hover:underline transition cursor-pointer text-left"
                     >
@@ -569,9 +569,7 @@ export default function AirportBoardPage() {
                     <div className="text-left">
                       {r.reg ? (
                         <button
-                          onClick={() =>
-                            (router.push = `/aircraft/${r.reg}`)
-                          }
+                          onClick={() => router.push(`/aircraft/${r.reg}`)}
                           className="text-sm font-medium text-blue-600 hover:text-blue-700 hover:underline transition cursor-pointer"
                         >
                           {r.reg}
@@ -974,7 +972,7 @@ export default function AirportBoardPage() {
                         <td className="px-4 py-3 font-medium text-center">
                           <button
                             onClick={() =>
-                              (router.push = `/flight/${r.number}?date=${searchDate}`)
+                              router.push(`/flight/${r.number}?date=${searchDate}`)
                             }
                             className="text-blue-600 hover:text-blue-700 hover:underline transition cursor-pointer"
                           >
@@ -1011,7 +1009,7 @@ export default function AirportBoardPage() {
                           {r.reg ? (
                             <button
                               onClick={() =>
-                                (router.push = `/aircraft/${r.reg}`)
+                                router.push(`/aircraft/${r.reg}`)
                               }
                               className="text-blue-600 hover:text-blue-700 hover:underline transition cursor-pointer"
                             >
