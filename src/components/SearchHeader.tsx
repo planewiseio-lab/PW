@@ -1,7 +1,7 @@
 "use client";
 import { motion } from "framer-motion";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useTransition } from "react";
 
 type Mode = "aircraft" | "flight" | "airport";
 
@@ -21,6 +21,7 @@ export default function SearchHeader() {
     return today.toISOString().split("T")[0];
   });
   const [isMounted, setIsMounted] = useState(false);
+  const [isPending, startTransition] = useTransition();
   const isHome = pathname === "/";
 
   // Éviter les différences d'hydration
@@ -45,20 +46,27 @@ export default function SearchHeader() {
     const v = q.trim();
     if (!v) return;
 
-    if (mode === "flight") {
-      router.push(`/flight/${encodeURIComponent(v)}?date=${searchDate}`);
-    } else {
-      router.push(`/${mode}/${encodeURIComponent(v)}`);
-    }
+    startTransition(() => {
+      if (mode === "flight") {
+        router.push(`/flight/${encodeURIComponent(v)}?date=${searchDate}`);
+      } else {
+        router.push(`/${mode}/${encodeURIComponent(v)}`);
+      }
+    });
   };
 
   // Pas de SearchHeader sur la home
   if (isHome) return null;
 
-  // Éviter les différences d'hydration - rendu initial simplifié
+  // Éviter les différences d'hydration - rendu initial avec transition
   if (!isMounted) {
     return (
-      <section className="relative overflow-hidden isolate">
+      <motion.section
+        initial={{ opacity: 0, y: -20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.3, ease: "easeOut" }}
+        className="relative overflow-hidden isolate"
+      >
         <div className="pointer-events-none absolute inset-x-0 top-0 z-0">
           <div className="relative h-[200px] sm:h-[240px]">
             <div className="bg-dot-grid w-full h-full opacity-90" />
@@ -115,12 +123,17 @@ export default function SearchHeader() {
             <div className="block md:hidden h-12"></div>
           </div>
         </div>
-      </section>
+      </motion.section>
     );
   }
 
   return (
-    <section className="relative overflow-hidden isolate">
+    <motion.section
+      initial={{ opacity: 0, y: -20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.3, ease: "easeOut" }}
+      className="relative overflow-hidden isolate"
+    >
       {/* ---- FOND "PICOTÉ" + FADE (arrêt avant la bulle) ---- */}
       <div className="pointer-events-none absolute inset-x-0 top-0 z-0">
         {/* hauteur du motif : ajuste pour qu'il finisse JUSTE avant la bulle */}
@@ -252,9 +265,10 @@ export default function SearchHeader() {
 
                 <button
                   type="submit"
-                  className="btn-primary-md shrink-0 rounded-xl shadow hover:brightness-110 active:scale-[0.98] mr-1"
+                  disabled={isPending}
+                  className="btn-primary-md shrink-0 rounded-xl shadow hover:brightness-110 active:scale-[0.98] mr-1 disabled:opacity-60 disabled:cursor-not-allowed"
                 >
-                  Search
+                  {isPending ? "Searching…" : "Search"}
                 </button>
               </div>
             </div>
@@ -321,9 +335,10 @@ export default function SearchHeader() {
                   {/* Bouton Search */}
                   <button
                     type="submit"
-                    className="btn-primary-md shrink-0 rounded-xl shadow hover:brightness-110 mr-1"
+                    disabled={isPending}
+                    className="btn-primary-md shrink-0 rounded-xl shadow hover:brightness-110 mr-1 disabled:opacity-60 disabled:cursor-not-allowed"
                   >
-                    Search
+                    {isPending ? "Searching…" : "Search"}
                   </button>
                 </div>
               ) : (
@@ -367,9 +382,10 @@ export default function SearchHeader() {
 
                   <button
                     type="submit"
-                    className="btn-primary-md shrink-0 rounded-xl shadow hover:brightness-110 mr-1"
+                    disabled={isPending}
+                    className="btn-primary-md shrink-0 rounded-xl shadow hover:brightness-110 mr-1 disabled:opacity-60 disabled:cursor-not-allowed"
                   >
-                    Search
+                    {isPending ? "Searching…" : "Search"}
                   </button>
                 </div>
               )}
@@ -377,6 +393,6 @@ export default function SearchHeader() {
           </form>
         </motion.div>
       </div>
-    </section>
+    </motion.section>
   );
 }

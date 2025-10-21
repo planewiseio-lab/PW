@@ -424,8 +424,17 @@ function AircraftCard({
             </div>
           </button>
         ) : (
-          <div className="w-full h-[240px] sm:h-[300px] md:h-[350px] bg-gray-100 rounded-2xl flex items-center justify-center">
-            <p className="text-gray-600">Loading images....</p>
+          <div className="relative w-full h-[240px] sm:h-[300px] md:h-[350px] bg-gray-100 rounded-2xl overflow-hidden">
+            <img
+              src="/assets/airplane.jpg"
+              alt="Default aircraft image"
+              className="absolute inset-0 w-full h-full object-cover opacity-50"
+            />
+            <div className="absolute inset-0 flex items-center justify-center">
+              <p className="text-white text-lg font-semibold drop-shadow-md">
+                No images available
+              </p>
+            </div>
           </div>
         )}
         {!imagesLoading && galleryThumbs.length > 0 && (
@@ -450,6 +459,19 @@ function AircraftCard({
                 />
               </button>
             ))}
+          </div>
+        )}
+
+        {/* Galerie de fallback avec image par défaut */}
+        {!imagesLoading && galleryThumbs.length === 0 && (
+          <div className="mt-3 grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <div className="relative block rounded-xl overflow-hidden border border-gray-200 aspect-[16/9] w-full bg-gray-100">
+              <img
+                src="/assets/airplane.jpg"
+                alt="Default aircraft thumbnail"
+                className="absolute inset-0 w-full h-full object-cover opacity-50"
+              />
+            </div>
           </div>
         )}
       </div>
