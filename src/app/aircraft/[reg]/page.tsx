@@ -5,6 +5,8 @@ import { createPortal } from "react-dom";
 import { motion } from "framer-motion";
 import { useImagesReady } from "@/hooks/useImagesReady";
 import StructuredData from "@/components/StructuredData";
+import { getImagesData } from "@/lib/globalApiCache";
+import { useAircraftData } from "@/hooks/useAircraftData";
 
 /* ==========================================================
    TYPES & HELPERS GÉNÉRAUX
@@ -69,11 +71,11 @@ export default function AircraftDetailPage() {
   const router = useRouter();
   const { reg } = useParams<{ reg: string }>();
 
-  // --- États locaux ---
+  // --- Utiliser le hook centralisé ---
+  const { data: rawData, loading, error } = useAircraftData(reg || "");
   const [data, setData] = useState<ReturnType<typeof normalizeAircraft> | null>(
     null
   );
-  const [loading, setLoading] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
   // 0) attendre la fin de l'anim du menu (shared element docké)
@@ -90,30 +92,17 @@ export default function AircraftDetailPage() {
   }, []);
 
   /* ----------------------------------------------------------
-     1) RÉCUPÉRATION DES DONNÉES
+     1) NORMALISATION DES DONNÉES
   ---------------------------------------------------------- */
   useEffect(() => {
-    const v = (reg || "").trim();
-    if (!v) return;
-    setLoading(true);
-    setErr(null);
-    setData(null);
-
-    (async () => {
-      try {
-        const res = await fetch(`/api/aircraft/${encodeURIComponent(v)}`, {
-          cache: "no-store",
-        });
-        const json = await res.json();
-        const raw = Array.isArray(json) ? json[0] : json?.data ?? json;
-        setData(normalizeAircraft(raw));
-      } catch {
-        setErr("Failed to load aircraft details.");
-      } finally {
-        setLoading(false);
-      }
-    })();
-  }, [reg]);
+    if (rawData) {
+      setData(normalizeAircraft(rawData));
+      setErr(null);
+    } else if (error) {
+      setErr(error);
+      setData(null);
+    }
+  }, [rawData, error]);
 
   /* ----------------------------------------------------------
      2) IMAGES COMMONS (fetch AU NIVEAU DE LA PAGE)
@@ -138,15 +127,13 @@ export default function AircraftDetailPage() {
   const imagesReady = useImagesReady(urlsForPreload, 550); // délai mini 550ms pour un rendu premium
 
   /* ----------------------------------------------------------
-     4) GATING D'AFFICHAGE
+     4) GATING D'AFFICHAGE - AFFICHAGE PROGRESSIF
   ---------------------------------------------------------- */
-  const ready =
-    !!data && // données avion prêtes
-    commonsLoaded && // fetch Commons terminé
-    imagesReady && // images clés préchargées
-    docked && // bloc de recherche docké en haut
-    !loading; // pas en cours de fetch data
-  const showSkeleton = !ready && docked; // skeleton seulement après dock
+  // Afficher les données d'avion immédiatement, puis les images
+  const aircraftReady = !!data && docked && !loading; // Données avion prêtes
+  const imagesLoaded = commonsLoaded && imagesReady; // Images prêtes
+
+  const showSkeleton = !aircraftReady && docked; // skeleton seulement si pas de données avion
 
   /* ----------------------------------------------------------
      5) RENDU FINAL : Squelette → Carte complète
@@ -156,12 +143,12 @@ export default function AircraftDetailPage() {
       {err && <p className="text-red-600">{err}</p>}
 
       {/* Réserve de hauteur pour empêcher le footer de remonter pendant l'anim/chargement */}
-      <div className={ready ? "" : "min-h-[820px]"}>
+      <div className="min-h-[820px]">
         {/* Squelette uniquement quand le menu est docké */}
         {showSkeleton && <DetailSkeleton />}
 
-        {/* Carte finale quand tout est prêt */}
-        {ready && (
+        {/* Carte d'avion immédiatement, puis images en arrière-plan */}
+        {aircraftReady && (
           <motion.div
             initial={{ opacity: 0, y: 6 }}
             animate={{ opacity: 1, y: 0 }}
@@ -173,6 +160,7 @@ export default function AircraftDetailPage() {
               imgs={gallery}
               thumbs={galleryThumbs}
               onClear={() => router.back()}
+              imagesLoading={!imagesLoaded}
             />
           </motion.div>
         )}
@@ -190,6 +178,13 @@ function normalizeAircraft(raw: any) {
   const manufacturer =
     a.manufacturer || a.maker || a.producer || typeOrModel.split(" ")[0] || "";
 
+  // Calculer l'âge si pas fourni par l'API mais qu'on a une année
+  let calculatedAge = a.ageYears ?? a.age ?? null;
+  if (!calculatedAge && a.year) {
+    const currentYear = new Date().getFullYear();
+    calculatedAge = currentYear - parseInt(a.year);
+  }
+
   return {
     registration: a.registration || a.reg || "",
     active: a.active ?? a.verified ?? true,
@@ -200,7 +195,7 @@ function normalizeAircraft(raw: any) {
     airlineName: a.airlineName || a.operator || a.owner || "",
     seats: a.numSeats ?? a.seats ?? null,
     hexIcao: a.hexIcao || a.modeS || a.icaoHex || null,
-    ageYears: a.ageYears ?? a.age ?? null,
+    ageYears: calculatedAge,
     firstFlightDate: a.firstFlightDate ?? null,
     deliveryDate: a.deliveryDate ?? null,
     registrationDate: a.registrationDate ?? null,
@@ -229,21 +224,34 @@ function useCommonsImages(q?: string) {
     }
     (async () => {
       try {
-        const res = await fetch(
+        console.log(`[IMAGES] Fetching images for: ${q}`);
+        // Temporairement désactiver le cache global pour debug
+        const response = await fetch(
           `/api/images?q=${encodeURIComponent(q)}&cache=refresh`,
           {
             cache: "no-store",
           }
         );
-        const json = await res.json();
+        const json = await response.json();
+        console.log(`[IMAGES] Received data:`, json);
         if (stop) return;
         const list = (json?.images || []) as Array<{
           url: string;
           original?: string;
         }>;
+        console.log(`[IMAGES] Processed ${list.length} images:`, list);
         setImgs(list.map((x) => x.original || x.url)); // grandes images
         setThumbs(list.map((x) => x.url)); // miniatures
-      } catch {
+        console.log(
+          `[IMAGES] Set imgs:`,
+          list.map((x) => x.original || x.url)
+        );
+        console.log(
+          `[IMAGES] Set thumbs:`,
+          list.map((x) => x.url)
+        );
+      } catch (error: any) {
+        console.error(`[IMAGES] Error fetching images:`, error);
         if (!stop) {
           setImgs([]);
           setThumbs([]);
@@ -268,11 +276,13 @@ function AircraftCard({
   imgs,
   thumbs,
   onClear,
+  imagesLoading = false,
 }: {
   data: ReturnType<typeof normalizeAircraft>;
   imgs: string[];
   thumbs: string[];
   onClear: () => void;
+  imagesLoading?: boolean;
 }) {
   // Plus aucun fetch ici : on consomme les images déjà prêtes
   const gallery = uniq((imgs || []).filter(isWiki)).slice(0, 4);
@@ -383,11 +393,21 @@ function AircraftCard({
 
       {/* === GALERIE === */}
       <div className="mt-6">
-        {current && (
+        {imagesLoading ? (
+          // Skeleton pour les images en cours de chargement
+          <div className="w-full h-[240px] sm:h-[300px] md:h-[350px] bg-gray-100 rounded-2xl animate-pulse">
+            <div className="w-full h-full flex items-center justify-center">
+              <div className="text-center">
+                <div className="animate-spin rounded-full h-8 w-8 border-2 border-gray-300 border-t-blue-600 mx-auto mb-3"></div>
+                <p className="text-gray-600 text-sm">Loading images</p>
+              </div>
+            </div>
+          </div>
+        ) : current ? (
           <button
             type="button"
             onClick={() => setLightbox(idx)}
-            className="block w-full"
+            className="block w-full group"
             aria-label="Open image"
           >
             <div className="w-full rounded-2xl overflow-hidden">
@@ -403,8 +423,12 @@ function AircraftCard({
               />
             </div>
           </button>
+        ) : (
+          <div className="w-full h-[240px] sm:h-[300px] md:h-[350px] bg-gray-100 rounded-2xl flex items-center justify-center">
+            <p className="text-gray-600">Loading images....</p>
+          </div>
         )}
-        {galleryThumbs.length > 0 && (
+        {!imagesLoading && galleryThumbs.length > 0 && (
           <div className="mt-3 grid grid-cols-2 sm:grid-cols-4 gap-3">
             {galleryThumbs.map((url, i) => (
               <button

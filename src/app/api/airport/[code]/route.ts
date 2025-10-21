@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { correctFlightStatus } from "@/lib/flightStatusRules";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -301,6 +302,23 @@ function normalizeFids(u: any, direction: Direction = "departures") {
       x?.departure?.terminal || x?.arrival?.terminal || x?.terminal || "";
     const gateInfo = gate || terminal || "";
 
+    // Appliquer les règles de correction de statut
+    const flightData = {
+      status: statusText,
+      departure: {
+        scheduledTime: direction === "departures" ? time : undefined,
+        actualTime: direction === "departures" ? time : undefined,
+      },
+      arrival: {
+        scheduledTime: direction === "arrivals" ? time : undefined,
+        estimatedTime: direction === "arrivals" ? time : undefined,
+        actualTime: direction === "arrivals" ? time : undefined,
+      },
+    };
+
+    const correctedFlight = correctFlightStatus(flightData);
+    const finalStatus = correctedFlight.status;
+
     return {
       id: String(x?.id || `${number}-${time}-${Math.random()}`),
       number: number || iata || icao,
@@ -309,7 +327,7 @@ function normalizeFids(u: any, direction: Direction = "departures") {
       from: direction === "arrivals" ? airportCode : "",
       airportName: airportName,
       reg,
-      status: statusText,
+      status: finalStatus,
       time,
       gate: gateInfo,
     };

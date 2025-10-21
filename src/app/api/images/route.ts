@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { getAircraftData } from "@/lib/globalApiCache";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -149,6 +150,12 @@ export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
   const force = searchParams.get("cache") === "refresh";
 
+  console.log(`[IMAGES-API] Request received:`, {
+    url: req.url,
+    searchParams: Object.fromEntries(searchParams.entries()),
+    force,
+  });
+
   // Mode A: airline+model fournis
   let airline = (searchParams.get("airline") || "").trim();
   let model = (searchParams.get("model") || "").trim();
@@ -165,6 +172,7 @@ export async function GET(req: Request) {
       if (cached) return cached;
 
       try {
+        // Appel direct à l'API des avions au lieu du cache global
         const resp = await fetch(`${baseUrl}/api/aircraft/${reg}`, {
           cache: "no-store",
         });
@@ -179,9 +187,18 @@ export async function GET(req: Request) {
 
     airline = ac?.airlineName || ac?.operator || "";
     model = ac?.model || ac?.typeName || ac?.aircraftModel || "";
+
+    console.log(`[IMAGES-API] Aircraft data for ${reg}:`, {
+      airline,
+      model,
+      rawData: ac,
+    });
   }
 
   if (!airline && !model) {
+    console.log(
+      `[IMAGES-API] No airline/model found for ${reg}, returning empty images`
+    );
     return NextResponse.json({ images: [] });
   }
 
@@ -192,18 +209,30 @@ export async function GET(req: Request) {
   const payload = await coalesce(key, async () => {
     if (!force) {
       const cached = getCache<{ images: Img[] }>(keyBase);
-      if (cached) return cached;
+      if (cached) {
+        console.log(`[CACHE] hit images ${keyBase}`);
+        return cached;
+      }
     }
+
+    console.log(`[CACHE] fetching images for ${keyBase}`);
 
     // === 1 seule requête Wikimedia (Airline + Modèle normalisé) ===
     const query = `"${airline}" "${family || model}"`.trim();
+    console.log(`[IMAGES-API] Searching Wikimedia with query: "${query}"`);
     let images = await fetchCommonsSingle(query);
+    console.log(`[IMAGES-API] Found ${images.length} images from Wikimedia`);
 
     // Nettoyage
     images = filterWide(dedupe(images)).slice(0, 12);
 
     const out = { images };
     setCache(keyBase, out, IMAGES_TTL_MS);
+    console.log(
+      `[CACHE] stored images ${keyBase} for ${Math.floor(
+        IMAGES_TTL_MS / (1000 * 60 * 60)
+      )}h`
+    );
     return out;
   });
 

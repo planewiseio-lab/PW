@@ -128,3 +128,4 @@ GRANT ALL ON public.profiles TO anon, authenticated;
 GRANT ALL ON public.user_subscriptions TO anon, authenticated;
 GRANT ALL ON public.api_requests TO anon, authenticated;
 
+

@@ -1,11 +1,26 @@
 import { NextRequest, NextResponse } from "next/server";
+import {
+  correctFlightStatus,
+  logStatusCorrection,
+} from "@/lib/flightStatusRules";
 
 const AERODATABOX_API_KEY =
   process.env.AERODATABOX_API_KEY || process.env.RAPID_KEY;
 const AERODATABOX_BASE_URL = "https://aerodatabox.p.rapidapi.com";
 
-// Cache simple en mémoire (en production, utiliser Redis)
+// Cache optimisé avec TTL et nettoyage automatique
 const cache = new Map<string, { data: any; timestamp: number; ttl: number }>();
+const pendingRequests = new Map<string, Promise<any>>();
+
+// Nettoyer le cache toutes les 10 minutes
+setInterval(() => {
+  const now = Date.now();
+  for (const [key, value] of cache.entries()) {
+    if (now - value.timestamp > value.ttl) {
+      cache.delete(key);
+    }
+  }
+}, 10 * 60 * 1000);
 
 // Fonction de calcul de distance Haversine
 function haversineKm(
@@ -45,35 +60,67 @@ function setCache(key: string, data: string, ttl: number): void {
   });
 }
 
-// Fonction pour appeler AeroDataBox
+// Fonction pour appeler AeroDataBox avec timeout et déduplication
 async function callAero(
   path: string
 ): Promise<{ ok: boolean; status: number; text: string; url: string }> {
   const url = `${AERODATABOX_BASE_URL}${path}`;
-  try {
-    const response = await fetch(url, {
-      method: "GET",
-      headers: {
-        "X-RapidAPI-Key": AERODATABOX_API_KEY!,
-        "X-RapidAPI-Host": "aerodatabox.p.rapidapi.com",
-      },
-    });
 
-    const text = await response.text();
-    return {
-      ok: response.ok,
-      status: response.status,
-      text,
-      url,
-    };
-  } catch (error) {
-    return {
-      ok: false,
-      status: 500,
-      text: JSON.stringify({ error: "Network error" }),
-      url,
-    };
+  // Déduplication des requêtes identiques
+  if (pendingRequests.has(url)) {
+    return pendingRequests.get(url);
   }
+
+  const requestPromise = (async () => {
+    try {
+      // Timeout de 15 secondes
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 15000);
+
+      const response = await fetch(url, {
+        method: "GET",
+        headers: {
+          "X-RapidAPI-Key": AERODATABOX_API_KEY!,
+          "X-RapidAPI-Host": "aerodatabox.p.rapidapi.com",
+        },
+        signal: controller.signal,
+      });
+
+      clearTimeout(timeoutId);
+      const text = await response.text();
+
+      return {
+        ok: response.ok,
+        status: response.status,
+        text,
+        url,
+      };
+    } catch (error: any) {
+      if (error.name === "AbortError") {
+        return {
+          ok: false,
+          status: 408,
+          text: JSON.stringify({ error: "Request timeout" }),
+          url,
+        };
+      }
+      return {
+        ok: false,
+        status: 500,
+        text: JSON.stringify({ error: "Network error" }),
+        url,
+      };
+    }
+  })();
+
+  pendingRequests.set(url, requestPromise);
+
+  // Nettoyer après completion
+  requestPromise.finally(() => {
+    pendingRequests.delete(url);
+  });
+
+  return requestPromise;
 }
 
 export async function GET(
@@ -110,18 +157,17 @@ export async function GET(
       );
     }
 
-    // Clé de cache (seulement pour les dates passées/récentes)
+    // Clé de cache optimisée
     const isHistoricalDate = dateLocal && new Date(dateLocal) < new Date();
     const cacheKey = `flight:${numberRaw}:${dateLocal || "today"}`;
 
-    // Ne pas utiliser le cache pour les dates futures
-    if (isHistoricalDate) {
-      const cached = getCache(cacheKey);
-      if (cached) {
-        const response = NextResponse.json(JSON.parse(cached));
-        response.headers.set("X-Cache", "HIT");
-        return response;
-      }
+    // Vérifier le cache pour toutes les dates (avec TTL différent)
+    const cached = getCache(cacheKey);
+    if (cached) {
+      const response = NextResponse.json(JSON.parse(cached));
+      response.headers.set("X-Cache", "HIT");
+      response.headers.set("Cache-Control", "public, max-age=300"); // 5 minutes
+      return response;
     }
 
     // Essayer plusieurs endpoints AeroDataBox (fallback)
@@ -215,84 +261,34 @@ export async function GET(
 
     // Logique métier : Corriger les statuts obsolètes
     let correctedStatus = f?.status || "Unknown";
-    const scheduledArrival = f?.arrival?.scheduledTime?.local;
-    const scheduledDeparture = f?.departure?.scheduledTime?.local;
+    // Utiliser les règles centralisées pour corriger le statut
+    const flightData = {
+      status: correctedStatus,
+      departure: {
+        scheduledTime: f?.departure?.scheduledTime?.local,
+        actualTime: f?.departure?.actualTime?.local,
+      },
+      arrival: {
+        scheduledTime: f?.arrival?.scheduledTime?.local,
+        estimatedTime: f?.arrival?.estimatedTime?.local,
+        actualTime: f?.arrival?.actualTime?.local,
+      },
+    };
 
-    if (scheduledArrival) {
-      try {
-        const scheduledTime = new Date(scheduledArrival);
-        const now = new Date();
-        const hoursDiff =
-          (now.getTime() - scheduledTime.getTime()) / (1000 * 60 * 60);
+    const correctedFlight = correctFlightStatus(flightData);
+    if (correctedFlight.status !== correctedStatus) {
+      const now = new Date();
+      const departureTime =
+        f?.departure?.actualTime?.local || f?.departure?.scheduledTime?.local;
+      const hoursDiff = departureTime
+        ? (now.getTime() - new Date(departureTime).getTime()) / (1000 * 60 * 60)
+        : 0;
 
-        // Logique de correction des statuts
-        if (correctedStatus.toLowerCase() === "approaching" && hoursDiff > 4) {
-          correctedStatus = "Arrived";
-          console.log(
-            `[Flight Logic] Status corrected from "Approaching" to "Arrived" for ${numberRaw} (${hoursDiff.toFixed(
-              1
-            )}h late)`
-          );
-        } else if (
-          correctedStatus.toLowerCase() === "in flight" &&
-          hoursDiff > 4
-        ) {
-          correctedStatus = "Arrived";
-          console.log(
-            `[Flight Logic] Status corrected from "In Flight" to "Arrived" for ${numberRaw} (${hoursDiff.toFixed(
-              1
-            )}h late)`
-          );
-        } else if (
-          correctedStatus.toLowerCase() === "departed" &&
-          hoursDiff > 4
-        ) {
-          correctedStatus = "Arrived";
-          console.log(
-            `[Flight Logic] Status corrected from "Departed" to "Arrived" for ${numberRaw} (${hoursDiff.toFixed(
-              1
-            )}h late)`
-          );
-        } else if (
-          correctedStatus.toLowerCase() === "expected" &&
-          hoursDiff > 4
-        ) {
-          correctedStatus = "Arrived";
-          console.log(
-            `[Flight Logic] Status corrected from "Expected" to "Arrived" for ${numberRaw} (${hoursDiff.toFixed(
-              1
-            )}h late)`
-          );
-        }
-      } catch (error) {
-        console.log(
-          `[Flight Logic] Could not parse scheduled arrival time: ${scheduledArrival}`
-        );
-      }
+      logStatusCorrection(correctedStatus, numberRaw, hoursDiff);
+      correctedStatus = correctedFlight.status;
     }
 
-    // Logique pour les vols qui n'ont pas encore décollé mais sont très en retard
-    if (scheduledDeparture && correctedStatus.toLowerCase() === "scheduled") {
-      try {
-        const scheduledTime = new Date(scheduledDeparture);
-        const now = new Date();
-        const hoursDiff =
-          (now.getTime() - scheduledTime.getTime()) / (1000 * 60 * 60);
-
-        if (hoursDiff > 12) {
-          correctedStatus = "Delayed";
-          console.log(
-            `[Flight Logic] Status corrected from "Scheduled" to "Delayed" for ${numberRaw} (${hoursDiff.toFixed(
-              1
-            )}h late)`
-          );
-        }
-      } catch (error) {
-        console.log(
-          `[Flight Logic] Could not parse scheduled departure time: ${scheduledDeparture}`
-        );
-      }
-    }
+    // Note: Les règles de statut sont maintenant gérées par la fonction centralisée correctFlightStatus
 
     // Normalisation des données (structure stable)
     const payload = {
@@ -352,13 +348,15 @@ export async function GET(
 
     const textOut = JSON.stringify(payload);
 
-    // Cache avec TTL de 5 minutes (seulement pour les dates historiques)
-    if (isHistoricalDate) {
-      setCache(cacheKey, textOut, 5 * 60 * 1000);
-    }
+    // Cache optimisé avec TTL adaptatif
+    const ttl = isHistoricalDate ? 10 * 60 * 1000 : 2 * 60 * 1000; // 10min pour historique, 2min pour futur
+    setCache(cacheKey, textOut, ttl);
 
     const response = NextResponse.json(payload);
-    response.headers.set("Cache-Control", "no-store");
+    response.headers.set(
+      "Cache-Control",
+      `public, max-age=${Math.floor(ttl / 1000)}`
+    );
     response.headers.set("X-Cache", "MISS");
 
     return response;

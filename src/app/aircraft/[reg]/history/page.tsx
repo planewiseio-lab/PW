@@ -4,6 +4,7 @@ import { motion } from "framer-motion";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { correctFlightsStatus } from "@/lib/flightStatusRules";
 
 interface FlightHistory {
   number: string;
@@ -80,49 +81,30 @@ export default function AircraftHistoryPage() {
 
         const data = await response.json();
 
-        // Appliquer la logique de correction de statut
+        // Appliquer les règles centralisées de correction de statut
         if (data.flights) {
-          const correctedFlights = data.flights.map((flight: FlightHistory) => {
-            const now = new Date();
-            const departureTime = new Date(flight.departure.scheduledTime);
-            const hoursSinceDeparture =
-              (now.getTime() - departureTime.getTime()) / (1000 * 60 * 60);
+          const flightDataArray = data.flights.map((flight: FlightHistory) => ({
+            status: flight.status,
+            departure: {
+              scheduledTime: flight.departure.scheduledTime,
+              actualTime: flight.departure.actualTime,
+            },
+            arrival: {
+              scheduledTime: flight.arrival.scheduledTime,
+              estimatedTime: flight.arrival.estimatedTime,
+              actualTime: flight.arrival.actualTime,
+            },
+          }));
 
-            // Logique de correction de statut (harmonisée avec l'API)
-            let shouldChangeToArrived = false;
+          const correctedFlightData = correctFlightsStatus(flightDataArray);
 
-            // Vérifier si le vol a une arrivée prévue
-            if (
-              flight.arrival.scheduledTime &&
-              flight.arrival.scheduledTime !== "N/A" &&
-              flight.arrival.scheduledTime !== ""
-            ) {
-              // Cas 1: Arrivée prévue ET arrivée dépassée depuis plus de 4h
-              const arrivalTime = new Date(flight.arrival.scheduledTime);
-              const hoursSinceArrival =
-                (now.getTime() - arrivalTime.getTime()) / (1000 * 60 * 60);
-              shouldChangeToArrived = hoursSinceArrival > 4;
-            } else {
-              // Cas 2: Pas d'arrivée prévue ET départ il y a plus de 20h
-              shouldChangeToArrived = hoursSinceDeparture > 20;
-            }
-
-            if (
-              shouldChangeToArrived &&
-              (flight.status.toLowerCase() === "departed" ||
-                flight.status.toLowerCase() === "expected" ||
-                flight.status.toLowerCase() === "in flight" ||
-                flight.status.toLowerCase() === "approaching")
-            ) {
-              return {
-                ...flight,
-                status: "Arrived",
-              };
-            }
-            return flight;
-          });
-
-          data.flights = correctedFlights;
+          // Appliquer les corrections aux vols originaux
+          data.flights = data.flights.map(
+            (flight: FlightHistory, index: number) => ({
+              ...flight,
+              status: correctedFlightData[index].status,
+            })
+          );
         }
 
         setFlightHistory(data);
@@ -564,7 +546,9 @@ export default function AircraftHistoryPage() {
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
-                        router.push(`/flight/${flight.number}?date=${flight.date}`);
+                        router.push(
+                          `/flight/${flight.number}?date=${flight.date}`
+                        );
                       }}
                       className="text-blue-600 hover:text-blue-700 font-medium group-hover:underline"
                     >

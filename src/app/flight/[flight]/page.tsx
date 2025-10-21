@@ -1,9 +1,10 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import FlightCard from "@/components/FlightCard";
 import { motion, AnimatePresence } from "framer-motion";
+import { fetchFlightData } from "@/lib/flightRequestDeduplication";
 
 // Skeleton pour la page de détail d'un vol
 function FlightDetailSkeleton() {
@@ -106,6 +107,7 @@ export default function FlightPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const flightNumber = params.flight as string;
+  const abortControllerRef = useRef<AbortController | null>(null);
 
   const [flightData, setFlightData] = useState<FlightData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -115,26 +117,39 @@ export default function FlightPage() {
     return today.toISOString().split("T")[0];
   });
 
-  const fetchFlightData = async (flight: string, date: string) => {
+  const loadFlightData = async (flight: string, date: string) => {
     try {
       setLoading(true);
       setError(null);
 
-      const response = await fetch(`/api/flights/${flight}?dateLocal=${date}`);
-
-      if (!response.ok) {
-        throw new Error("Failed to fetch flight data");
+      // Annuler la requête précédente si elle existe
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
       }
 
-      const data = await response.json();
+      // Créer un nouveau AbortController
+      abortControllerRef.current = new AbortController();
+
+      const data = await fetchFlightData(
+        flight,
+        date,
+        abortControllerRef.current.signal
+      );
 
       if (data && !data.error) {
         setFlightData(data);
       } else {
         setError(data.error || "No flight data found for the selected date");
       }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "An error occurred");
+    } catch (err: any) {
+      if (err.name === "AbortError") {
+        // Requête annulée, ne pas afficher d'erreur
+        return;
+      } else if (err.name === "AbortError" && err.message.includes("timeout")) {
+        setError("Request timeout - please try again");
+      } else {
+        setError(err instanceof Error ? err.message : "An error occurred");
+      }
     } finally {
       setLoading(false);
     }
@@ -142,9 +157,18 @@ export default function FlightPage() {
 
   useEffect(() => {
     if (flightNumber) {
-      fetchFlightData(flightNumber, searchDate);
+      loadFlightData(flightNumber, searchDate);
     }
   }, [flightNumber, searchDate]);
+
+  // Nettoyer les requêtes en cours lors du démontage
+  useEffect(() => {
+    return () => {
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+    };
+  }, []);
 
   // Écouter les changements de paramètres d'URL
   useEffect(() => {
@@ -156,6 +180,9 @@ export default function FlightPage() {
 
   const handleDateChange = (newDate: string) => {
     setSearchDate(newDate);
+    if (flightNumber) {
+      loadFlightData(flightNumber, newDate);
+    }
   };
 
   // Vérifier si la date est dans le futur
