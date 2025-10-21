@@ -7,6 +7,7 @@ import { useImagesReady } from "@/hooks/useImagesReady";
 import StructuredData from "@/components/StructuredData";
 import { getImagesData } from "@/lib/globalApiCache";
 import { useAircraftData } from "@/hooks/useAircraftData";
+import { createClient } from "@/lib/supabase/client";
 
 /* ==========================================================
    TYPES & HELPERS GÉNÉRAUX
@@ -292,6 +293,179 @@ function AircraftCard({
   const current = gallery[idx] || gallery[0];
   const [lightbox, setLightbox] = useState<number | null>(null);
 
+  // États pour le bouton favoris
+  const [isAddingToFavorites, setIsAddingToFavorites] = useState(false);
+  const [favoriteAdded, setFavoriteAdded] = useState(false);
+  const [favoriteRemoved, setFavoriteRemoved] = useState(false);
+  const [user, setUser] = useState<any>(null);
+  const [showTooltip, setShowTooltip] = useState(false);
+  const [isHovering, setIsHovering] = useState(false);
+  const [isAlreadyFavorite, setIsAlreadyFavorite] = useState(false);
+
+  // Vérifier si l'utilisateur est connecté et si l'avion est déjà en favori
+  useEffect(() => {
+    const getUserAndCheckFavorite = async () => {
+      try {
+        const supabase = createClient();
+        const {
+          data: { user },
+        } = await supabase.auth.getUser();
+        setUser(user);
+
+        // Si l'utilisateur est connecté, vérifier si cet avion est déjà en favori
+        if (user && data?.registration) {
+          const { data: favorites, error } = await supabase
+            .from("user_favorites")
+            .select("id")
+            .eq("user_id", user.id)
+            .eq("aircraft_registration", data.registration)
+            .limit(1);
+
+          if (!error && favorites && favorites.length > 0) {
+            setIsAlreadyFavorite(true);
+          }
+        }
+      } catch (error) {
+        console.error("Error getting user or checking favorites:", error);
+      }
+    };
+    getUserAndCheckFavorite();
+  }, [data?.registration]);
+
+  // Afficher le tooltip après 7 secondes de consultation
+  useEffect(() => {
+    if (!user) return; // Seulement pour les utilisateurs connectés
+
+    const timer = setTimeout(() => {
+      if (!isHovering) {
+        // Ne pas afficher si l'utilisateur survole déjà le cœur
+        setShowTooltip(true);
+      }
+    }, 7000); // 7 secondes
+
+    return () => clearTimeout(timer);
+  }, [user, isHovering]);
+
+  // Masquer le tooltip après 10 secondes
+  useEffect(() => {
+    if (showTooltip) {
+      const timer = setTimeout(() => {
+        setShowTooltip(false);
+      }, 10000);
+      return () => clearTimeout(timer);
+    }
+  }, [showTooltip]);
+
+  // Fonction pour ajouter/retirer des favoris
+  const toggleFavorite = async () => {
+    if (!user) {
+      // Rediriger vers la page de connexion avec un message
+      alert("Please login or register to add aircraft to your favorites!");
+      window.location.href = "/login";
+      return;
+    }
+
+    // Si déjà en favori, le retirer
+    if (isAlreadyFavorite) {
+      await removeFromFavorites();
+      return;
+    }
+
+    // Sinon, l'ajouter
+    await addToFavorites();
+  };
+
+  // Fonction pour ajouter aux favoris
+  const addToFavorites = async () => {
+    setIsAddingToFavorites(true);
+
+    try {
+      const supabase = createClient();
+
+      console.log("Attempting to insert favorite:", {
+        user_id: user.id,
+        aircraft_registration: data.registration,
+        aircraft_type: data.typeName || "Unknown",
+        aircraft_airline: data.airlineName || "Unknown",
+      });
+
+      const { data: insertData, error } = await supabase
+        .from("user_favorites")
+        .insert({
+          user_id: user.id,
+          aircraft_registration: data.registration,
+          aircraft_type: data.typeName || "Unknown",
+          aircraft_airline: data.airlineName || "Unknown",
+          aircraft_manufacturer: data.manufacturer || "Unknown",
+          aircraft_model: data.model || "Unknown",
+          aircraft_seats: data.seats || null,
+          aircraft_age: data.ageYears
+            ? Math.floor(parseFloat(data.ageYears.toString()))
+            : null,
+          aircraft_engines: data.engines || null,
+          aircraft_hex: data.hexIcao || null,
+        })
+        .select();
+
+      console.log("Insert result:", { insertData, error });
+
+      if (error) {
+        console.error("Error adding to favorites:", error);
+        alert(`Error adding to favorites: ${error.message}`);
+        return;
+      }
+
+      console.log("Successfully added to favorites:", insertData);
+      setIsAlreadyFavorite(true);
+      setFavoriteAdded(true);
+      setTimeout(() => setFavoriteAdded(false), 3000);
+    } catch (error: any) {
+      console.error("Error adding to favorites:", error);
+      alert(`Error adding to favorites: ${error.message}`);
+    } finally {
+      setIsAddingToFavorites(false);
+    }
+  };
+
+  // Fonction pour retirer des favoris
+  const removeFromFavorites = async () => {
+    setIsAddingToFavorites(true);
+
+    try {
+      const supabase = createClient();
+
+      console.log("Removing favorite:", {
+        user_id: user.id,
+        aircraft_registration: data.registration,
+      });
+
+      const { error } = await supabase
+        .from("user_favorites")
+        .delete()
+        .eq("user_id", user.id)
+        .eq("aircraft_registration", data.registration);
+
+      console.log("Remove result:", { error });
+
+      if (error) {
+        console.error("Error removing from favorites:", error);
+        alert(`Error removing from favorites: ${error.message}`);
+        return;
+      }
+
+      console.log("Successfully removed from favorites");
+      setIsAlreadyFavorite(false);
+      setFavoriteAdded(false);
+      setFavoriteRemoved(true);
+      setTimeout(() => setFavoriteRemoved(false), 3000);
+    } catch (error: any) {
+      console.error("Error removing from favorites:", error);
+      alert(`Error removing from favorites: ${error.message}`);
+    } finally {
+      setIsAddingToFavorites(false);
+    }
+  };
+
   /* Gestion du lightbox */
   useEffect(() => {
     const prev = document.body.style.overflow;
@@ -335,13 +509,121 @@ function AircraftCard({
           </p>
         </div>
 
-        <a
-          href={`/aircraft/${encodeURIComponent(data.registration)}/history`}
-          className="inline-flex items-center justify-center rounded-xl px-3.5 py-2 text-sm font-semibold bg-brand-600 text-white shadow-sm hover:bg-brand-700"
-        >
-          View flight history
-        </a>
+        <div className="flex items-center gap-3">
+          {/* Cœur Favoris avec tooltip */}
+          <div className="relative">
+            <button
+              onClick={toggleFavorite}
+              onMouseEnter={() => setIsHovering(true)}
+              onMouseLeave={() => setIsHovering(false)}
+              disabled={isAddingToFavorites}
+              className={`relative inline-flex items-center justify-center w-12 h-12 rounded-full transition-all duration-200 border-2 ${
+                favoriteRemoved
+                  ? "bg-red-100 text-red-600 border-red-200"
+                  : favoriteAdded || isAlreadyFavorite
+                  ? "bg-green-100 text-green-600 border-green-200"
+                  : user
+                  ? "bg-white text-gray-600 border-gray-200 hover:bg-red-50 hover:text-red-600 hover:border-red-200"
+                  : "bg-white text-gray-400 border-gray-200 hover:bg-gray-50"
+              } ${
+                isAddingToFavorites
+                  ? "opacity-50 cursor-not-allowed"
+                  : "cursor-pointer shadow-sm hover:shadow-md"
+              }`}
+              title={
+                isAlreadyFavorite
+                  ? "Remove from favorites"
+                  : user
+                  ? "Add to your personal fleet"
+                  : "Login to add to favorites"
+              }
+            >
+              {isAddingToFavorites ? (
+                <svg
+                  className="w-5 h-5 animate-spin"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                >
+                  <circle
+                    className="opacity-25"
+                    cx="12"
+                    cy="12"
+                    r="10"
+                    stroke="currentColor"
+                    strokeWidth="4"
+                  ></circle>
+                  <path
+                    className="opacity-75"
+                    fill="currentColor"
+                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                  ></path>
+                </svg>
+              ) : favoriteRemoved ? (
+                <svg
+                  className="w-5 h-5"
+                  fill="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              ) : favoriteAdded || isAlreadyFavorite ? (
+                <svg
+                  className="w-5 h-5"
+                  fill="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" />
+                </svg>
+              ) : (
+                <svg
+                  className="w-5 h-5"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"
+                  />
+                </svg>
+              )}
+            </button>
+          </div>
+
+          <a
+            href={`/aircraft/${encodeURIComponent(data.registration)}/history`}
+            className="inline-flex items-center justify-center rounded-xl px-3.5 py-2 text-sm font-semibold bg-brand-600 text-white shadow-sm hover:bg-brand-700"
+          >
+            View flight history
+          </a>
+        </div>
       </div>
+
+      {/* Tooltip bulle d'information - Positionné dans la zone vide */}
+      {showTooltip && user && (
+        <div className="absolute top-4 left-1/2 transform -translate-x-1/2 z-50">
+          <div className="relative bg-white border border-gray-200 text-gray-800 text-sm px-4 py-3 rounded-xl shadow-xl max-w-xs animate-in fade-in slide-in-from-top-2 duration-300">
+            <div className="flex items-center gap-2">
+              <svg
+                className="w-4 h-4 text-red-500 flex-shrink-0"
+                fill="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" />
+              </svg>
+              <span className="font-semibold text-gray-900">
+                Add me to your personal fleet
+              </span>
+            </div>
+            <p className="text-gray-600 text-xs mt-1">to follow me anytime</p>
+
+            {/* Flèche du tooltip pointant vers le cœur */}
+            <div className="absolute -bottom-1 right-4 w-2 h-2 bg-white border-l border-b border-gray-200 transform rotate-45"></div>
+          </div>
+        </div>
+      )}
 
       {/* === TABLEAU DE SPÉCIFICATIONS === */}
       <dl className="mt-4 grid sm:grid-cols-2 gap-x-12 gap-y-1.5 text-[15px] leading-[1.3]">

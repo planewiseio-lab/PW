@@ -64,6 +64,16 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
+  // Ignorer les images externes (Wikimedia, etc.) - laisser passer directement
+  if (
+    url.hostname.includes("wikimedia.org") ||
+    url.hostname.includes("upload.wikimedia.org") ||
+    url.hostname.includes("commons.wikimedia.org") ||
+    url.pathname.match(/\.(jpg|jpeg|png|gif|webp|svg)$/i)
+  ) {
+    return; // Laisser passer sans interception
+  }
+
   // Stratégie Cache First pour les assets statiques
   if (STATIC_ASSETS.some((asset) => url.pathname === asset)) {
     event.respondWith(
@@ -163,7 +173,3 @@ async function cleanupCache() {
     }
   }
 }
-
-
-
-

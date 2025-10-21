@@ -3,12 +3,17 @@ import type { Metadata } from "next";
 import Head from "next/head";
 import AOSInit from "@/components/AOSInit";
 import SearchHeader from "@/components/SearchHeader";
+import AuthButton from "@/components/AuthButton";
 import ClientTransition from "@/components/ClientTransition";
 import Footer from "@/components/layout/Footer";
 import ScrollToTop from "@/components/layout/ScrollToTop";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import PWASetup from "@/components/PWASetup";
 import StructuredData from "@/components/StructuredData";
+import ClientGlobalLogoutModal from "@/components/ClientGlobalLogoutModal";
+import AuthErrorHandler from "@/components/AuthErrorHandler";
+import UserDeletedHandler from "@/components/UserDeletedHandler";
+import SupabaseErrorHandler from "@/components/SupabaseErrorHandler";
 import { Comfortaa } from "next/font/google";
 
 export const comfortaa = Comfortaa({
@@ -147,12 +152,7 @@ export default function RootLayout({
                 Pricing
               </a>
             </nav>
-            <a
-              href="/dashboard"
-              className="rounded-full bg-[#178cf2] text-white px-4 py-1.5 text-sm font-semibold shadow hover:brightness-110"
-            >
-              Dashboard
-            </a>
+            <AuthButton />
           </div>
         </header>
         {/* Barre de recherche compacte, affichée hors page d’accueil */}
@@ -173,6 +173,14 @@ export default function RootLayout({
         <Footer />
         {/* Bouton scroll to top */}
         <ScrollToTop />
+        {/* Modal global de déconnexion */}
+        <ClientGlobalLogoutModal />
+        {/* Gestionnaire d'erreurs d'authentification */}
+        <AuthErrorHandler />
+        {/* Gestionnaire de suppression d'utilisateur */}
+        <UserDeletedHandler />
+        {/* Gestionnaire d'erreurs Supabase */}
+        <SupabaseErrorHandler />
       </body>
     </html>
   );

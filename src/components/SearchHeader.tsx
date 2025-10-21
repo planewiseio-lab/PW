@@ -23,6 +23,12 @@ export default function SearchHeader() {
   const [isMounted, setIsMounted] = useState(false);
   const [isPending, startTransition] = useTransition();
   const isHome = pathname === "/";
+  const isAuthPage =
+    pathname === "/login" ||
+    pathname === "/register" ||
+    pathname === "/dashboard" ||
+    pathname === "/reset-password" ||
+    pathname === "/account-settings";
 
   // Éviter les différences d'hydration
   useEffect(() => {
@@ -55,8 +61,8 @@ export default function SearchHeader() {
     });
   };
 
-  // Pas de SearchHeader sur la home
-  if (isHome) return null;
+  // Pas de SearchHeader sur la home et les pages d'auth
+  if (isHome || isAuthPage) return null;
 
   // Éviter les différences d'hydration - rendu initial avec transition
   if (!isMounted) {
