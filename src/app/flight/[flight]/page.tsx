@@ -121,6 +121,7 @@ export default function FlightPage() {
     try {
       setLoading(true);
       setError(null);
+      setFlightData(null); // Réinitialiser les données
 
       // Annuler la requête précédente si elle existe
       if (abortControllerRef.current) {
@@ -157,7 +158,12 @@ export default function FlightPage() {
 
   useEffect(() => {
     if (flightNumber) {
-      loadFlightData(flightNumber, searchDate);
+      // Petit délai pour éviter les requêtes trop rapides
+      const timer = setTimeout(() => {
+        loadFlightData(flightNumber, searchDate);
+      }, 100);
+
+      return () => clearTimeout(timer);
     }
   }, [flightNumber, searchDate]);
 
@@ -218,6 +224,9 @@ export default function FlightPage() {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
             >
+              <div className="text-center text-gray-500 mb-4">
+                Chargement des données du vol {flightNumber}...
+              </div>
               <FlightDetailSkeleton />
             </motion.div>
           )}
