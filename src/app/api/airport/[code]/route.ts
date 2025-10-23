@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { correctFlightStatus } from "@/lib/flightStatusRules";
+import { withAirportBrowseAccess } from "@/lib/withActionAccess";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -17,128 +18,127 @@ function bool(v: string | null | undefined, d = false) {
   return v === "1" || v === "true";
 }
 
-export async function GET(
-  req: Request,
-  ctx: { params: Promise<{ code: string }> }
-) {
-  // Check for required API key
-  const apiKey = process.env.AIRREG_API_KEY || process.env.RAPID_KEY;
-  if (!apiKey) {
-    return NextResponse.json(
-      { error: "Missing AIRREG_API_KEY environment variable" },
-      { status: 500 }
-    );
-  }
-
-  const { code } = await ctx.params;
-  const url = new URL(req.url);
-
-  // Check if requesting airport info (TIER 1)
-  const infoOnly = url.searchParams.get("info") === "true";
-  if (infoOnly) {
-    return getAirportInfo(code, apiKey);
-  }
-
-  // Tier 2 relative-time FIDS endpoint
-  const dir = (url.searchParams.get("dir") as Direction) || "departures";
-  // Réduire la plage horaire pour accélérer les requêtes
-  const hoursBefore = Math.max(
-    0,
-    Math.min(6, Number(url.searchParams.get("before") || 1))
-  );
-  const hoursAfter = Math.max(
-    0,
-    Math.min(6, Number(url.searchParams.get("after") || 1))
-  );
-  const withCancelled = bool(url.searchParams.get("cancelled"), true);
-  const withCodeshared = bool(url.searchParams.get("codeshared"), true);
-  const withLocation = bool(url.searchParams.get("location"), true);
-
-  // Pagination pour optimiser le chargement
-  const limit = Number(url.searchParams.get("limit")) || 20;
-  const offset = Number(url.searchParams.get("offset")) || 0;
-
-  const codeType = detectCodeType(code);
-  const base =
-    process.env.AIRREG_API_BASE || "https://aerodatabox.p.rapidapi.com";
-  const upstream = new URL(
-    `${base}/flights/airports/${codeType}/${encodeURIComponent(code)}`
-  );
-  upstream.searchParams.set(
-    "direction",
-    dir === "departures" ? "Departure" : "Arrival"
-  );
-  upstream.searchParams.set("withCancelled", String(withCancelled));
-  upstream.searchParams.set("withCodeshared", String(withCodeshared));
-  upstream.searchParams.set("withLocation", String(withLocation));
-  upstream.searchParams.set("withCargoOnly", "false");
-  upstream.searchParams.set("withPrivateOnly", "false");
-  upstream.searchParams.set("withLeg", "false"); // Désactiver pour accélérer
-  upstream.searchParams.set("withAircraftImage", "false");
-  upstream.searchParams.set("withVirtual", "false"); // Désactiver pour accélérer
-  upstream.searchParams.set("withTimeSummaries", "false");
-  upstream.searchParams.set("hoursBeforeNow", String(hoursBefore));
-  upstream.searchParams.set("hoursAfterNow", String(hoursAfter));
-
-  try {
-    const r = await fetch(upstream.toString(), {
-      cache: "no-store",
-      headers: {
-        Accept: "application/json",
-        "X-RapidAPI-Key": String(apiKey),
-        "X-RapidAPI-Host": "aerodatabox.p.rapidapi.com",
-      },
-    });
-    const text = await r.text();
-    if (!r.ok) {
+export const GET = withAirportBrowseAccess(
+  async (req: Request, ctx: { params: Promise<{ code: string }> }) => {
+    // Check for required API key
+    const apiKey = process.env.AIRREG_API_KEY || process.env.RAPID_KEY;
+    if (!apiKey) {
       return NextResponse.json(
-        {
-          error: "upstream_error",
-          status: r.status,
-          detail: text,
-          url: upstream.toString(),
-        },
-        { status: 502 }
+        { error: "Missing AIRREG_API_KEY environment variable" },
+        { status: 500 }
       );
     }
-    let data: any;
-    try {
-      data = JSON.parse(text);
-    } catch {
-      data = {};
+
+    const { code } = await ctx.params;
+    const url = new URL(req.url);
+
+    // Check if requesting airport info (TIER 1)
+    const infoOnly = url.searchParams.get("info") === "true";
+    if (infoOnly) {
+      return getAirportInfo(code, apiKey);
     }
 
-    const allFlights = normalizeFids(data, dir);
+    // Tier 2 relative-time FIDS endpoint
+    const dir = (url.searchParams.get("dir") as Direction) || "departures";
+    // Réduire la plage horaire pour accélérer les requêtes
+    const hoursBefore = Math.max(
+      0,
+      Math.min(6, Number(url.searchParams.get("before") || 1))
+    );
+    const hoursAfter = Math.max(
+      0,
+      Math.min(6, Number(url.searchParams.get("after") || 1))
+    );
+    const withCancelled = bool(url.searchParams.get("cancelled"), true);
+    const withCodeshared = bool(url.searchParams.get("codeshared"), true);
+    const withLocation = bool(url.searchParams.get("location"), true);
 
-    // Appliquer la pagination côté serveur
-    const paginatedFlights = allFlights.slice(offset, offset + limit);
-    const hasMore = offset + limit < allFlights.length;
+    // Pagination pour optimiser le chargement
+    const limit = Number(url.searchParams.get("limit")) || 20;
+    const offset = Number(url.searchParams.get("offset")) || 0;
 
-    return NextResponse.json(
-      {
-        flights: paginatedFlights,
-        pagination: {
-          total: allFlights.length,
-          limit,
-          offset,
-          hasMore,
-        },
-      },
-      {
+    const codeType = detectCodeType(code);
+    const base =
+      process.env.AIRREG_API_BASE || "https://aerodatabox.p.rapidapi.com";
+    const upstream = new URL(
+      `${base}/flights/airports/${codeType}/${encodeURIComponent(code)}`
+    );
+    upstream.searchParams.set(
+      "direction",
+      dir === "departures" ? "Departure" : "Arrival"
+    );
+    upstream.searchParams.set("withCancelled", String(withCancelled));
+    upstream.searchParams.set("withCodeshared", String(withCodeshared));
+    upstream.searchParams.set("withLocation", String(withLocation));
+    upstream.searchParams.set("withCargoOnly", "false");
+    upstream.searchParams.set("withPrivateOnly", "false");
+    upstream.searchParams.set("withLeg", "false"); // Désactiver pour accélérer
+    upstream.searchParams.set("withAircraftImage", "false");
+    upstream.searchParams.set("withVirtual", "false"); // Désactiver pour accélérer
+    upstream.searchParams.set("withTimeSummaries", "false");
+    upstream.searchParams.set("hoursBeforeNow", String(hoursBefore));
+    upstream.searchParams.set("hoursAfterNow", String(hoursAfter));
+
+    try {
+      const r = await fetch(upstream.toString(), {
+        cache: "no-store",
         headers: {
-          "Cache-Control":
-            "public, s-maxage=120, stale-while-revalidate=300, max-age=60",
-          Vary: "Accept-Encoding",
+          Accept: "application/json",
+          "X-RapidAPI-Key": String(apiKey),
+          "X-RapidAPI-Host": "aerodatabox.p.rapidapi.com",
         },
+      });
+      const text = await r.text();
+      if (!r.ok) {
+        return NextResponse.json(
+          {
+            error: "upstream_error",
+            status: r.status,
+            detail: text,
+            url: upstream.toString(),
+          },
+          { status: 502 }
+        );
       }
-    );
-  } catch (e: any) {
-    return NextResponse.json(
-      { error: e?.message || "fetch_failed" },
-      { status: 500 }
-    );
+      let data: any;
+      try {
+        data = JSON.parse(text);
+      } catch {
+        data = {};
+      }
+
+      const allFlights = normalizeFids(data, dir);
+
+      // Appliquer la pagination côté serveur
+      const paginatedFlights = allFlights.slice(offset, offset + limit);
+      const hasMore = offset + limit < allFlights.length;
+
+      return NextResponse.json(
+        {
+          flights: paginatedFlights,
+          pagination: {
+            total: allFlights.length,
+            limit,
+            offset,
+            hasMore,
+          },
+        },
+        {
+          headers: {
+            "Cache-Control":
+              "public, s-maxage=120, stale-while-revalidate=300, max-age=60",
+            Vary: "Accept-Encoding",
+          },
+        }
+      );
+    } catch (e: any) {
+      return NextResponse.json(
+        { error: e?.message || "fetch_failed" },
+        { status: 500 }
+      );
+    }
   }
-}
+);
 
 // TIER 1: Airport information endpoint
 async function getAirportInfo(code: string, apiKey: string) {

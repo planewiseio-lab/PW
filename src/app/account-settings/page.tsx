@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import PasswordRequirements from "@/components/PasswordRequirements";
+import { CreditsSection } from "@/components/credits/CreditsSection";
 
 export default function AccountSettingsPage() {
   const [user, setUser] = useState<any>(null);
@@ -143,6 +144,7 @@ export default function AccountSettingsPage() {
     { id: "profile", name: "Profile", icon: "👤" },
     { id: "security", name: "Security", icon: "🔒" },
     { id: "subscription", name: "Subscription", icon: "💳" },
+    { id: "credits", name: "Credits", icon: "🪙" },
     { id: "preferences", name: "Preferences", icon: "⚙️" },
   ];
 
@@ -548,6 +550,147 @@ export default function AccountSettingsPage() {
                     </div>
                   </div>
 
+                  {/* Available Plans */}
+                  <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm">
+                    <h3 className="text-lg font-semibold text-gray-900 mb-6">
+                      Available Plans
+                    </h3>
+
+                    <div className="grid gap-6 md:grid-cols-3">
+                      {[
+                        {
+                          name: "Guest",
+                          price: "Free",
+                          note: "",
+                          perks: [
+                            "Aircraft lookup",
+                            "Flight history",
+                            "Airport information",
+                            "Basic specs & photos",
+                            "Ads",
+                          ],
+                          cta: {
+                            href: "/login",
+                            text: "Get started",
+                            className: "bg-gray-900 hover:bg-black",
+                          },
+                          wrapClass: "border-gray-200",
+                          current: false,
+                        },
+                        {
+                          name: "Subscribed",
+                          price: "$0",
+                          note: "/mo",
+                          perks: [
+                            "Aircraft lookup",
+                            "Flight history",
+                            "Airport information",
+                            "Basic specs & photos",
+                            "Community support",
+                            "Ads",
+                          ],
+                          cta: {
+                            href: "/register",
+                            text: "Get started",
+                            className: "bg-brand-600 hover:bg-brand-700",
+                          },
+                          wrapClass: "border-brand-200",
+                          badge: "Popular",
+                          current: true,
+                        },
+                        {
+                          name: "Pro",
+                          price: "$9.99",
+                          note: "/mo",
+                          perks: [
+                            "Aircraft lookup",
+                            "Flight history",
+                            "Airport information",
+                            "Basic specs & photos",
+                            "Community support",
+                            "Priority processing",
+                          ],
+                          cta: {
+                            href: "/checkout?plan=pro",
+                            text: "Choose Pro",
+                            className: "bg-gray-900 hover:bg-black",
+                          },
+                          wrapClass: "border-gray-200",
+                          current: false,
+                        },
+                      ].map((p, i) => (
+                        <div
+                          key={p.name}
+                          className={`relative rounded-2xl border ${
+                            p.wrapClass
+                          } bg-white p-6 shadow-sm hover:shadow-md transition flex flex-col ${
+                            p.current ? "ring-2 ring-blue-500" : ""
+                          }`}
+                        >
+                          {p.badge && (
+                            <div className="absolute -top-3 right-4">
+                              <span className="rounded-full bg-brand-100 text-brand-800 text-xs font-semibold px-3 py-1 border border-brand-200">
+                                {p.badge}
+                              </span>
+                            </div>
+                          )}
+                          {p.current && (
+                            <div className="absolute -top-3 left-4">
+                              <span className="rounded-full bg-green-100 text-green-800 text-xs font-semibold px-3 py-1 border border-green-200">
+                                Current Plan
+                              </span>
+                            </div>
+                          )}
+                          <h4 className="text-xl font-semibold">{p.name}</h4>
+                          <p className="mt-1 text-3xl font-extrabold">
+                            {p.price}
+                            <span className="text-base font-medium text-gray-500">
+                              {p.note}
+                            </span>
+                          </p>
+                          <p className="mt-3 text-sm text-gray-600">
+                            {i === 0 && "3 requests per day"}
+                            {i === 1 && "5 requests per day"}
+                            {i === 2 && "500 requests per month"}
+                          </p>
+                          <ul className="mt-5 space-y-2 text-sm text-gray-700 flex-1">
+                            {p.perks.map((perk) => (
+                              <li
+                                key={perk}
+                                className="flex items-center gap-2"
+                              >
+                                <svg
+                                  className="w-4 h-4 text-green-500 flex-shrink-0"
+                                  fill="none"
+                                  stroke="currentColor"
+                                  viewBox="0 0 24 24"
+                                >
+                                  <path
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    strokeWidth={2}
+                                    d="M5 13l4 4L19 7"
+                                  />
+                                </svg>
+                                {perk}
+                              </li>
+                            ))}
+                          </ul>
+                          <a
+                            href={p.cta.href}
+                            className={`mt-6 inline-flex w-full justify-center rounded-xl ${
+                              p.cta.className
+                            } text-white px-4 py-2.5 font-semibold ${
+                              p.current ? "opacity-50 cursor-not-allowed" : ""
+                            }`}
+                          >
+                            {p.current ? "Current Plan" : p.cta.text}
+                          </a>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
                   <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm">
                     <h3 className="text-lg font-semibold text-gray-900 mb-4">
                       Billing History
@@ -573,6 +716,16 @@ export default function AccountSettingsPage() {
                       </p>
                     </div>
                   </div>
+                </div>
+              )}
+
+              {/* Credits Tab */}
+              {activeTab === "credits" && (
+                <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm">
+                  <h2 className="text-xl font-semibold text-gray-900 mb-6">
+                    Usage & Credits
+                  </h2>
+                  <CreditsSection />
                 </div>
               )}
 

@@ -1,5 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
-import { createAdminClient } from "@/lib/supabase/admin";
+import { supabaseAdmin } from "@/lib/supabase/admin";
 import { NextRequest, NextResponse } from "next/server";
 
 export async function DELETE(request: NextRequest) {
@@ -23,7 +23,7 @@ export async function DELETE(request: NextRequest) {
 
     try {
       // Use admin client to delete the user
-      const adminClient = createAdminClient();
+      const adminClient = supabaseAdmin;
 
       // Delete the user using admin API
       const { error: deleteError } = await adminClient.auth.admin.deleteUser(

@@ -91,7 +91,6 @@ export default function AircraftHistoryPage() {
             },
             arrival: {
               scheduledTime: flight.arrival.scheduledTime,
-              estimatedTime: flight.arrival.estimatedTime,
               actualTime: flight.arrival.actualTime,
             },
           }));

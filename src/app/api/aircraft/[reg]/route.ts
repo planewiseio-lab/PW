@@ -3,7 +3,8 @@ export const dynamic = "force-dynamic";
 
 import { NextResponse } from "next/server";
 import { cachedRequest } from "@/lib/requestDeduplication";
-// Authentication disabled - all features are public
+import { withAircraftLookupAccess } from "@/lib/withActionAccess";
+// Combined access control (credits for authenticated, guest quota for anonymous)
 
 // mêmes variables que l’ancienne version
 const RAPID_KEY = process.env.RAPID_KEY || process.env.AIRREG_API_KEY;
@@ -126,86 +127,83 @@ async function buildAircraftFromFlights(reg: string) {
   return null;
 }
 
-// --- handler Next.js
-export async function GET(
-  req: Request,
-  ctx: { params: Promise<{ reg: string }> }
-) {
-  if (!RAPID_KEY) {
-    return NextResponse.json({ error: "Missing RAPID_KEY" }, { status: 500 });
-  }
-
-  // All features are now public - no authentication required
-
-  const { reg } = await ctx.params;
-  if (reg === "ping") return NextResponse.json({ ok: true, reg });
-
-  const cacheKey = `aircraft:${reg.toUpperCase()}`;
-  const { searchParams } = new URL(req.url);
-  const forceRefresh = searchParams.get("cache") === "refresh";
-
-  // 1️⃣ Vérifie le cache
-  if (!forceRefresh) {
-    const cached = getCache(cacheKey);
-    if (cached) {
-      console.log(`[CACHE] hit aircraft ${reg}`);
-      return new NextResponse(cached, {
-        status: 200,
-        headers: {
-          "Content-Type": "application/json",
-          "X-Cache": "HIT",
-        },
-      });
+// --- handler Next.js with combined access control
+export const GET = withAircraftLookupAccess(
+  async (req: Request, ctx: { params: Promise<{ reg: string }> }) => {
+    if (!RAPID_KEY) {
+      return NextResponse.json({ error: "Missing RAPID_KEY" }, { status: 500 });
     }
-  }
 
-  let last: Up | null = null;
+    const { reg } = await ctx.params;
+    if (reg === "ping") return NextResponse.json({ ok: true, reg });
 
-  // 2️⃣ Essayer les variantes /aircrafts/* avec déduplication
-  for (const p of variants(reg)) {
-    const resp = await cachedRequest(
-      `aircraft-api:${p}`,
-      () => callAero(p),
-      10 * 60 * 1000 // 10 min cache pour les appels API
+    const cacheKey = `aircraft:${reg.toUpperCase()}`;
+    const { searchParams } = new URL(req.url);
+    const forceRefresh = searchParams.get("cache") === "refresh";
+
+    // 1️⃣ Vérifie le cache
+    if (!forceRefresh) {
+      const cached = getCache(cacheKey);
+      if (cached) {
+        console.log(`[CACHE] hit aircraft ${reg}`);
+        return new NextResponse(cached, {
+          status: 200,
+          headers: {
+            "Content-Type": "application/json",
+            "X-Cache": "HIT",
+          },
+        });
+      }
+    }
+
+    let last: Up | null = null;
+
+    // 2️⃣ Essayer les variantes /aircrafts/* avec déduplication
+    for (const p of variants(reg)) {
+      const resp = await cachedRequest(
+        `aircraft-api:${p}`,
+        () => callAero(p),
+        10 * 60 * 1000 // 10 min cache pour les appels API
+      );
+      last = resp;
+      if (resp.ok) {
+        const body = resp.text && resp.text.trim() ? resp.text : "{}";
+        setCache(cacheKey, body, AIRCRAFT_TTL_MS);
+        console.log(`[CACHE] stored aircraft ${reg} for 24h`);
+        return new NextResponse(body, {
+          status: 200,
+          headers: {
+            "Content-Type": "application/json",
+            "X-Cache": "MISS",
+          },
+        });
+      }
+    }
+
+    // 3️⃣ fallback via /flights/Reg/* si 404
+    if (last?.status === 404) {
+      const minimal = await buildAircraftFromFlights(reg);
+      if (minimal) {
+        const body = JSON.stringify(minimal);
+        setCache(cacheKey, body, 60 * 60 * 1000); // 1h
+        console.log(`[FALLBACK] rebuilt and cached minimal aircraft ${reg}`);
+        return new NextResponse(body, {
+          status: 200,
+          headers: {
+            "Content-Type": "application/json",
+            "X-Cache": "MISS-FALLBACK",
+          },
+        });
+      }
+    }
+
+    // 4️⃣ Erreur amont
+    return new NextResponse(
+      last?.text || JSON.stringify({ error: "Upstream error" }),
+      {
+        status: last?.status || 502,
+        headers: { "Content-Type": "application/json", "X-Cache": "MISS" },
+      }
     );
-    last = resp;
-    if (resp.ok) {
-      const body = resp.text && resp.text.trim() ? resp.text : "{}";
-      setCache(cacheKey, body, AIRCRAFT_TTL_MS);
-      console.log(`[CACHE] stored aircraft ${reg} for 24h`);
-      return new NextResponse(body, {
-        status: 200,
-        headers: {
-          "Content-Type": "application/json",
-          "X-Cache": "MISS",
-        },
-      });
-    }
   }
-
-  // 3️⃣ fallback via /flights/Reg/* si 404
-  if (last?.status === 404) {
-    const minimal = await buildAircraftFromFlights(reg);
-    if (minimal) {
-      const body = JSON.stringify(minimal);
-      setCache(cacheKey, body, 60 * 60 * 1000); // 1h
-      console.log(`[FALLBACK] rebuilt and cached minimal aircraft ${reg}`);
-      return new NextResponse(body, {
-        status: 200,
-        headers: {
-          "Content-Type": "application/json",
-          "X-Cache": "MISS-FALLBACK",
-        },
-      });
-    }
-  }
-
-  // 4️⃣ Erreur amont
-  return new NextResponse(
-    last?.text || JSON.stringify({ error: "Upstream error" }),
-    {
-      status: last?.status || 502,
-      headers: { "Content-Type": "application/json", "X-Cache": "MISS" },
-    }
-  );
-}
+);

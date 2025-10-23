@@ -5,6 +5,9 @@
 
 import { useState, useEffect, useRef } from "react";
 import { getAircraftData } from "@/lib/globalApiCache";
+import { triggerInsufficientCredits } from "./useInsufficientCredits";
+import { triggerGuestQuotaExceeded } from "./useGuestQuotaExceeded";
+import { triggerSubscribedCreditsExceeded } from "./useSubscribedCreditsExceeded";
 
 interface AircraftData {
   registration?: string;
@@ -85,7 +88,29 @@ export function useAircraftData(registration: string): UseAircraftDataReturn {
       }
     } catch (err: any) {
       if (!abortControllerRef.current.signal.aborted) {
-        const errorMessage = err.message || "Failed to load aircraft data";
+        let errorMessage = err.message || "Failed to load aircraft data";
+
+        // Gérer les erreurs de crédits et quota invité spécifiquement
+        if (
+          err.message?.includes("HTTP 402") ||
+          err.message?.includes("Insufficient credits")
+        ) {
+          errorMessage =
+            "Insufficient credits. Please check your account balance.";
+          // Déclencher la modal appropriée selon le type d'utilisateur
+          // Pour l'instant, on utilise le nouveau modal pour les utilisateurs connectés
+          triggerSubscribedCreditsExceeded(err);
+        } else if (
+          err.message?.includes("HTTP 429") ||
+          err.message?.includes("GUEST_QUOTA_EXCEEDED")
+        ) {
+          errorMessage = "Guest quota exceeded. Please log in to continue.";
+          // Déclencher la modal de quota invité dépassé
+          triggerGuestQuotaExceeded(err);
+        } else if (err.message?.includes("HTTP 401")) {
+          errorMessage = "Authentication required. Please log in.";
+        }
+
         setError(errorMessage);
         setData(null);
 

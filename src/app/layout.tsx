@@ -14,6 +14,9 @@ import ClientGlobalLogoutModal from "@/components/ClientGlobalLogoutModal";
 import AuthErrorHandler from "@/components/AuthErrorHandler";
 import UserDeletedHandler from "@/components/UserDeletedHandler";
 import SupabaseErrorHandler from "@/components/SupabaseErrorHandler";
+import { GlobalInsufficientCreditsHandler } from "@/components/GlobalInsufficientCreditsHandler";
+import { GuestQuotaExceededModal } from "@/components/errors/GuestQuotaExceededModal";
+import { SubscribedCreditsExceededModal } from "@/components/errors/SubscribedCreditsExceededModal";
 import { Comfortaa } from "next/font/google";
 
 export const comfortaa = Comfortaa({
@@ -181,6 +184,12 @@ export default function RootLayout({
         <UserDeletedHandler />
         {/* Gestionnaire d'erreurs Supabase */}
         <SupabaseErrorHandler />
+        {/* Gestionnaire de crédits insuffisants */}
+        <GlobalInsufficientCreditsHandler />
+        {/* Modal de quota invité dépassé */}
+        <GuestQuotaExceededModal />
+        {/* Modal de crédits épuisés pour utilisateurs Subscribed */}
+        <SubscribedCreditsExceededModal />
       </body>
     </html>
   );

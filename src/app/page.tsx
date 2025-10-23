@@ -517,50 +517,58 @@ function PricingSection() {
         <div className="grid gap-6 md:grid-cols-3">
           {[
             {
-              name: "Free",
-              price: "$0",
-              note: "/mo",
+              name: "Guest",
+              price: "Free",
+              note: "",
               perks: [
-                "Basic lookup",
+                "Aircraft lookup",
+                "Flight history",
+                "Airport information",
                 "Basic specs & photos",
-                "Community support",
+                "Ads",
               ],
               cta: {
-                href: "/signup",
+                href: "/login",
                 text: "Get started",
                 className: "bg-gray-900 hover:bg-black",
               },
               wrapClass: "border-gray-200",
             },
             {
-              name: "Basic",
-              price: "$9.99",
+              name: "Subscribed",
+              price: "$0",
               note: "/mo",
               perks: [
-                "Everything in Free",
-                "7-day detailed flight history",
-                "Detailed airport flight board",
+                "Aircraft lookup",
+                "Flight history",
+                "Airport information",
+                "Basic specs & photos",
+                "Community support",
+                "Ads",
               ],
               cta: {
-                href: "/checkout?plan=basic",
-                text: "Choose Basic",
+                href: "/register",
+                text: "Get started",
                 className: "bg-brand-600 hover:bg-brand-700",
               },
               wrapClass: "border-brand-200",
               badge: "Popular",
             },
             {
-              name: "Advance",
-              price: "$14.99",
+              name: "Pro",
+              price: "$9.99",
               note: "/mo",
               perks: [
-                "Everything in Basic",
+                "Aircraft lookup",
+                "Flight history",
+                "Airport information",
+                "Basic specs & photos",
+                "Community support",
                 "Priority processing",
-                "Higher monthly request limit",
               ],
               cta: {
-                href: "/checkout?plan=advance",
-                text: "Choose Advance",
+                href: "/checkout?plan=pro",
+                text: "Choose Pro",
                 className: "bg-gray-900 hover:bg-black",
               },
               wrapClass: "border-gray-200",
@@ -568,7 +576,7 @@ function PricingSection() {
           ].map((p, i) => (
             <article
               key={p.name}
-              className={`relative rounded-2xl border ${p.wrapClass} bg-white p-6 sm:p-8 shadow-sm hover:shadow-md transition`}
+              className={`relative rounded-2xl border ${p.wrapClass} bg-white p-6 sm:p-8 shadow-sm hover:shadow-md transition flex flex-col`}
             >
               {p.badge && (
                 <div className="absolute -top-3 right-4">
@@ -585,11 +593,11 @@ function PricingSection() {
                 </span>
               </p>
               <p className="mt-3 text-sm text-gray-600">
-                {i === 0 && "5 requests per day"}
-                {i === 1 && "Up to 500 total requests / month"}
-                {i === 2 && "Up to 2500 total requests / month"}
+                {i === 0 && "3 requests per day"}
+                {i === 1 && "5 requests per day"}
+                {i === 2 && "500 requests per month"}
               </p>
-              <ul className="mt-5 space-y-2 text-sm text-gray-700">
+              <ul className="mt-5 space-y-2 text-sm text-gray-700 flex-1">
                 {p.perks.map((perk) => (
                   <li key={perk}>• {perk}</li>
                 ))}
