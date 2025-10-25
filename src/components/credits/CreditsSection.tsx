@@ -150,29 +150,6 @@ export function CreditsSection() {
         </h3>
         <UsageHistoryTable history={creditsData.history} />
       </div>
-
-      {/* Link to full page */}
-      <div className="text-center pt-4">
-        <a
-          href="/account/usage"
-          className="inline-flex items-center text-blue-600 hover:text-blue-800 text-sm font-medium"
-        >
-          View complete usage history
-          <svg
-            className="w-4 h-4 ml-1"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M9 5l7 7-7 7"
-            />
-          </svg>
-        </a>
-      </div>
     </div>
   );
 }

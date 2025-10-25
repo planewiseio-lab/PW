@@ -6,11 +6,11 @@ import FlightCard from "@/components/FlightCard";
 import { motion, AnimatePresence } from "framer-motion";
 import { fetchFlightData } from "@/lib/flightRequestDeduplication";
 
-// Skeleton pour la page de détail d'un vol
+// Skeleton for flight detail page
 function FlightDetailSkeleton() {
   return (
     <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 animate-pulse">
-      {/* Header avec numéro de vol et compagnie */}
+      {/* Header with flight number and airline */}
       <div className="flex items-center justify-between mb-6">
         <div className="space-y-2">
           <div className="h-8 w-32 bg-gray-200 rounded"></div>
@@ -19,7 +19,7 @@ function FlightDetailSkeleton() {
         <div className="h-8 w-20 bg-gray-200 rounded-full"></div>
       </div>
 
-      {/* Informations avion */}
+      {/* Aircraft information */}
       <div className="mb-6">
         <div className="h-6 w-16 bg-gray-200 rounded mb-3"></div>
         <div className="flex items-center space-x-4">
@@ -28,7 +28,7 @@ function FlightDetailSkeleton() {
         </div>
       </div>
 
-      {/* Route et horaires */}
+      {/* Route and schedules */}
       <div className="space-y-4">
         <div className="flex items-center justify-between">
           <div className="space-y-2">
@@ -49,7 +49,7 @@ function FlightDetailSkeleton() {
         </div>
       </div>
 
-      {/* Informations supplémentaires */}
+      {/* Additional information */}
       <div className="mt-6 pt-6 border-t border-gray-100">
         <div className="grid grid-cols-2 gap-4">
           <div className="space-y-2">
@@ -121,14 +121,14 @@ export default function FlightPage() {
     try {
       setLoading(true);
       setError(null);
-      setFlightData(null); // Réinitialiser les données
+      setFlightData(null); // Reset data
 
-      // Annuler la requête précédente si elle existe
+      // Cancel previous request if it exists
       if (abortControllerRef.current) {
         abortControllerRef.current.abort();
       }
 
-      // Créer un nouveau AbortController
+      // Create a new AbortController
       abortControllerRef.current = new AbortController();
 
       const data = await fetchFlightData(
@@ -144,7 +144,7 @@ export default function FlightPage() {
       }
     } catch (err: any) {
       if (err.name === "AbortError") {
-        // Requête annulée, ne pas afficher d'erreur
+        // Request cancelled, do not show error
         return;
       } else if (err.name === "AbortError" && err.message.includes("timeout")) {
         setError("Request timeout - please try again");
@@ -156,18 +156,27 @@ export default function FlightPage() {
     }
   };
 
+  // Handle URL parameter changes and load flight data
   useEffect(() => {
+    const dateFromUrl = searchParams.get("date");
+    const finalDate =
+      dateFromUrl && dateFromUrl !== searchDate ? dateFromUrl : searchDate;
+
+    if (dateFromUrl && dateFromUrl !== searchDate) {
+      setSearchDate(dateFromUrl);
+    }
+
     if (flightNumber) {
-      // Petit délai pour éviter les requêtes trop rapides
+      // Small delay to avoid requests that are too fast
       const timer = setTimeout(() => {
-        loadFlightData(flightNumber, searchDate);
+        loadFlightData(flightNumber, finalDate);
       }, 100);
 
       return () => clearTimeout(timer);
     }
-  }, [flightNumber, searchDate]);
+  }, [flightNumber, searchParams, searchDate]);
 
-  // Nettoyer les requêtes en cours lors du démontage
+  // Clean up ongoing requests on unmount
   useEffect(() => {
     return () => {
       if (abortControllerRef.current) {
@@ -176,14 +185,6 @@ export default function FlightPage() {
     };
   }, []);
 
-  // Écouter les changements de paramètres d'URL
-  useEffect(() => {
-    const dateFromUrl = searchParams.get("date");
-    if (dateFromUrl && dateFromUrl !== searchDate) {
-      setSearchDate(dateFromUrl);
-    }
-  }, [searchParams, searchDate]);
-
   const handleDateChange = (newDate: string) => {
     setSearchDate(newDate);
     if (flightNumber) {
@@ -191,7 +192,7 @@ export default function FlightPage() {
     }
   };
 
-  // Vérifier si la date est dans le futur
+  // Check if the date is in the future
   const isFutureDate = () => {
     const searchDateObj = new Date(searchDate);
     const today = new Date();
@@ -201,20 +202,20 @@ export default function FlightPage() {
 
   return (
     <div className="min-h-screen bg-white">
-      {/* Avertissement pour les dates futures */}
+      {/* Warning for future dates */}
       {isFutureDate() && (
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 mb-4">
             <div className="text-sm text-yellow-800">
-              <strong>⚠️ Attention:</strong> La date {searchDate} est dans le
-              futur. L'API retourne probablement le vol le plus récent
-              disponible au lieu du vol pour cette date spécifique.
+              <strong>⚠️ Warning:</strong> The date {searchDate} is in the
+              future. The API probably returns the most recent available flight
+              instead of the flight for this specific date.
             </div>
           </div>
         </div>
       )}
 
-      {/* Contenu principal */}
+      {/* Main content */}
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <AnimatePresence mode="wait">
           {loading && (
@@ -225,7 +226,7 @@ export default function FlightPage() {
               exit={{ opacity: 0 }}
             >
               <div className="text-center text-gray-500 mb-4">
-                Chargement des données du vol {flightNumber}...
+                Loading flight data for {flightNumber}...
               </div>
               <FlightDetailSkeleton />
             </motion.div>

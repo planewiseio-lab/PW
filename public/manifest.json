@@ -1,7 +1,7 @@
 {
   "name": "PlaneWise - Aviation Information",
   "short_name": "PlaneWise",
-  "description": "Application d'information aéronautique pour suivre les vols, avions et aéroports",
+  "description": "Aviation information application to track flights, aircraft and airports",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#ffffff",
@@ -33,12 +33,3 @@
     }
   ]
 }
-
-
-
-
-
-
-
-
-

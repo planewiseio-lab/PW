@@ -10,7 +10,6 @@ export default function DashboardPage() {
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [favoriteAircraft, setFavoriteAircraft] = useState<any[]>([]);
-  const [newAircraft, setNewAircraft] = useState("");
 
   // Vérifier si Supabase est configuré
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -110,33 +109,18 @@ export default function DashboardPage() {
     }
   };
 
-  const addFavoriteAircraft = async () => {
-    if (!newAircraft.trim() || !user) return;
-
-    try {
-      const supabase = createClient();
-      const { error } = await supabase.from("user_favorites").insert({
-        user_id: user.id,
-        aircraft_registration: newAircraft.trim().toUpperCase(),
-        aircraft_type: "Unknown",
-        aircraft_airline: "Unknown",
-      });
-
-      if (error) {
-        console.error("Error adding favorite:", error);
-        return;
-      }
-
-      // Recharger la liste des favoris
-      await loadFavoriteAircraft();
-      setNewAircraft("");
-    } catch (error) {
-      console.error("Error adding favorite:", error);
-    }
-  };
-
-  const removeFavoriteAircraft = async (id: string) => {
+  const removeFavoriteAircraft = async (
+    id: string,
+    aircraftRegistration: string
+  ) => {
     if (!user) return;
+
+    // Show confirmation dialog
+    const confirmed = window.confirm(
+      `Are you sure you want to remove aircraft ${aircraftRegistration} from your favorites?`
+    );
+
+    if (!confirmed) return;
 
     try {
       const supabase = createClient();
@@ -240,26 +224,6 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* Add Aircraft */}
-      <div className="bg-white rounded-lg border border-gray-200 p-4 mb-6">
-        <div className="flex items-center gap-4">
-          <input
-            type="text"
-            value={newAircraft}
-            onChange={(e) => setNewAircraft(e.target.value)}
-            placeholder="Enter aircraft registration (e.g., C-FRSR)"
-            className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            onKeyPress={(e) => e.key === "Enter" && addFavoriteAircraft()}
-          />
-          <button
-            onClick={addFavoriteAircraft}
-            className="px-4 py-2 bg-[#178cf2] text-white rounded-md hover:brightness-110 transition-colors"
-          >
-            Add Aircraft
-          </button>
-        </div>
-      </div>
-
       {/* Aircraft List - Table Style */}
       {favoriteAircraft.length > 0 ? (
         <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
@@ -358,7 +322,12 @@ export default function DashboardPage() {
                           </svg>
                         </Link>
                         <button
-                          onClick={() => removeFavoriteAircraft(aircraft.id)}
+                          onClick={() =>
+                            removeFavoriteAircraft(
+                              aircraft.id,
+                              aircraft.registration
+                            )
+                          }
                           className="text-red-600 hover:text-red-800 transition-colors"
                           title="Remove from favorites"
                         >

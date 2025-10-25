@@ -1,4 +1,4 @@
-import { NextRequest } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { withFlightHistoryAccess } from "@/lib/withActionAccess";
 
 // Flight history endpoint with combined access control

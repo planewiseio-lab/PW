@@ -14,7 +14,7 @@ type Props = {
   placeholder: string;
   onSubmit: (e: React.FormEvent) => void;
   disabled?: boolean;
-  /** (optionnel) permet d'ajuster la largeur depuis l'appelant */
+  /** (optional) allows adjusting the width from the caller */
   className?: string;
   readOnly?: boolean; // Pour les pages de résultats
   externalDate?: string; // Date externe pour les pages de résultats
@@ -54,12 +54,12 @@ export default function SearchCluster({
     if (!flight) return;
 
     if (mode === "flight" && !readOnly) {
-      // Pour les vols sur la page principale, rediriger vers la page de recherche avec date
+      // For flights on the main page, redirect to the search page with date
       startTransition(() => {
         router.push(`/flight/${encodeURIComponent(flight)}?date=${searchDate}`);
       });
     } else {
-      // Pour les autres modes ou pages de résultats, utiliser la logique normale
+      // For other modes or result pages, use normal logic
       onSubmit(e);
     }
   };
@@ -72,7 +72,7 @@ export default function SearchCluster({
         className,
       ].join(" ")}
     >
-      {/* — Bulle de sélection — */}
+      {/* — Selection bubble — */}
       <div className="w-full flex justify-center">
         <div className="inline-flex rounded-2xl border border-gray-200 bg-white/70 backdrop-blur p-1 shadow-sm">
           {(["aircraft", "flight", "airport"] as Mode[]).map((m) => {
@@ -103,12 +103,12 @@ export default function SearchCluster({
       </div>
 
       <form onSubmit={handleSubmit} className="mt-3 w-full">
-        {/* Mode Flight sur mobile : deux cartes séparées */}
+        {/* Flight mode on mobile: two separate cards */}
         {mode === "flight" ? (
           <>
-            {/* Version mobile : deux cartes séparées */}
+            {/* Mobile version: two separate cards */}
             <div className="block sm:hidden space-y-3">
-              {/* Carte 1 : Numéro de vol + bouton Search */}
+              {/* Card 1: Flight number + Search button */}
               <div className="flex items-center gap-2 rounded-2xl border border-gray-200 bg-white/80 backdrop-blur-sm px-3 py-2 shadow-sm focus-within:ring-2 focus-within:ring-blue-500/25">
                 {/* Loupe icon */}
                 <span className="text-gray-400">
@@ -150,9 +150,9 @@ export default function SearchCluster({
                 </button>
               </div>
 
-              {/* Carte 2 : Sélecteur de date */}
+              {/* Card 2: Date selector */}
               <div className="flex items-center gap-2 rounded-2xl border border-gray-200 bg-white/80 backdrop-blur-sm px-3 py-2 shadow-sm">
-                {/* Icône calendrier */}
+                {/* Calendar icon */}
                 <span className="text-gray-400">
                   <svg
                     width="20"
@@ -188,7 +188,7 @@ export default function SearchCluster({
               </div>
             </div>
 
-            {/* Version desktop : une seule carte avec date intégrée */}
+            {/* Desktop version: single card with integrated date */}
             <div className="hidden sm:block">
               <div className="group flex items-center gap-2 rounded-2xl border border-gray-200 bg-white/80 backdrop-blur-sm px-3 py-2 shadow-sm focus-within:ring-2 focus-within:ring-blue-500/25">
                 {/* Loupe icon */}
@@ -222,7 +222,7 @@ export default function SearchCluster({
                   style={{ minWidth: "100px" }}
                 />
 
-                {/* Sélecteur de date intégré */}
+                {/* Integrated date selector */}
                 <div className="flex items-center gap-2 border-l border-gray-200 pl-3 shrink-0">
                   <input
                     type="date"
@@ -251,7 +251,7 @@ export default function SearchCluster({
             </div>
           </>
         ) : (
-          /* Mode normal (Aircraft/Airport) : une seule carte */
+          /* Normal mode (Aircraft/Airport): single card */
           <div className="group flex items-center gap-2 rounded-2xl border border-gray-200 bg-white/80 backdrop-blur-sm px-3 py-2 shadow-sm focus-within:ring-2 focus-within:ring-blue-500/25">
             {/* Loupe icon */}
             <span className="pl-2 text-gray-400">

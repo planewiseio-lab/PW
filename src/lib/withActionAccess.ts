@@ -11,12 +11,15 @@ import { ActionType } from "@prisma/client";
  */
 export function withActionAccess<T = any>(
   actionType: ActionType,
-  handler: (request: NextRequest, ...args: any[]) => Promise<NextResponse<T>>
+  handler: (
+    request: NextRequest,
+    ...args: any[]
+  ) => Promise<NextResponse<T> | Response>
 ) {
   return async (
     request: NextRequest,
     ...args: any[]
-  ): Promise<NextResponse<T>> => {
+  ): Promise<NextResponse<T> | Response> => {
     try {
       // 1. Vérifier l'authentification Supabase
       const supabase = await createClient();
@@ -32,7 +35,12 @@ export function withActionAccess<T = any>(
         );
 
         // Wrapper avec le système de crédits
-        const creditHandler = withCreditChargeABD(actionType, handler);
+        const creditHandler = withCreditChargeABD(
+          actionType,
+          async (req, ...args) => {
+            return await handler(req, ...args);
+          }
+        );
         return await creditHandler(request, ...args);
       }
 
@@ -48,10 +56,16 @@ export function withActionAccess<T = any>(
         error
       );
 
-      // En cas d'erreur, on utilise le quota invité par défaut pour éviter de bloquer
-      console.log("[Action Access] ⚠️ Fallback to guest quota due to error");
-      const guestHandler = withGuestQuota(handler);
-      return await guestHandler(request, ...args);
+      // En cas d'erreur, retourner une erreur au lieu de fallback vers guest
+      console.log("[Action Access] ❌ Returning error instead of fallback");
+      return NextResponse.json(
+        {
+          error: "Authentication system error",
+          code: "AUTH_SYSTEM_ERROR",
+          message: "Unable to process authentication. Please try again.",
+        },
+        { status: 500 }
+      );
     }
   };
 }
@@ -60,19 +74,31 @@ export function withActionAccess<T = any>(
  * Wrapper spécialisé pour les différents types d'actions
  */
 export const withAircraftLookupAccess = <T = any>(
-  handler: (request: NextRequest, ...args: any[]) => Promise<NextResponse<T>>
+  handler: (
+    request: NextRequest,
+    ...args: any[]
+  ) => Promise<NextResponse<T> | Response>
 ) => withActionAccess(ActionType.AIRCRAFT_LOOKUP, handler);
 
 export const withFlightHistoryAccess = <T = any>(
-  handler: (request: NextRequest, ...args: any[]) => Promise<NextResponse<T>>
+  handler: (
+    request: NextRequest,
+    ...args: any[]
+  ) => Promise<NextResponse<T> | Response>
 ) => withActionAccess(ActionType.VIEW_FLIGHT_HISTORY, handler);
 
 export const withFlightBrowseAccess = <T = any>(
-  handler: (request: NextRequest, ...args: any[]) => Promise<NextResponse<T>>
+  handler: (
+    request: NextRequest,
+    ...args: any[]
+  ) => Promise<NextResponse<T> | Response>
 ) => withActionAccess(ActionType.BROWSE_FLIGHT, handler);
 
 export const withAirportBrowseAccess = <T = any>(
-  handler: (request: NextRequest, ...args: any[]) => Promise<NextResponse<T>>
+  handler: (
+    request: NextRequest,
+    ...args: any[]
+  ) => Promise<NextResponse<T> | Response>
 ) => withActionAccess(ActionType.BROWSE_AIRPORT, handler);
 
 /**

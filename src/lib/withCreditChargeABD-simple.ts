@@ -4,18 +4,20 @@ import { chargeOneCredit, InsufficientCreditsError } from "@/lib/credits";
 import { ActionType } from "@prisma/client";
 
 /**
- * Middleware simplifié pour les requêtes vers les API ABD
+ * Simplified middleware for ABD API requests
  * Version sans types stricts pour éviter les erreurs de build
  */
 export function withCreditChargeABD(
   actionType: ActionType = ActionType.AIRCRAFT_LOOKUP,
   handler: (
     request: NextRequest,
-    userId: string,
-    newBalance: number
-  ) => Promise<Response>
+    ...args: any[]
+  ) => Promise<Response | NextResponse>
 ) {
-  return async (request: NextRequest, ...args: any[]): Promise<Response> => {
+  return async (
+    request: NextRequest,
+    ...args: any[]
+  ): Promise<Response | NextResponse> => {
     try {
       // 1. Authentification Supabase
       const supabase = await createClient();
@@ -35,13 +37,19 @@ export function withCreditChargeABD(
       const userId = user.id;
       const endpoint = request.nextUrl.pathname;
       const method = request.method;
-      const idempotencyKey = `abd-${userId}-${endpoint}-${method}-${Date.now()}`;
+
+      // Create a more stable idempotency key based on request content
+      const url = new URL(request.url);
+      const searchParams = url.searchParams.toString();
+      const requestHash = `${endpoint}-${method}-${searchParams}`;
+      const idempotencyKey = `abd-${userId}-${requestHash}`;
 
       console.log(
         `[ABD] 🛩️ ABD request charged for user: ${userId} (${actionType})`
       );
+      console.log(`[ABD] 🔑 Idempotency key: ${idempotencyKey}`);
 
-      // 2. Charger un crédit
+      // 2. Charge a credit
       const { newBalance } = await chargeOneCredit({
         userId,
         actionType,
@@ -59,10 +67,10 @@ export function withCreditChargeABD(
         `[ABD] ✅ Credit charged: ${userId} now has ${newBalance} credits`
       );
 
-      // 3. Exécuter le handler
-      const response = await handler(request, userId, newBalance);
+      // 3. Execute the handler with all arguments
+      const response = await handler(request, ...args);
 
-      // 4. Ajouter les headers de debug
+      // 4. Add debug headers
       if (response instanceof NextResponse) {
         response.headers.set("X-Credits-Remaining", newBalance.toString());
         response.headers.set("X-Credits-Charged", "1");

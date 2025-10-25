@@ -107,16 +107,6 @@ export function UsageHistoryTable({ history }: UsageHistoryTableProps) {
           </tbody>
         </table>
       </div>
-
-      {nextCursor && (
-        <div className="px-6 py-4 border-t border-gray-200">
-          <div className="text-center">
-            <button className="text-blue-600 hover:text-blue-800 text-sm font-medium">
-              Load more history
-            </button>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

@@ -457,126 +457,74 @@ export default function AccountSettingsPage() {
                       </div>
                     </div>
                   </div>
+
+                  {/* Danger Zone */}
+                  <div className="bg-red-50 border border-red-200 rounded-2xl p-6">
+                    <h3 className="text-lg font-semibold text-red-900 mb-4">
+                      Danger Zone
+                    </h3>
+                    <div className="space-y-4">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <svg
+                            className="w-5 h-5 text-red-600"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                            />
+                          </svg>
+                          <div>
+                            <h4 className="font-medium text-red-900">
+                              Delete Account
+                            </h4>
+                            <p className="text-sm text-red-700">
+                              Permanently delete your account and all data
+                            </p>
+                          </div>
+                        </div>
+                        <button
+                          onClick={handleDeleteAccount}
+                          disabled={loadingAction}
+                          className="px-4 py-2 text-sm bg-red-600 text-white rounded-lg hover:bg-red-700 focus:ring-2 focus:ring-red-500 focus:ring-offset-2 transition-colors disabled:opacity-50 flex items-center gap-2"
+                        >
+                          <svg
+                            className="w-4 h-4"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                            />
+                          </svg>
+                          {loadingAction ? "Processing..." : "Delete Account"}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               )}
 
               {/* Subscription Tab */}
               {activeTab === "subscription" && (
                 <div className="space-y-6">
-                  <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm">
-                    <h2 className="text-xl font-semibold text-gray-900 mb-6">
-                      Current Plan
-                    </h2>
-
-                    <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-6 border border-blue-200">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <h3 className="text-lg font-semibold text-gray-900">
-                            Free Plan
-                          </h3>
-                          <p className="text-gray-600">
-                            Basic features included
-                          </p>
-                        </div>
-                        <div className="text-right">
-                          <div className="text-2xl font-bold text-gray-900">
-                            $0
-                          </div>
-                          <div className="text-sm text-gray-500">per month</div>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="mt-6">
-                      <h4 className="font-medium text-gray-900 mb-3">
-                        Plan Features
-                      </h4>
-                      <ul className="space-y-2">
-                        <li className="flex items-center gap-2 text-sm text-gray-600">
-                          <svg
-                            className="w-4 h-4 text-green-500"
-                            fill="none"
-                            stroke="currentColor"
-                            viewBox="0 0 24 24"
-                          >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth={2}
-                              d="M5 13l4 4L19 7"
-                            />
-                          </svg>
-                          Basic aircraft search
-                        </li>
-                        <li className="flex items-center gap-2 text-sm text-gray-600">
-                          <svg
-                            className="w-4 h-4 text-green-500"
-                            fill="none"
-                            stroke="currentColor"
-                            viewBox="0 0 24 24"
-                          >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth={2}
-                              d="M5 13l4 4L19 7"
-                            />
-                          </svg>
-                          Limited flight tracking
-                        </li>
-                        <li className="flex items-center gap-2 text-sm text-gray-600">
-                          <svg
-                            className="w-4 h-4 text-green-500"
-                            fill="none"
-                            stroke="currentColor"
-                            viewBox="0 0 24 24"
-                          >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth={2}
-                              d="M5 13l4 4L19 7"
-                            />
-                          </svg>
-                          Basic airport information
-                        </li>
-                      </ul>
-                    </div>
-
-                    <div className="mt-6 pt-6 border-t border-gray-200">
-                      <button className="w-full px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors">
-                        Upgrade to Pro Plan
-                      </button>
-                    </div>
-                  </div>
-
                   {/* Available Plans */}
                   <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm">
                     <h3 className="text-lg font-semibold text-gray-900 mb-6">
                       Available Plans
                     </h3>
 
-                    <div className="grid gap-6 md:grid-cols-3">
+                    <div className="grid gap-6 md:grid-cols-2">
                       {[
-                        {
-                          name: "Guest",
-                          price: "Free",
-                          note: "",
-                          perks: [
-                            "Aircraft lookup",
-                            "Flight history",
-                            "Airport information",
-                            "Basic specs & photos",
-                            "Ads",
-                          ],
-                          cta: {
-                            href: "/login",
-                            text: "Get started",
-                            className: "bg-gray-900 hover:bg-black",
-                          },
-                          wrapClass: "border-gray-200",
-                          current: false,
-                        },
                         {
                           name: "Subscribed",
                           price: "$0",
@@ -893,60 +841,6 @@ export default function AccountSettingsPage() {
                 </div>
               )}
             </motion.div>
-          </div>
-        </div>
-
-        {/* Danger Zone */}
-        <div className="mt-12">
-          <div className="bg-red-50 border border-red-200 rounded-2xl p-6">
-            <h3 className="text-lg font-semibold text-red-900 mb-4">
-              Danger Zone
-            </h3>
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <svg
-                    className="w-5 h-5 text-red-600"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-                    />
-                  </svg>
-                  <div>
-                    <h4 className="font-medium text-red-900">Delete Account</h4>
-                    <p className="text-sm text-red-700">
-                      Permanently delete your account and all data
-                    </p>
-                  </div>
-                </div>
-                <button
-                  onClick={handleDeleteAccount}
-                  disabled={loadingAction}
-                  className="px-4 py-2 text-sm bg-red-600 text-white rounded-lg hover:bg-red-700 focus:ring-2 focus:ring-red-500 focus:ring-offset-2 transition-colors disabled:opacity-50 flex items-center gap-2"
-                >
-                  <svg
-                    className="w-4 h-4"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-                    />
-                  </svg>
-                  {loadingAction ? "Processing..." : "Delete Account"}
-                </button>
-              </div>
-            </div>
           </div>
         </div>
       </motion.div>

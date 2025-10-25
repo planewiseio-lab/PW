@@ -3,6 +3,9 @@ import { createClient } from "@/lib/supabase/server";
 import { chargeOneCredit, InsufficientCreditsError } from "@/lib/credits";
 import { ActionType } from "@prisma/client";
 
+// Global cache for pending requests to prevent duplicate API calls
+const pendingRequests = new Map<string, Promise<any>>();
+
 /**
  * Middleware spécialisé pour les requêtes vers les API ABD (AircraftBaseData)
  * Débite automatiquement 1 crédit pour chaque requête ABD
@@ -30,71 +33,94 @@ export function withCreditChargeABD<T = any>(
         );
       }
 
-      // 2. Générer une clé d'idempotence basée sur l'endpoint et le timestamp
+      // 2. Générer une clé d'idempotence basée sur l'endpoint et les paramètres
       const endpoint = request.nextUrl.pathname;
-      const timestamp = Date.now();
-      const idempotencyKey = `abd-${user.id}-${endpoint}-${timestamp}`;
+      const searchParams = request.nextUrl.searchParams.toString();
+      const requestKey = `${user.id}-${endpoint}-${searchParams}`;
 
-      // 3. Logger la requête ABD
+      // Check if request is already pending
+      if (pendingRequests.has(requestKey)) {
+        console.log(
+          `[ABD] 🔄 Request already pending for ${requestKey}, waiting...`
+        );
+        const pendingResponse = await pendingRequests.get(requestKey);
+        return pendingResponse;
+      }
+
+      const idempotencyKey = `abd-${user.id}-${endpoint}-${Date.now()}`;
+
+      // 3. Logger la requête ABD (avant traitement)
       console.log(
-        `[ABD] 🛩️ ABD request charged for user: ${user.id} (${actionType})`
+        `[ABD] 🛩️ ABD request received for user: ${user.id} (${actionType})`
       );
 
-      // 4. Débiter 1 crédit (atomique et idempotent)
-      try {
-        const { newBalance } = await chargeOneCredit({
-          userId: user.id,
-          actionType,
-          idempotencyKey,
-          refId: endpoint,
-          metadata: {
-            endpoint,
-            method: request.method,
-            userAgent: request.headers.get("user-agent"),
-            timestamp: new Date().toISOString(),
-            source: "abd_api_request",
-          },
-        });
+      // 4. Créer une Promise pour la requête et la stocker dans le cache
+      const requestPromise = (async () => {
+        try {
+          // Débiter 1 crédit (atomique et idempotent)
+          const { newBalance } = await chargeOneCredit({
+            userId: user.id,
+            actionType,
+            idempotencyKey,
+            refId: endpoint,
+            metadata: {
+              endpoint,
+              method: request.method,
+              userAgent: request.headers.get("user-agent"),
+              timestamp: new Date().toISOString(),
+              source: "abd_api_request",
+            },
+          });
 
-        console.log(
-          `[ABD] ✅ Credit charged: ${user.id} now has ${newBalance} credits`
-        );
+          console.log(
+            `[ABD] ✅ Credit charged: ${user.id} now has ${newBalance} credits`
+          );
 
-        // 5. Exécuter la requête API ABD
-        const response = await handler(request, context);
+          // Exécuter la requête API ABD
+          const response = await handler(request, context);
 
-        // 6. Ajouter des headers de debug (optionnel)
-        response.headers.set("X-Credits-Remaining", newBalance.toString());
-        response.headers.set("X-Credits-Charged", "1");
+          // Ajouter des headers de debug (optionnel)
+          response.headers.set("X-Credits-Remaining", newBalance.toString());
+          response.headers.set("X-Credits-Charged", "1");
 
-        return response;
-      } catch (error) {
-        if (error instanceof InsufficientCreditsError) {
-          console.log(`[ABD] ❌ Insufficient credits for user: ${user.id}`);
+          return response;
+        } catch (error) {
+          if (error instanceof InsufficientCreditsError) {
+            console.log(`[ABD] ❌ Insufficient credits for user: ${user.id}`);
+            return NextResponse.json(
+              {
+                error: "Insufficient credits",
+                code: "INSUFFICIENT_CREDITS",
+                message: "You need at least 1 credit to use this service",
+              },
+              { status: 402 }
+            );
+          }
+
+          // Autres erreurs de crédits
+          console.error(
+            `[ABD] 💥 Credit charging error for user ${user.id}:`,
+            error
+          );
           return NextResponse.json(
             {
-              error: "Insufficient credits",
-              code: "INSUFFICIENT_CREDITS",
-              message: "You need at least 1 credit to use this service",
+              error: "Credit processing failed",
+              code: "CREDIT_ERROR",
+              message: "Unable to process credit transaction",
             },
-            { status: 402 }
+            { status: 500 }
           );
+        } finally {
+          // Nettoyer le cache après completion
+          pendingRequests.delete(requestKey);
         }
+      })();
 
-        // Autres erreurs de crédits
-        console.error(
-          `[ABD] 💥 Credit charging error for user ${user.id}:`,
-          error
-        );
-        return NextResponse.json(
-          {
-            error: "Credit processing failed",
-            code: "CREDIT_ERROR",
-            message: "Unable to process credit transaction",
-          },
-          { status: 500 }
-        );
-      }
+      // Stocker la Promise dans le cache
+      pendingRequests.set(requestKey, requestPromise);
+
+      // Attendre et retourner le résultat
+      return await requestPromise;
     } catch (error) {
       console.error("[ABD] 💥 Fatal error in withCreditChargeABD:", error);
       return NextResponse.json(

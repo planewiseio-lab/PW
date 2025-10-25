@@ -1,5 +1,5 @@
 /**
- * Configuration PWA pour PlaneWise
+ * PWA Configuration for PlaneWise
  */
 
 import { useState, useEffect } from "react";
@@ -12,7 +12,7 @@ export function registerServiceWorker() {
         .then((registration) => {
           console.log("[PWA] Service Worker registered:", registration);
 
-          // Gérer les mises à jour
+          // Handle updates
           registration.addEventListener("updatefound", () => {
             const newWorker = registration.installing;
             if (newWorker) {
@@ -21,10 +21,10 @@ export function registerServiceWorker() {
                   newWorker.state === "installed" &&
                   navigator.serviceWorker.controller
                 ) {
-                  // Nouvelle version disponible
+                  // New version available
                   if (
                     confirm(
-                      "Une nouvelle version est disponible. Voulez-vous la charger ?"
+                      "A new version is available. Would you like to load it?"
                     )
                   ) {
                     newWorker.postMessage({ type: "SKIP_WAITING" });
@@ -58,7 +58,7 @@ export function usePWA() {
   const [isInstallable, setIsInstallable] = useState(false);
 
   useEffect(() => {
-    // Détecter l'état de connexion
+    // Detect connection status
     setIsOnline(navigator.onLine);
 
     const handleOnline = () => setIsOnline(true);
@@ -74,7 +74,7 @@ export function usePWA() {
   }, []);
 
   useEffect(() => {
-    // Détecter si l'app peut être installée
+    // Detect if the app can be installed
     const handleBeforeInstallPrompt = (e: any) => {
       e.preventDefault();
       setIsInstallable(true);
