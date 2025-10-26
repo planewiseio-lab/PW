@@ -119,6 +119,7 @@ export async function getAircraftData(registration: string): Promise<any> {
         `/api/aircraft/${encodeURIComponent(registration)}`,
         {
           cache: "no-store",
+          credentials: "include",
         }
       );
       if (!response.ok) {
@@ -133,20 +134,37 @@ export async function getAircraftData(registration: string): Promise<any> {
 /**
  * API spécialisée pour les images
  */
+// Cache des requêtes d'images en cours pour éviter les doublons
+const pendingImageRequests = new Map<string, Promise<any>>();
+
 export async function getImagesData(
   query: string,
   refresh = false
 ): Promise<any> {
   const key = `images:${query}${refresh ? ":refresh" : ""}`;
-  return cachedApiCall(
+
+  // Vérifier si une requête identique est déjà en cours
+  if (pendingImageRequests.has(key)) {
+    console.log(`[IMAGES-CACHE] Deduplicating request for: ${query}`);
+    return pendingImageRequests.get(key);
+  }
+
+  const requestPromise = cachedApiCall(
     key,
     async () => {
       const url = `/api/images?q=${encodeURIComponent(query)}${
         refresh ? "&cache=refresh" : ""
       }`;
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 10000); // 10s timeout pour les images
+
       const response = await fetch(url, {
         cache: "no-store",
+        credentials: "include",
+        signal: controller.signal,
       });
+
+      clearTimeout(timeoutId);
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}: ${response.statusText}`);
       }
@@ -154,6 +172,16 @@ export async function getImagesData(
     },
     2 * 60 * 60 * 1000
   ); // 2h cache
+
+  // Enregistrer la requête en cours
+  pendingImageRequests.set(key, requestPromise);
+
+  // Nettoyer après completion
+  requestPromise.finally(() => {
+    pendingImageRequests.delete(key);
+  });
+
+  return requestPromise;
 }
 
 /**
@@ -169,6 +197,7 @@ export async function getFlightData(
     async () => {
       const response = await fetch(`/api/flights/${flight}?dateLocal=${date}`, {
         cache: "no-store",
+        credentials: "include",
       });
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}: ${response.statusText}`);

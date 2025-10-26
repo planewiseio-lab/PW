@@ -37,14 +37,18 @@ export function CreditsSection() {
         }
 
         // Fetch balance
-        const balanceResponse = await fetch("/api/credits/balance");
+        const balanceResponse = await fetch("/api/credits/balance", {
+          credentials: "include",
+        });
         if (!balanceResponse.ok) {
           throw new Error("Failed to fetch balance");
         }
         const { credits: balance } = await balanceResponse.json();
 
         // Fetch history
-        const historyResponse = await fetch("/api/credits/history?limit=10");
+        const historyResponse = await fetch("/api/credits/history?limit=10", {
+          credentials: "include",
+        });
         if (!historyResponse.ok) {
           throw new Error("Failed to fetch history");
         }

@@ -41,10 +41,26 @@ export async function middleware(request: NextRequest) {
 
   // Refresh session if expired - required for Server Components
   try {
+    // Debug: Log all cookies
+    const allCookies = request.cookies.getAll();
+    console.log(`[Middleware] 🍪 Cookies count: ${allCookies.length}`);
+    allCookies.forEach((cookie) => {
+      if (cookie.name.includes("sb-") || cookie.name.includes("supabase")) {
+        console.log(
+          `[Middleware] 🍪 Auth cookie: ${
+            cookie.name
+          } = ${cookie.value.substring(0, 20)}...`
+        );
+      }
+    });
+
     const {
       data: { user },
       error,
     } = await supabase.auth.getUser();
+
+    console.log(`[Middleware] 🔍 User:`, user ? user.id : "null");
+    console.log(`[Middleware] 🔍 Error:`, error ? error.message : "none");
 
     // Si erreur 403, nettoyer les cookies de session
     if (
@@ -52,10 +68,16 @@ export async function middleware(request: NextRequest) {
       (error.message.includes("403") || error.message.includes("Forbidden"))
     ) {
       console.log("403 error in middleware, clearing session...");
-      // Nettoyer les cookies de session
-      supabaseResponse.cookies.delete("sb-ssqqbcniphbdjttxgcug-auth-token");
-      supabaseResponse.cookies.delete("sb-ssqqbcniphbdjttxgcug-auth-token.0");
-      supabaseResponse.cookies.delete("sb-ssqqbcniphbdjttxgcug-auth-token.1");
+      // Nettoyer tous les cookies de session Supabase
+      const allCookies = request.cookies.getAll();
+      allCookies.forEach((cookie) => {
+        if (
+          cookie.name.includes("sb-") &&
+          cookie.name.includes("-auth-token")
+        ) {
+          supabaseResponse.cookies.delete(cookie.name);
+        }
+      });
     }
   } catch (err) {
     console.error("Error in middleware auth check:", err);

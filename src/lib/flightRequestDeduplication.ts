@@ -49,6 +49,7 @@ export async function fetchFlightData(
     try {
       const response = await fetch(`/api/flights/${flight}?dateLocal=${date}`, {
         signal,
+        credentials: "include",
         headers: {
           "Cache-Control": "max-age=300",
         },

@@ -28,6 +28,17 @@ export function withActionAccess<T = any>(
         error: authError,
       } = await supabase.auth.getUser();
 
+      // Debug logs
+      console.log(
+        `[Action Access] 🔍 Auth debug - User:`,
+        user ? user.id : "null"
+      );
+      console.log(
+        `[Action Access] 🔍 Auth debug - Error:`,
+        authError ? authError.message : "none"
+      );
+      console.log(`[Action Access] 🔍 Auth debug - URL:`, request.url);
+
       // 2. Si l'utilisateur est connecté, utiliser le système de crédits
       if (user && !authError) {
         console.log(

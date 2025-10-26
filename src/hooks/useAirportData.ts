@@ -47,6 +47,7 @@ export function useAirportData(code: string, dir: Direction) {
 
       const response = await fetch(url.toString(), {
         cache: "no-store", // Désactiver le cache pour éviter les problèmes
+        credentials: "include",
       });
 
       if (!response.ok) {
@@ -84,4 +85,3 @@ export function useAirportData(code: string, dir: Direction) {
     refetch: loadFlights,
   };
 }
-

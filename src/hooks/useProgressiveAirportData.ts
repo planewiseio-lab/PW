@@ -79,6 +79,7 @@ export function useProgressiveAirportData(code: string, dir: Direction) {
 
             const response = await fetch(url.toString(), {
               cache: "no-store",
+              credentials: "include",
             });
 
             if (!response.ok) {

@@ -5,6 +5,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import { getAircraftData } from "@/lib/globalApiCache";
+import { fetchAircraftData } from "@/lib/clientRequestDeduplication";
 import { triggerInsufficientCredits } from "./useInsufficientCredits";
 import { triggerGuestQuotaExceeded } from "./useGuestQuotaExceeded";
 import { triggerSubscribedCreditsExceeded } from "./useSubscribedCreditsExceeded";
@@ -71,7 +72,8 @@ export function useAircraftData(registration: string): UseAircraftDataReturn {
     setError(null);
 
     try {
-      const result = await getAircraftData(registration);
+      // Utiliser la déduplication côté client pour éviter les requêtes multiples
+      const result = await fetchAircraftData(registration);
       const raw = Array.isArray(result) ? result[0] : result?.data ?? result;
 
       if (!abortControllerRef.current.signal.aborted) {

@@ -7,6 +7,7 @@ import { useImagesReady } from "@/hooks/useImagesReady";
 import StructuredData from "@/components/StructuredData";
 import { getImagesData } from "@/lib/globalApiCache";
 import { useAircraftData } from "@/hooks/useAircraftData";
+import { fetchImagesData } from "@/lib/clientRequestDeduplication";
 import { createClient } from "@/lib/supabase/client";
 
 /* ==========================================================
@@ -226,14 +227,8 @@ function useCommonsImages(q?: string) {
     (async () => {
       try {
         console.log(`[IMAGES] Fetching images for: ${q}`);
-        // Temporairement désactiver le cache global pour debug
-        const response = await fetch(
-          `/api/images?q=${encodeURIComponent(q)}&cache=refresh`,
-          {
-            cache: "no-store",
-          }
-        );
-        const json = await response.json();
+        // Utiliser la déduplication côté client
+        const json = await fetchImagesData(q, true);
         console.log(`[IMAGES] Received data:`, json);
         if (stop) return;
         const list = (json?.images || []) as Array<{

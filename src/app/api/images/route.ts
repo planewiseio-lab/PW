@@ -172,9 +172,15 @@ export async function GET(req: Request) {
       if (cached) return cached;
 
       try {
-        // Appel direct à l'API des avions au lieu du cache global
+        // Appel direct à l'API des avions en transmettant les cookies de la requête originale
         const resp = await fetch(`${baseUrl}/api/aircraft/${reg}`, {
           cache: "no-store",
+          headers: {
+            // Transmettre les cookies de la requête originale
+            Cookie: req.headers.get("cookie") || "",
+            "User-Agent":
+              req.headers.get("user-agent") || "PlaneWise-Images-API",
+          },
         });
         if (!resp.ok) return null;
         const data = await resp.json();
