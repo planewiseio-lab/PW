@@ -32,7 +32,8 @@ export function UsageHistoryTable({ history }: UsageHistoryTableProps) {
   };
 
   const actionTypeLabels = {
-    AIRCRAFT_LOOKUP: "Aircraft Lookup",
+    AIRCRAFT_LOOKUP: "Aircraft Data",
+    AIRCRAFT_IMAGES: "Aircraft Images",
     VIEW_FLIGHT_HISTORY: "Flight History",
     BROWSE_FLIGHT: "Browse Flight",
     BROWSE_AIRPORT: "Browse Airport",

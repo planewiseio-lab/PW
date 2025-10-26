@@ -4,6 +4,7 @@ export const dynamic = "force-dynamic";
 import { NextResponse } from "next/server";
 import { cachedRequest } from "@/lib/requestDeduplication";
 import { withAircraftLookupAccess } from "@/lib/withActionAccess";
+import { withAircraftLookupAndImages } from "@/lib/withAircraftLookupAndImages";
 // Combined access control (credits for authenticated, guest quota for anonymous)
 
 // mêmes variables que l’ancienne version
@@ -127,8 +128,8 @@ async function buildAircraftFromFlights(reg: string) {
   return null;
 }
 
-// --- handler Next.js with combined access control
-export const GET = withAircraftLookupAccess(
+// --- handler Next.js with combined access control (2 credits: aircraft data + images)
+export const GET = withAircraftLookupAndImages(
   async (req: Request, ctx: { params: Promise<{ reg: string }> }) => {
     if (!RAPID_KEY) {
       return NextResponse.json({ error: "Missing RAPID_KEY" }, { status: 500 });

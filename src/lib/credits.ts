@@ -196,6 +196,103 @@ export async function chargeOneCredit(opts: {
 }
 
 /**
+ * Charge multiple credits for multiple actions (atomic operation)
+ * Used for aircraft lookup + images (2 credits total)
+ */
+export async function chargeMultipleCredits(opts: {
+  userId: string;
+  actions: Array<{
+    actionType: ActionType;
+    idempotencyKey?: string;
+    refId?: string;
+    metadata?: any;
+  }>;
+  baseIdempotencyKey?: string;
+}): Promise<{ newBalance: number; chargedActions: ActionType[] }> {
+  const { userId, actions, baseIdempotencyKey } = opts;
+  const totalCost = actions.length;
+
+  // Generate base idempotency key if not provided
+  const baseKey = baseIdempotencyKey || `${userId}-multi-${Date.now()}-${Math.random()}`;
+
+  return await prisma.$transaction(async (tx) => {
+    // Check if this multi-action was already processed (idempotency)
+    const existingEvent = await tx.usageEvent.findUnique({
+      where: { idempotencyKey: baseKey },
+    });
+
+    if (existingEvent) {
+      // Return current balance without charging again
+      const balance = await tx.creditBalance.findUnique({
+        where: { userId },
+        select: { credits: true },
+      });
+      return { 
+        newBalance: balance?.credits ?? 0, 
+        chargedActions: actions.map(a => a.actionType) 
+      };
+    }
+
+    // Get current balance with row lock
+    const balance = await tx.creditBalance.findUnique({
+      where: { userId },
+      select: { credits: true },
+    });
+
+    const currentCredits = balance?.credits ?? 0;
+
+    // Check if user has sufficient credits
+    if (currentCredits < totalCost) {
+      throw new InsufficientCreditsError();
+    }
+
+    // Create usage events for each action
+    for (let i = 0; i < actions.length; i++) {
+      const action = actions[i];
+      const actionKey = action.idempotencyKey || `${baseKey}-${i}`;
+      
+      await tx.usageEvent.create({
+        data: {
+          userId,
+          actionType: action.actionType,
+          idempotencyKey: actionKey,
+          cost: 1,
+        },
+      });
+
+      // Create ledger entry for each action
+      await tx.creditLedger.create({
+        data: {
+          userId,
+          delta: -1,
+          reason: CreditReason.ACTION,
+          actionType: action.actionType,
+          refId: action.refId,
+          metadata: {
+            ...action.metadata,
+            multiAction: true,
+            baseIdempotencyKey: baseKey,
+            actionIndex: i,
+          },
+        },
+      });
+    }
+
+    // Update balance
+    await tx.creditBalance.upsert({
+      where: { userId },
+      update: { credits: { decrement: totalCost } },
+      create: { userId, credits: currentCredits - totalCost },
+    });
+
+    return { 
+      newBalance: currentCredits - totalCost, 
+      chargedActions: actions.map(a => a.actionType) 
+    };
+  });
+}
+
+/**
  * Ensure top-up is applied based on subscription plan and timing
  */
 export async function ensureMonthlyTopUp(userId: string): Promise<void> {
