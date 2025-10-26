@@ -717,7 +717,7 @@ function AircraftCard({
             </div>
           </div>
         )}
-        {!imagesLoading && galleryThumbs.length > 0 && (
+        {!imagesLoading && galleryThumbs.length > 1 && (
           <div className="mt-3 grid grid-cols-2 sm:grid-cols-4 gap-3">
             {galleryThumbs.map((url, i) => (
               <button
@@ -742,18 +742,6 @@ function AircraftCard({
           </div>
         )}
 
-        {/* Galerie de fallback avec image par défaut */}
-        {!imagesLoading && galleryThumbs.length === 0 && (
-          <div className="mt-3 grid grid-cols-2 sm:grid-cols-4 gap-3">
-            <div className="relative block rounded-xl overflow-hidden border border-gray-200 aspect-[16/9] w-full bg-gray-100">
-              <img
-                src="/assets/airplane.jpg"
-                alt="Default aircraft thumbnail"
-                className="absolute inset-0 w-full h-full object-cover opacity-50"
-              />
-            </div>
-          </div>
-        )}
       </div>
 
       {/* === LIGHTBOX === */}
