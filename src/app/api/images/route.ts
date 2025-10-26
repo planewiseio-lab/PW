@@ -112,11 +112,18 @@ async function fetchAeroDataBoxImages(registration: string): Promise<Img[]> {
 
     if (!response.ok) {
       console.log(`[IMAGES-API] AeroDataBox API error: ${response.status} ${response.statusText}`);
+      const errorText = await response.text();
+      console.log(`[IMAGES-API] AeroDataBox error response:`, errorText);
       return [];
     }
 
     const data = await response.json();
     console.log(`[IMAGES-API] AeroDataBox response for ${registration}:`, data);
+    
+    // Log if no images found
+    if (!data || (!data.url && (!data.images || data.images.length === 0))) {
+      console.log(`[IMAGES-API] No images available for ${registration} in AeroDataBox`);
+    }
 
     // Convertir la réponse AeroDataBox en format standard
     const images: Img[] = [];
