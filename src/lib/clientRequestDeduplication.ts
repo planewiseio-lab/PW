@@ -92,14 +92,35 @@ export async function fetchImagesData(
     refresh ? "&cache=refresh" : ""
   }`;
 
-  return deduplicatedFetch(
-    url,
-    {
-      cache: "no-store",
-      credentials: "include",
-    },
-    15000
-  ); // 15s timeout pour les images
+  try {
+    return await deduplicatedFetch(
+      url,
+      {
+        cache: "no-store",
+        credentials: "include",
+      },
+      20000
+    ); // 20s timeout pour les images
+  } catch (error: any) {
+    // Si c'est un timeout et qu'on n'est pas en mode refresh, essayer avec un timeout plus court
+    if (error.message.includes('timeout') && !refresh) {
+      console.warn(`[IMAGES] First attempt timeout for ${query}, retrying with shorter timeout`);
+      try {
+        return await deduplicatedFetch(
+          url,
+          {
+            cache: "no-store",
+            credentials: "include",
+          },
+          10000
+        ); // 10s timeout pour le retry
+      } catch (retryError: any) {
+        console.warn(`[IMAGES] Retry also failed for ${query}, returning empty images`);
+        return { images: [] };
+      }
+    }
+    throw error;
+  }
 }
 
 /**
@@ -114,6 +135,6 @@ export async function fetchAircraftData(registration: string): Promise<any> {
       cache: "no-store",
       credentials: "include",
     },
-    20000
-  ); // 20s timeout pour les avions
+    30000
+  ); // 30s timeout pour les avions
 }

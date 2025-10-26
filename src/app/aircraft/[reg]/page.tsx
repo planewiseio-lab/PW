@@ -250,7 +250,11 @@ function useCommonsImages(q?: string) {
           list.map((x) => x.url)
         );
       } catch (error: any) {
-        console.error(`[IMAGES] Error fetching images:`, error);
+        if (error.message.includes('timeout')) {
+          console.warn(`[IMAGES] Timeout fetching images for ${q}, using fallback`);
+        } else {
+          console.error(`[IMAGES] Error fetching images:`, error);
+        }
         if (!stop) {
           setImgs([]);
           setThumbs([]);
