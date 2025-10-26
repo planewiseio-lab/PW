@@ -10,7 +10,7 @@ interface PendingRequest {
 
 const pendingRequests = new Map<string, PendingRequest>();
 const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
-const REQUEST_TIMEOUT = 45 * 1000; // 45 secondes
+const REQUEST_TIMEOUT = 10 * 1000; // 10 secondes
 
 // Nettoyer les requêtes orphelines
 setInterval(() => {
@@ -99,12 +99,14 @@ export async function fetchImagesData(
         cache: "no-store",
         credentials: "include",
       },
-      20000
-    ); // 20s timeout pour les images
+      5000
+    ); // 5s timeout pour les images
   } catch (error: any) {
     // Si c'est un timeout et qu'on n'est pas en mode refresh, essayer avec un timeout plus court
-    if (error.message.includes('timeout') && !refresh) {
-      console.warn(`[IMAGES] First attempt timeout for ${query}, retrying with shorter timeout`);
+    if (error.message.includes("timeout") && !refresh) {
+      console.warn(
+        `[IMAGES] First attempt timeout for ${query}, retrying with shorter timeout`
+      );
       try {
         return await deduplicatedFetch(
           url,
@@ -112,10 +114,12 @@ export async function fetchImagesData(
             cache: "no-store",
             credentials: "include",
           },
-          10000
-        ); // 10s timeout pour le retry
+          3000
+        ); // 3s timeout pour le retry
       } catch (retryError: any) {
-        console.warn(`[IMAGES] Retry also failed for ${query}, returning empty images`);
+        console.warn(
+          `[IMAGES] Retry also failed for ${query}, returning empty images`
+        );
         return { images: [] };
       }
     }
@@ -135,6 +139,6 @@ export async function fetchAircraftData(registration: string): Promise<any> {
       cache: "no-store",
       credentials: "include",
     },
-    30000
-  ); // 30s timeout pour les avions
+    8000
+  ); // 8s timeout pour les avions
 }

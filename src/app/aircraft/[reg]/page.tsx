@@ -219,52 +219,39 @@ function useCommonsImages(q?: string) {
   const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
-    let stop = false;
-    setLoaded(false);
     if (!q) {
       setImgs([]);
       setThumbs([]);
       setLoaded(true);
       return;
     }
-    (async () => {
-      try {
-        console.log(`[IMAGES] Fetching images for: ${q}`);
-        // Utiliser la déduplication côté client
-        const json = await fetchImagesData(q, true);
-        console.log(`[IMAGES] Received data:`, json);
-        if (stop) return;
-        const list = (json?.images || []) as Array<{
-          url: string;
-          original?: string;
-        }>;
-        console.log(`[IMAGES] Processed ${list.length} images:`, list);
-        setImgs(list.map((x) => x.original || x.url)); // grandes images
-        setThumbs(list.map((x) => x.url)); // miniatures
-        console.log(
-          `[IMAGES] Set imgs:`,
-          list.map((x) => x.original || x.url)
-        );
-        console.log(
-          `[IMAGES] Set thumbs:`,
-          list.map((x) => x.url)
-        );
-      } catch (error: any) {
-        if (error.message.includes('timeout')) {
-          console.warn(`[IMAGES] Timeout fetching images for ${q}, using fallback`);
-        } else {
-          console.error(`[IMAGES] Error fetching images:`, error);
-        }
-        if (!stop) {
-          setImgs([]);
-          setThumbs([]);
-        }
-      } finally {
-        if (!stop) setLoaded(true);
-      }
-    })();
+
+    // Requête simple avec timeout court
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 3000); // 3s max
+
+    fetch(`/api/images?q=${encodeURIComponent(q)}`, {
+      signal: controller.signal,
+      credentials: "include",
+    })
+      .then((res) => res.json())
+      .then((json) => {
+        clearTimeout(timeoutId);
+        const images = json?.images || [];
+        setImgs(images.map((x: any) => x.original || x.url));
+        setThumbs(images.map((x: any) => x.url));
+        setLoaded(true);
+      })
+      .catch(() => {
+        clearTimeout(timeoutId);
+        setImgs([]);
+        setThumbs([]);
+        setLoaded(true);
+      });
+
     return () => {
-      stop = true;
+      clearTimeout(timeoutId);
+      controller.abort();
     };
   }, [q]);
 

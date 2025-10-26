@@ -22,7 +22,7 @@ const pendingRequests = new Map<string, PendingRequest>();
 // Configuration
 const DEFAULT_TTL = 5 * 60 * 1000; // 5 minutes
 const REQUEST_TIMEOUT = 30 * 60 * 1000; // 30 minutes
-const API_TIMEOUT = 25 * 1000; // 25 secondes
+const API_TIMEOUT = 8 * 1000; // 8 secondes
 
 // Nettoyage automatique
 setInterval(() => {
@@ -156,7 +156,7 @@ export async function getImagesData(
         refresh ? "&cache=refresh" : ""
       }`;
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 15000); // 15s timeout pour les images
+      const timeoutId = setTimeout(() => controller.abort(), 5000); // 5s timeout pour les images
 
       const response = await fetch(url, {
         cache: "no-store",
