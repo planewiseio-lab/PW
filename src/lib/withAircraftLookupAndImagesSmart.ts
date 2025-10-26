@@ -49,6 +49,7 @@ export function withAircraftLookupAndImagesSmart<T = any>(
       // 2. First, check if images are available (without charging credits)
       const registration = url.pathname.split('/').pop();
       let hasImages = false;
+      let imageCount = 0;
       
       if (registration) {
         try {
@@ -62,8 +63,9 @@ export function withAircraftLookupAndImagesSmart<T = any>(
           
           if (imagesResponse.ok) {
             const imagesData = await imagesResponse.json();
-            hasImages = imagesData.images && imagesData.images.length > 0;
-            console.log(`[AIRCRAFT+IMAGES-SMART] 🖼️ Images check for ${registration}: ${hasImages ? 'found' : 'none'}`);
+            imageCount = imagesData.images ? imagesData.images.length : 0;
+            hasImages = imageCount > 0;
+            console.log(`[AIRCRAFT+IMAGES-SMART] 🖼️ Images check for ${registration}: ${imageCount} images found`);
           }
         } catch (error) {
           console.log(`[AIRCRAFT+IMAGES-SMART] ⚠️ Could not check images:`, error.message);
@@ -74,9 +76,12 @@ export function withAircraftLookupAndImagesSmart<T = any>(
       let chargedActions = [];
       let totalCredits = 1; // Always charge for aircraft data
       
-      if (hasImages) {
+      console.log(`[AIRCRAFT+IMAGES-SMART] 💳 Credit logic: hasImages=${hasImages}, imageCount=${imageCount}`);
+      
+      if (hasImages && imageCount > 0) {
         totalCredits = 2; // Charge for both data and images
         chargedActions = [ActionType.AIRCRAFT_LOOKUP, ActionType.AIRCRAFT_LOOKUP];
+        console.log(`[AIRCRAFT+IMAGES-SMART] 💳 Charging 2 credits: data + images (${imageCount} images found)`);
         
         // Charge 2 credits atomically
         const { newBalance } = await chargeMultipleCredits({
@@ -114,6 +119,7 @@ export function withAircraftLookupAndImagesSmart<T = any>(
         );
       } else {
         // Only charge for aircraft data
+        console.log(`[AIRCRAFT+IMAGES-SMART] 💳 Charging 1 credit: data only (no images available)`);
         const { newBalance } = await chargeOneCredit({
           userId,
           actionType: ActionType.AIRCRAFT_LOOKUP,

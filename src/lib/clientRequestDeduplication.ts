@@ -10,7 +10,7 @@ interface PendingRequest {
 
 const pendingRequests = new Map<string, PendingRequest>();
 const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
-const REQUEST_TIMEOUT = 30 * 1000; // 30 secondes
+const REQUEST_TIMEOUT = 45 * 1000; // 45 secondes
 
 // Nettoyer les requêtes orphelines
 setInterval(() => {
@@ -62,7 +62,7 @@ export async function deduplicatedFetch(
     } catch (error: any) {
       clearTimeout(timeoutId);
       if (error.name === "AbortError") {
-        throw new Error("Request timeout");
+        throw new Error(`Request timeout after ${timeout}ms for ${url}`);
       }
       throw error;
     } finally {
@@ -98,8 +98,8 @@ export async function fetchImagesData(
       cache: "no-store",
       credentials: "include",
     },
-    10000
-  ); // 10s timeout pour les images
+    15000
+  ); // 15s timeout pour les images
 }
 
 /**
@@ -114,6 +114,6 @@ export async function fetchAircraftData(registration: string): Promise<any> {
       cache: "no-store",
       credentials: "include",
     },
-    15000
-  ); // 15s timeout pour les avions
+    20000
+  ); // 20s timeout pour les avions
 }
