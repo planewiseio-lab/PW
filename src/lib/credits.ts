@@ -251,6 +251,11 @@ export async function chargeMultipleCredits(opts: {
       const action = actions[i];
       const actionKey = action.idempotencyKey || `${baseKey}-${i}`;
       
+      // Ensure actionType is defined
+      if (!action.actionType) {
+        throw new Error(`Action type is required for action at index ${i}`);
+      }
+      
       await tx.usageEvent.create({
         data: {
           userId,

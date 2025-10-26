@@ -98,7 +98,16 @@ export function UsageHistoryTable({ history }: UsageHistoryTableProps) {
                   {reasonLabels[item.reason]}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                  {item.actionType ? actionTypeLabels[item.actionType] : "-"}
+                  {item.actionType ? (
+                    <div>
+                      <div>{actionTypeLabels[item.actionType]}</div>
+                      {item.metadata?.actionSubType && (
+                        <div className="text-xs text-gray-500">
+                          ({item.metadata.actionSubType.replace('AIRCRAFT_', '').toLowerCase()})
+                        </div>
+                      )}
+                    </div>
+                  ) : "-"}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                   {item.refId || "-"}

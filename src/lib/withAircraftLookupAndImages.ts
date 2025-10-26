@@ -61,7 +61,7 @@ export function withAircraftLookupAndImages<T = any>(
             },
           },
           {
-            actionType: ActionType.AIRCRAFT_IMAGES,
+            actionType: ActionType.AIRCRAFT_LOOKUP, // Temporarily use AIRCRAFT_LOOKUP until migration is applied
             refId: endpoint,
             metadata: {
               endpoint,
@@ -69,6 +69,7 @@ export function withAircraftLookupAndImages<T = any>(
               userAgent: request.headers.get("user-agent"),
               source: "aircraft_lookup",
               part: "aircraft_images",
+              actionSubType: "AIRCRAFT_IMAGES", // Store as metadata for now
             },
           },
         ],
