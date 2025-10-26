@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getAircraftData } from "@/lib/globalApiCache";
+import { env } from "@/config/env";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -33,6 +34,12 @@ function coalesce<T>(key: string, fn: () => Promise<T>): Promise<T> {
 }
 
 /* =========================
+   AeroDataBox Configuration
+========================= */
+const AERODATABOX_HOST = "aerodatabox.p.rapidapi.com";
+const AERODATABOX_API_KEY = env.aerodatabox.apiKey;
+
+/* =========================
    Helpers
 ========================= */
 function getBaseUrl(req: Request) {
@@ -42,21 +49,15 @@ function getBaseUrl(req: Request) {
   return `${proto}://${host}`;
 }
 
-function commonsSearchURL(q: string) {
-  const u = new URL("https://commons.wikimedia.org/w/api.php");
-  u.searchParams.set("action", "query");
-  u.searchParams.set("format", "json");
-  u.searchParams.set("origin", "*");
-  u.searchParams.set("generator", "search");
-  u.searchParams.set("gsrsearch", q); // déjà propre: "Airline" "Model"
-  u.searchParams.set("gsrnamespace", "6"); // File:
-  u.searchParams.set("gsrlimit", "24");
-  u.searchParams.set("prop", "imageinfo");
-  u.searchParams.set("iiprop", "url|extmetadata|mime|size");
-  u.searchParams.set("iiurlwidth", "1280"); // plus léger → plus rapide
-  u.searchParams.set("iiurlheight", "1280");
-  return u.toString();
-}
+type AeroDataBoxImage = {
+  url: string;
+  width: number;
+  height: number;
+  source?: string;
+  author?: string;
+  license?: string;
+  title?: string;
+};
 
 type Img = {
   url: string;
@@ -69,9 +70,6 @@ type Img = {
   title?: string;
 };
 
-const isWiki = (u: string) =>
-  /^(https?:)?\/\/(upload|commons)\.wikimedia\.org\//i.test(u);
-
 function dedupe(list: Img[]) {
   const seen = new Set<string>();
   return list.filter((x) => {
@@ -81,6 +79,7 @@ function dedupe(list: Img[]) {
     return true;
   });
 }
+
 function filterWide(list: Img[], minWidth = 900, minAspect = 1.2) {
   const wide = list.filter((im) => {
     const w = im.width ?? 0;
@@ -90,57 +89,79 @@ function filterWide(list: Img[], minWidth = 900, minAspect = 1.2) {
   return wide.length ? wide : list;
 }
 
-/* === Normalisation simple du modèle === */
-function normalizeModel(raw: string) {
-  if (!raw) return "";
-  let m = raw.trim();
-  if (/^A21N$/i.test(m)) m = "A321";
-  if (/^A20N$/i.test(m)) m = "A320";
-  if (/^A359$/i.test(m)) m = "A350-900";
-  if (/^A339$/i.test(m)) m = "A330-900";
-  if (/^B789$/i.test(m)) m = "787-9";
-  if (/^B788$/i.test(m)) m = "787-8";
-  if (/^B38M$/i.test(m)) m = "737-8";
-  // Airbus A321-211 → A321
-  if (/^A\d{3}-\d+/i.test(m)) m = m.replace(/-.+$/, "");
-  return m;
-}
-
 /* =========================
-   Wikimedia fetch (single)
+   AeroDataBox Image Fetch
 ========================= */
-async function fetchCommonsSingle(q: string): Promise<Img[]> {
-  const r = await fetch(commonsSearchURL(q), {
-    headers: {
-      "User-Agent": "PlaneWise/2.0 (contact@plane-wise.com)",
-      Accept: "application/json",
-    },
-    cache: "no-store",
-  });
-  if (!r.ok) return [];
-  const j = await r.json();
-  const pages = j?.query?.pages || {};
-  const out: Img[] = [];
-  for (const p of Object.values<any>(pages)) {
-    const ii = p?.imageinfo?.[0];
-    if (!ii) continue;
-    const full = ii.url || ii.thumburl;
-    const thumb = ii.thumburl || ii.url;
-    if (!full || !thumb) continue;
-    if (!isWiki(full) && !isWiki(thumb)) continue;
-
-    out.push({
-      url: thumb,
-      original: full,
-      source: ii.descriptionurl,
-      width: ii.thumbwidth || ii.width,
-      height: ii.thumbheight || ii.height,
-      author: ii.extmetadata?.Artist?.value || "",
-      license: ii.extmetadata?.LicenseShortName?.value || "",
-      title: p.title,
-    });
+async function fetchAeroDataBoxImages(registration: string): Promise<Img[]> {
+  if (!AERODATABOX_API_KEY) {
+    console.log("[IMAGES-API] No AeroDataBox API key available");
+    return [];
   }
-  return out;
+
+  const url = `https://${AERODATABOX_HOST}/aircrafts/reg/${encodeURIComponent(registration)}/image/beta`;
+  
+  try {
+    const response = await fetch(url, {
+      headers: {
+        "X-RapidAPI-Host": AERODATABOX_HOST,
+        "X-RapidAPI-Key": AERODATABOX_API_KEY,
+        "Accept": "application/json",
+      },
+      cache: "no-store",
+    });
+
+    if (!response.ok) {
+      console.log(`[IMAGES-API] AeroDataBox API error: ${response.status} ${response.statusText}`);
+      return [];
+    }
+
+    const data = await response.json();
+    console.log(`[IMAGES-API] AeroDataBox response for ${registration}:`, data);
+
+    // Convertir la réponse AeroDataBox en format standard
+    const images: Img[] = [];
+    
+    if (data && typeof data === 'object') {
+      // Si c'est un objet avec des propriétés d'image
+      if (data.url) {
+        images.push({
+          url: data.url,
+          original: data.url,
+          source: data.source || "AeroDataBox",
+          width: data.width || 0,
+          height: data.height || 0,
+          author: data.author || "AeroDataBox",
+          license: data.license || "AeroDataBox",
+          title: data.title || `${registration} Aircraft Image`,
+        });
+      }
+      
+      // Si c'est un tableau d'images
+      if (Array.isArray(data.images)) {
+        data.images.forEach((img: AeroDataBoxImage) => {
+          if (img.url) {
+            images.push({
+              url: img.url,
+              original: img.url,
+              source: img.source || "AeroDataBox",
+              width: img.width || 0,
+              height: img.height || 0,
+              author: img.author || "AeroDataBox",
+              license: img.license || "AeroDataBox",
+              title: img.title || `${registration} Aircraft Image`,
+            });
+          }
+        });
+      }
+    }
+
+    console.log(`[IMAGES-API] Found ${images.length} images from AeroDataBox`);
+    return images;
+
+  } catch (error) {
+    console.error(`[IMAGES-API] Error fetching AeroDataBox images for ${registration}:`, error);
+    return [];
+  }
 }
 
 /* =========================
@@ -156,91 +177,82 @@ export async function GET(req: Request) {
     force,
   });
 
-  // Mode A: airline+model fournis
+  // Mode A: registration fournie directement
+  const reg = (searchParams.get("q") || searchParams.get("reg") || "").trim();
+  
+  // Mode B: airline+model fournis (fallback)
   let airline = (searchParams.get("airline") || "").trim();
   let model = (searchParams.get("model") || "").trim();
 
-  // Mode B: on reçoit une REG dans ?q= → on résout via /api/aircraft/:reg
-  const reg = (searchParams.get("q") || "").trim();
+  // Si on a une registration, on l'utilise directement
+  if (reg) {
+    const keyBase = `images:${reg.toUpperCase()}`;
+    const key = keyBase + (force ? ":refresh" : "");
 
-  if (!airline && !model && reg) {
-    const acKey = `aircraft:${reg.toUpperCase()}`;
-    const baseUrl = getBaseUrl(req);
-
-    const ac = await coalesce(acKey + (force ? ":refresh" : ""), async () => {
-      const cached = !force ? getCache<any>(acKey) : null;
-      if (cached) return cached;
-
-      try {
-        // Appel direct à l'API des avions en transmettant les cookies de la requête originale
-        const resp = await fetch(`${baseUrl}/api/aircraft/${reg}`, {
-          cache: "no-store",
-          headers: {
-            // Transmettre les cookies de la requête originale
-            Cookie: req.headers.get("cookie") || "",
-            "User-Agent":
-              req.headers.get("user-agent") || "PlaneWise-Images-API",
-          },
-        });
-        if (!resp.ok) return null;
-        const data = await resp.json();
-        setCache(acKey, data, AIRCRAFT_TTL_MS);
-        return data;
-      } catch {
-        return null;
+    const payload = await coalesce(key, async () => {
+      if (!force) {
+        const cached = getCache<{ images: Img[] }>(keyBase);
+        if (cached) {
+          console.log(`[CACHE] hit images ${keyBase}`);
+          return cached;
+        }
       }
+
+      console.log(`[CACHE] fetching images for ${keyBase}`);
+
+      // === Requête AeroDataBox avec la registration ===
+      console.log(`[IMAGES-API] Fetching AeroDataBox images for registration: ${reg}`);
+      let images = await fetchAeroDataBoxImages(reg);
+      console.log(`[IMAGES-API] Found ${images.length} images from AeroDataBox`);
+
+      // Si pas d'images trouvées, essayer de récupérer les infos avion pour fallback
+      if (images.length === 0) {
+        console.log(`[IMAGES-API] No images found for ${reg}, trying aircraft data fallback`);
+        const baseUrl = getBaseUrl(req);
+        const acKey = `aircraft:${reg.toUpperCase()}`;
+
+        try {
+          const resp = await fetch(`${baseUrl}/api/aircraft/${reg}`, {
+            cache: "no-store",
+            headers: {
+              Cookie: req.headers.get("cookie") || "",
+              "User-Agent": req.headers.get("user-agent") || "PlaneWise-Images-API",
+            },
+          });
+          
+          if (resp.ok) {
+            const ac = await resp.json();
+            airline = ac?.airlineName || ac?.operator || "";
+            model = ac?.model || ac?.typeName || ac?.aircraftModel || "";
+            
+            console.log(`[IMAGES-API] Aircraft data for fallback:`, {
+              airline,
+              model,
+              rawData: ac,
+            });
+          }
+        } catch (error) {
+          console.log(`[IMAGES-API] Error fetching aircraft data for fallback:`, error);
+        }
+      }
+
+      // Nettoyage et limitation
+      images = filterWide(dedupe(images)).slice(0, 12);
+
+      const out = { images };
+      setCache(keyBase, out, IMAGES_TTL_MS);
+      console.log(
+        `[CACHE] stored images ${keyBase} for ${Math.floor(
+          IMAGES_TTL_MS / (1000 * 60 * 60)
+        )}h`
+      );
+      return out;
     });
 
-    airline = ac?.airlineName || ac?.operator || "";
-    model = ac?.model || ac?.typeName || ac?.aircraftModel || "";
-
-    console.log(`[IMAGES-API] Aircraft data for ${reg}:`, {
-      airline,
-      model,
-      rawData: ac,
-    });
+    return NextResponse.json(payload);
   }
 
-  if (!airline && !model) {
-    console.log(
-      `[IMAGES-API] No airline/model found for ${reg}, returning empty images`
-    );
-    return NextResponse.json({ images: [] });
-  }
-
-  const family = normalizeModel(model);
-  const keyBase = `images:${(airline + "|" + family).toLowerCase()}`;
-  const key = keyBase + (force ? ":refresh" : "");
-
-  const payload = await coalesce(key, async () => {
-    if (!force) {
-      const cached = getCache<{ images: Img[] }>(keyBase);
-      if (cached) {
-        console.log(`[CACHE] hit images ${keyBase}`);
-        return cached;
-      }
-    }
-
-    console.log(`[CACHE] fetching images for ${keyBase}`);
-
-    // === 1 seule requête Wikimedia (Airline + Modèle normalisé) ===
-    const query = `"${airline}" "${family || model}"`.trim();
-    console.log(`[IMAGES-API] Searching Wikimedia with query: "${query}"`);
-    let images = await fetchCommonsSingle(query);
-    console.log(`[IMAGES-API] Found ${images.length} images from Wikimedia`);
-
-    // Nettoyage
-    images = filterWide(dedupe(images)).slice(0, 12);
-
-    const out = { images };
-    setCache(keyBase, out, IMAGES_TTL_MS);
-    console.log(
-      `[CACHE] stored images ${keyBase} for ${Math.floor(
-        IMAGES_TTL_MS / (1000 * 60 * 60)
-      )}h`
-    );
-    return out;
-  });
-
-  return NextResponse.json(payload);
+  // Fallback: si pas de registration, retourner vide
+  console.log(`[IMAGES-API] No registration provided, returning empty images`);
+  return NextResponse.json({ images: [] });
 }

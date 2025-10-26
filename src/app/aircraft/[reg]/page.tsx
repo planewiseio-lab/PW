@@ -208,7 +208,7 @@ function normalizeAircraft(raw: any) {
 }
 
 /* ==========================================================
-   IMAGES WIKIMEDIA COMMONS (via API /api/images) — hook local
+   IMAGES AERODATABOX (via API /api/images) — hook local
    ---------------------------------------------------------- */
 function useCommonsImages(q?: string) {
   const [imgs, setImgs] = useState<string[]>([]);
