@@ -39,7 +39,7 @@ export function withAircraftLookupAndImagesSmart<T = any>(
       const url = new URL(request.url);
       const searchParams = url.searchParams.toString();
       const requestHash = `${endpoint}-${method}-${searchParams}`;
-      const baseIdempotencyKey = `aircraft+images-smart-${userId}-${requestHash}`;
+      const baseIdempotencyKey = `aircraft+images-smart-${userId}-${requestHash}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 
       console.log(
         `[AIRCRAFT+IMAGES-SMART] 🛩️ Smart aircraft lookup for user: ${userId}`
@@ -56,6 +56,7 @@ export function withAircraftLookupAndImagesSmart<T = any>(
             method: "GET",
             headers: {
               "Accept": "application/json",
+              "Cookie": request.headers.get("cookie") || "",
             },
           });
           

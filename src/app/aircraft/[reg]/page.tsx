@@ -741,7 +741,6 @@ function AircraftCard({
             ))}
           </div>
         )}
-
       </div>
 
       {/* === LIGHTBOX === */}

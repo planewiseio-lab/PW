@@ -117,8 +117,19 @@ async function fetchAeroDataBoxImages(registration: string): Promise<Img[]> {
       return [];
     }
 
-    const data = await response.json();
-    console.log(`[IMAGES-API] AeroDataBox response for ${registration}:`, data);
+    let data;
+    try {
+      const responseText = await response.text();
+      if (!responseText.trim()) {
+        console.log(`[IMAGES-API] Empty response from AeroDataBox for ${registration}`);
+        return [];
+      }
+      data = JSON.parse(responseText);
+      console.log(`[IMAGES-API] AeroDataBox response for ${registration}:`, data);
+    } catch (parseError) {
+      console.error(`[IMAGES-API] JSON parse error for ${registration}:`, parseError);
+      return [];
+    }
     
     // Log if no images found
     if (!data || (!data.url && (!data.images || data.images.length === 0))) {
