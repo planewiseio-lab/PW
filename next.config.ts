@@ -18,7 +18,7 @@ const nextConfig: NextConfig = {
     minimumCacheTTL: 60,
     deviceSizes: [640, 750, 828, 1080, 1200, 1920, 2048, 3840],
     imageSizes: [16, 32, 48, 64, 96, 128, 256, 384],
-    domains: ["commons.wikimedia.org", "upload.wikimedia.org"],
+    domains: ["commons.wikimedia.org", "upload.wikimedia.org", "farm5.staticflickr.com", "farm66.staticflickr.com", "staticflickr.com"],
   },
   async headers() {
     return [
@@ -31,7 +31,7 @@ const nextConfig: NextConfig = {
               "default-src 'self'",
               "script-src 'self' 'unsafe-eval' 'unsafe-inline' https://accounts.google.com",
               "style-src 'self' 'unsafe-inline' https://accounts.google.com",
-              "img-src 'self' data: https: *.wikimedia.org *.commons.wikimedia.org *.googleusercontent.com",
+              "img-src 'self' data: https: *.wikimedia.org *.commons.wikimedia.org *.googleusercontent.com *.staticflickr.com *.flickr.com",
               "font-src 'self' fonts.gstatic.com",
               "connect-src 'self' https://aerodatabox.p.rapidapi.com https://commons.wikimedia.org https://ssqqbcniphbdjttxgcug.supabase.co https://accounts.google.com https://oauth2.googleapis.com",
               "frame-src 'self' https://accounts.google.com",

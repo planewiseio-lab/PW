@@ -36,6 +36,9 @@ function todayISO() {
 }
 const isWiki = (u: string) =>
   /^https?:\/\/(upload|commons)\.wikimedia\.org\//i.test(u);
+const isAeroDataBox = (u: string) =>
+  /^https?:\/\/(farm\d+\.staticflickr\.com|.*\.flickr\.com)/i.test(u);
+const isValidImage = (u: string) => isWiki(u) || isAeroDataBox(u);
 const uniq = (arr: string[]) => [...new Map(arr.map((u) => [u, true])).keys()];
 
 /* ==========================================================
@@ -117,8 +120,8 @@ export default function AircraftDetailPage() {
   } = useCommonsImages(queryForImages);
 
   // Construire la galerie (max 4) ici (plus dans la carte)
-  const gallery = uniq((imgs || []).filter(isWiki)).slice(0, 4);
-  const galleryThumbs = uniq((thumbs || []).filter(isWiki)).slice(0, 4);
+  const gallery = uniq((imgs || []).filter(isValidImage)).slice(0, 4);
+  const galleryThumbs = uniq((thumbs || []).filter(isValidImage)).slice(0, 4);
 
   /* ----------------------------------------------------------
      3) PRÉCHARGEMENT DES IMAGES CLÉS (Héro + miniatures)
@@ -281,8 +284,8 @@ function AircraftCard({
   imagesLoading?: boolean;
 }) {
   // Plus aucun fetch ici : on consomme les images déjà prêtes
-  const gallery = uniq((imgs || []).filter(isWiki)).slice(0, 4);
-  const galleryThumbs = uniq((thumbs || []).filter(isWiki)).slice(0, 4);
+  const gallery = uniq((imgs || []).filter(isValidImage)).slice(0, 4);
+  const galleryThumbs = uniq((thumbs || []).filter(isValidImage)).slice(0, 4);
 
   const [idx, setIdx] = useState(0);
   const current = gallery[idx] || gallery[0];
