@@ -110,7 +110,7 @@ export default function AircraftDetailPage() {
   }, [rawData, error]);
 
   /* ----------------------------------------------------------
-     2) IMAGES COMMONS (fetch AU NIVEAU DE LA PAGE)
+     2) IMAGES AIRPORT-DATA (fetch AU NIVEAU DE LA PAGE)
   ---------------------------------------------------------- */
   const queryForImages = (data?.registration || reg || "").trim();
   const {
@@ -120,15 +120,20 @@ export default function AircraftDetailPage() {
   } = useCommonsImages(queryForImages);
 
   // Construire la galerie (max 4) ici (plus dans la carte)
-  const gallery = uniq((imgs || []).filter(isValidImage)).slice(0, 4);
-  const galleryThumbs = uniq((thumbs || []).filter(isValidImage)).slice(0, 4);
+  const gallery = (imgs || [])
+    .filter((img: ImageData) => isValidImage(img.url))
+    .slice(0, 4);
+  const galleryThumbs = (thumbs || [])
+    .filter((img: ImageData) => isValidImage(img.url))
+    .slice(0, 4);
 
   /* ----------------------------------------------------------
      3) PRÉCHARGEMENT DES IMAGES CLÉS (Héro + miniatures)
   ---------------------------------------------------------- */
-  const urlsForPreload = [gallery[0], ...galleryThumbs.slice(0, 3)].filter(
-    Boolean
-  );
+  const urlsForPreload = [
+    gallery[0]?.url,
+    ...galleryThumbs.slice(0, 3).map((img: ImageData) => img.url),
+  ].filter(Boolean);
   const imagesReady = useImagesReady(urlsForPreload, 550); // délai mini 550ms pour un rendu premium
 
   /* ----------------------------------------------------------
@@ -211,11 +216,20 @@ function normalizeAircraft(raw: any) {
 }
 
 /* ==========================================================
-   IMAGES AERODATABOX (via API /api/images) — hook local
+   IMAGES WIKIMEDIA COMMONS (via API /api/images) — hook local
    ---------------------------------------------------------- */
+type ImageData = {
+  url: string;
+  photographer?: string;
+  author?: string;
+  source?: string;
+  link?: string;
+  license?: string;
+};
+
 function useCommonsImages(q?: string) {
-  const [imgs, setImgs] = useState<string[]>([]);
-  const [thumbs, setThumbs] = useState<string[]>([]);
+  const [imgs, setImgs] = useState<ImageData[]>([]);
+  const [thumbs, setThumbs] = useState<ImageData[]>([]);
   const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
@@ -226,9 +240,9 @@ function useCommonsImages(q?: string) {
       return;
     }
 
-    // Requête simple avec timeout court
+    // Requête avec timeout suffisant pour Airport-Data API
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 3000); // 3s max
+    const timeoutId = setTimeout(() => controller.abort(), 7000); // 7s max - Airport-Data can be slow
 
     fetch(`/api/images?q=${encodeURIComponent(q)}`, {
       signal: controller.signal,
@@ -238,12 +252,67 @@ function useCommonsImages(q?: string) {
       .then((json) => {
         clearTimeout(timeoutId);
         const images = json?.images || [];
-        setImgs(images.map((x: any) => x.original || x.url));
-        setThumbs(images.map((x: any) => x.url));
+        console.log(
+          `[useCommonsImages] Received ${images.length} images for ${q}`
+        );
+
+        const processedImgs = images.map((x: any) => {
+          // Use original if available (full-size 1024px), fallback to url
+          const imgUrl = x.original || x.url;
+          console.log(
+            `[useCommonsImages] Image URL: ${imgUrl?.substring(0, 80) || ""}...`
+          );
+          return {
+            url: imgUrl,
+            photographer: x.photographer || x.by || x.author,
+            author: x.author,
+            source: x.source,
+            link: x.link,
+            license: x.license,
+          };
+        });
+        const processedThumbs = images.map((x: any) => {
+          // Use thumbnail (300px for grid)
+          const thumbUrl = x.url || x.thumbnail;
+          console.log(
+            `[useCommonsImages] Thumbnail URL: ${
+              thumbUrl?.substring(0, 80) || ""
+            }...`
+          );
+          return {
+            url: thumbUrl,
+            photographer: x.photographer || x.by || x.author,
+            author: x.author,
+            source: x.source,
+            link: x.link,
+            license: x.license,
+          };
+        });
+
+        // Log commons images
+        const commonsUrls: string[] = processedImgs
+          .filter((img: ImageData) => (img.url || "").includes("wikimedia.org"))
+          .map((img: ImageData) => (img.url || "").substring(0, 80));
+        if (commonsUrls.length > 0) {
+          console.log(
+            `[useCommonsImages] Wikimedia Commons URLs:`,
+            commonsUrls
+          );
+        }
+
+        setImgs(processedImgs);
+        setThumbs(processedThumbs);
         setLoaded(true);
       })
-      .catch(() => {
+      .catch((error) => {
         clearTimeout(timeoutId);
+        // Don't log AbortError - it's expected when component unmounts or query changes
+        if (error?.name !== "AbortError") {
+          console.error(
+            `[useCommonsImages] Error fetching images for ${q}:`,
+            error
+          );
+        }
         setImgs([]);
         setThumbs([]);
         setLoaded(true);
@@ -259,7 +328,52 @@ function useCommonsImages(q?: string) {
 }
 
 /* ==========================================================
-   COMPOSANT PRINCIPAL : Carte de l’avion
+   COMPOSANT IMAGE AVEC FALLBACK
+   ---------------------------------------------------------- */
+function AircraftImage({
+  src,
+  alt,
+  photographer,
+  source,
+  onImageClick,
+}: {
+  src: string;
+  alt: string;
+  photographer?: string;
+  source?: string;
+  onImageClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onImageClick}
+      className="block w-full group relative"
+      aria-label="Open image"
+    >
+      <div className="w-full rounded-2xl overflow-hidden relative">
+        <img
+          src={src}
+          alt={alt}
+          className="w-full h-[240px] sm:h-[300px] md:h-[350px] object-cover object-center"
+          draggable={false}
+          loading="eager"
+          decoding="sync"
+        />
+        {/* Attribution */}
+        {photographer && (
+          <div className="absolute bottom-2 right-2 px-2 py-1 bg-black/50 text-white text-[10px] rounded backdrop-blur-sm">
+            {source === "Wikimedia Commons"
+              ? `© ${photographer} via Wikimedia Commons`
+              : `© ${photographer}`}
+          </div>
+        )}
+      </div>
+    </button>
+  );
+}
+
+/* ==========================================================
+   COMPOSANT PRINCIPAL : Carte de l'avion
    ---------------------------------------------------------- */
 function AircraftCard({
   data,
@@ -269,18 +383,60 @@ function AircraftCard({
   imagesLoading = false,
 }: {
   data: ReturnType<typeof normalizeAircraft>;
-  imgs: string[];
-  thumbs: string[];
+  imgs: ImageData[];
+  thumbs: ImageData[];
   onClear: () => void;
   imagesLoading?: boolean;
 }) {
   // Plus aucun fetch ici : on consomme les images déjà prêtes
-  const gallery = uniq((imgs || []).filter(isValidImage)).slice(0, 4);
-  const galleryThumbs = uniq((thumbs || []).filter(isValidImage)).slice(0, 4);
+  const gallery = (imgs || [])
+    .filter((img: ImageData) => isValidImage(img.url))
+    .slice(0, 4);
+  const galleryThumbs = (thumbs || [])
+    .filter((img: ImageData) => isValidImage(img.url))
+    .slice(0, 4);
+
+  // Debug logging
+  console.log(
+    `[AircraftCard] Total images: ${imgs.length}, Filtered: ${gallery.length}`
+  );
+  if (gallery.length !== imgs.length) {
+    console.log(`[AircraftCard] Some images were filtered out`);
+  }
 
   const [idx, setIdx] = useState(0);
   const current = gallery[idx] || gallery[0];
+
+  if (current) {
+    console.log(
+      `[AircraftCard] Current image (${idx}/${
+        gallery.length - 1
+      }): ${current.url.substring(0, 100)}`
+    );
+  } else {
+    console.log(`[AircraftCard] No current image available!`);
+  }
+
   const [lightbox, setLightbox] = useState<number | null>(null);
+
+  // Helper to render watermark/attribution
+  const ImageAttribution = ({
+    photographer,
+    source,
+  }: {
+    photographer?: string;
+    source?: string;
+  }) => {
+    if (!photographer) return null;
+
+    return (
+      <div className="absolute bottom-2 right-2 px-2 py-1 bg-black/50 text-white text-[10px] rounded backdrop-blur-sm">
+        {source === "Wikimedia Commons"
+          ? `© ${photographer} via Wikimedia Commons`
+          : `© ${photographer}`}
+      </div>
+    );
+  };
 
   // États pour le bouton favoris
   const [isAddingToFavorites, setIsAddingToFavorites] = useState(false);
@@ -370,6 +526,29 @@ function AircraftCard({
 
     try {
       const supabase = createClient();
+
+      // Vérifier le nombre actuel de favoris
+      const { data: currentFavorites, error: countError } = await supabase
+        .from("user_favorites")
+        .select("id")
+        .eq("user_id", user.id);
+
+      if (countError) {
+        console.error("Error checking favorites count:", countError);
+        alert(`Error: ${countError.message}`);
+        return;
+      }
+
+      // Limiter à 30 avions maximum
+      if (currentFavorites && currentFavorites.length >= 30) {
+        alert(
+          "❌ Limit reached! You have reached the maximum of 30 saved aircraft.\n\n" +
+            "Please remove some aircraft from your dashboard before adding new ones.\n\n" +
+            "Go to: https://planewise.io/dashboard"
+        );
+        setIsAddingToFavorites(false);
+        return;
+      }
 
       console.log("Attempting to insert favorite:", {
         user_id: user.id,
@@ -674,30 +853,20 @@ function AircraftCard({
               </div>
             </div>
           </div>
-        ) : current ? (
-          <button
-            type="button"
-            onClick={() => setLightbox(idx)}
-            className="block w-full group"
-            aria-label="Open image"
-          >
-            <div className="w-full rounded-2xl overflow-hidden">
-              <img
-                src={current}
-                alt={`${data.registration} ${data.model || "aircraft"} - ${
-                  data.airlineName || "aviation"
-                } photo`}
-                className="w-full h-[240px] sm:h-[300px] md:h-[350px] object-cover object-center"
-                draggable={false}
-                loading="eager"
-                decoding="sync"
-              />
-            </div>
-          </button>
+        ) : current?.url ? (
+          <AircraftImage
+            src={current.url}
+            alt={`${data.registration} ${data.model || "aircraft"} - ${
+              data.airlineName || "aviation"
+            } photo`}
+            photographer={current.photographer || current.author}
+            source={current.source}
+            onImageClick={() => setLightbox(idx)}
+          />
         ) : (
           <div className="relative w-full h-[240px] sm:h-[300px] md:h-[350px] bg-gray-100 rounded-2xl overflow-hidden">
             <img
-              src="/assets/airplane.jpg"
+              src="/Assets/airplane.jpg"
               alt="Default aircraft image"
               className="absolute inset-0 w-full h-full object-cover opacity-50"
             />
@@ -708,18 +877,18 @@ function AircraftCard({
             </div>
           </div>
         )}
-        {!imagesLoading && galleryThumbs.length > 1 && (
+        {!imagesLoading && galleryThumbs.length > 0 && (
           <div className="mt-3 grid grid-cols-2 sm:grid-cols-4 gap-3">
-            {galleryThumbs.map((url, i) => (
+            {galleryThumbs.map((img, i) => (
               <button
-                key={`${url}-${i}`}
+                key={`${img.url}-${i}`}
                 type="button"
                 onClick={() => setLightbox(i + 1)}
                 className="relative block rounded-xl overflow-hidden border border-gray-200 aspect-[16/9] w-full"
                 aria-label={`Open thumbnail ${i + 1}`}
               >
                 <img
-                  src={url}
+                  src={img.url}
                   alt={`${data.registration} ${
                     data.model || "aircraft"
                   } thumbnail ${i + 1}`}
@@ -728,6 +897,14 @@ function AircraftCard({
                   loading="lazy"
                   decoding="async"
                 />
+                {/* Attribution for thumbnails */}
+                {img.author && (
+                  <div className="absolute bottom-1 right-1 px-1 py-0.5 bg-black/50 text-white text-[8px] rounded backdrop-blur-sm">
+                    {img.source === "Wikimedia Commons"
+                      ? `© ${img.author} (Commons)`
+                      : `© ${img.author}`}
+                  </div>
+                )}
               </button>
             ))}
           </div>
@@ -750,11 +927,33 @@ function AircraftCard({
               <div className="relative">
                 {/* Image agrandie */}
                 <img
-                  src={gallery[lightbox!]}
+                  src={gallery[lightbox!]?.url}
                   alt=""
                   className="max-w-[min(92vw,1100px)] max-h-[80vh] object-contain rounded-2xl shadow-2xl"
                   draggable={false}
                 />
+
+                {/* Attribution in lightbox */}
+                {gallery[lightbox!]?.author && (
+                  <div className="absolute bottom-3 left-3 px-3 py-1.5 bg-black/60 text-white text-xs rounded backdrop-blur-sm">
+                    {gallery[lightbox!].source === "Wikimedia Commons" ? (
+                      <span>
+                        © {gallery[lightbox!].author} via{" "}
+                        <a
+                          href={gallery[lightbox!].link || "#"}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="underline"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          Wikimedia Commons
+                        </a>
+                      </span>
+                    ) : (
+                      `© ${gallery[lightbox!].author}`
+                    )}
+                  </div>
+                )}
 
                 {/* Flèche gauche */}
                 {gallery.length > 1 && (
@@ -794,7 +993,7 @@ function AircraftCard({
 
                 {/* Compteur (optionnel) */}
                 {gallery.length > 1 && (
-                  <div className="absolute bottom-2 left-1/2 -translate-x-1/2 rounded-full bg-black/60 text-white text-xs px-3 py-1">
+                  <div className="absolute top-2 left-1/2 -translate-x-1/2 rounded-full bg-black/60 text-white text-xs px-3 py-1">
                     {lightbox! + 1} / {gallery.length}
                   </div>
                 )}

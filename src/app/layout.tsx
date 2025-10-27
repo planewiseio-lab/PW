@@ -17,7 +17,9 @@ import SupabaseErrorHandler from "@/components/SupabaseErrorHandler";
 import { GlobalInsufficientCreditsHandler } from "@/components/GlobalInsufficientCreditsHandler";
 import { GuestQuotaExceededModal } from "@/components/errors/GuestQuotaExceededModal";
 import { SubscribedCreditsExceededModal } from "@/components/errors/SubscribedCreditsExceededModal";
+import { AdSection } from "@/components/ads/AdWrapper";
 import { Comfortaa } from "next/font/google";
+import Script from "next/script";
 
 export const comfortaa = Comfortaa({
   subsets: ["latin"],
@@ -31,18 +33,6 @@ export const metadata: Metadata = {
   },
   description:
     "Professional aviation data platform for aircraft registration lookup, flight tracking, airport information, and real-time flight status. Track flights, find aircraft details, and access comprehensive aviation database.",
-  keywords: [
-    "aviation data",
-    "aircraft registration",
-    "flight tracking",
-    "airport information",
-    "flight status",
-    "aircraft lookup",
-    "aviation database",
-    "flight details",
-    "aircraft photos",
-    "aviation platform",
-  ],
   authors: [{ name: "PlaneWise Team" }],
   creator: "PlaneWise",
   publisher: "PlaneWise",
@@ -83,6 +73,9 @@ export const metadata: Metadata = {
     creator: "@planewise",
   },
   manifest: "/manifest.json",
+  other: {
+    "format-detection": "telephone=no",
+  },
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
@@ -100,8 +93,8 @@ export function generateViewport() {
     themeColor: "#2563eb",
     width: "device-width",
     initialScale: 1,
-    maximumScale: 1,
-    userScalable: false,
+    maximumScale: 5,
+    userScalable: true,
   };
 }
 
@@ -111,12 +104,13 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="fr">
+    <html lang="en">
       <Head>
         <link rel="preconnect" href="https://aerodatabox.p.rapidapi.com" />
         <link rel="preconnect" href="https://commons.wikimedia.org" />
         <link rel="dns-prefetch" href="https://aerodatabox.p.rapidapi.com" />
         <link rel="dns-prefetch" href="https://commons.wikimedia.org" />
+        <link rel="dns-prefetch" href="https://www.googletagmanager.com" />
       </Head>
       <body
         className={`${comfortaa.className} min-h-screen flex flex-col text-gray-900 bg-white`}
@@ -158,8 +152,10 @@ export default function RootLayout({
             <AuthButton />
           </div>
         </header>
-        {/* Barre de recherche compacte, affichée hors page d’accueil */}
+        {/* Barre de recherche compacte, affichée hors page d'accueil */}
         <SearchHeader />
+        {/* Publicité TOP - Juste après le search header */}
+        <AdSection positionLabel="TOP (après header site)" />
         {/* AOS (ne rend rien visuellement) */}
         <AOSInit />
         {/* PWA Setup */}
@@ -172,6 +168,8 @@ export default function RootLayout({
             <main className="flex-1 min-h-[calc(100vh-160px)]">{children}</main>
           </ClientTransition>
         </ErrorBoundary>
+        {/* Publicité BOTTOM - Avant le footer du site */}
+        <AdSection positionLabel="BOTTOM (avant footer site)" />
         {/* Footer commun */}
         <Footer />
         {/* Bouton scroll to top */}
@@ -190,6 +188,23 @@ export default function RootLayout({
         <GuestQuotaExceededModal />
         {/* Modal de crédits épuisés pour utilisateurs Subscribed */}
         <SubscribedCreditsExceededModal />
+        {/* Google Analytics */}
+        {process.env.NEXT_PUBLIC_GA_ID && (
+          <>
+            <Script
+              src={`https://www.googletagmanager.com/gtag/js?id=${process.env.NEXT_PUBLIC_GA_ID}`}
+              strategy="afterInteractive"
+            />
+            <Script id="google-analytics" strategy="afterInteractive">
+              {`
+                window.dataLayer = window.dataLayer || [];
+                function gtag(){dataLayer.push(arguments);}
+                gtag('js', new Date());
+                gtag('config', '${process.env.NEXT_PUBLIC_GA_ID}');
+              `}
+            </Script>
+          </>
+        )}
       </body>
     </html>
   );

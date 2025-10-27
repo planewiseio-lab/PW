@@ -1,65 +1,41 @@
 import { NextResponse } from "next/server";
-import { env } from "@/config/env";
+import { fetchCommonsImagesByRegistration } from "@/lib/commonsImages";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-const AERODATABOX_HOST = "aerodatabox.p.rapidapi.com";
-const AERODATABOX_API_KEY = env.aerodatabox.apiKey;
-
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
   const query = searchParams.get("q");
+  const limitParam = searchParams.get("limit");
+  const limit = limitParam ? parseInt(limitParam, 10) : 5;
 
   if (!query) {
     return NextResponse.json({ images: [] });
   }
 
-  if (!AERODATABOX_API_KEY) {
-    return NextResponse.json({ images: [] });
-  }
-
   try {
-    const url = `https://${AERODATABOX_HOST}/aircrafts/reg/${encodeURIComponent(
-      query
-    )}/image/beta`;
+    const commonsImages = await fetchCommonsImagesByRegistration(query, limit);
 
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 2000); // 2s max
+    // Transform to the expected format
+    const images = commonsImages.map((img) => ({
+      url: img.thumb, // Thumbnail (300px) for grid
+      original: img.url, // Full-size (1024px) for main image
+      source: "Wikimedia Commons",
+      author: img.author,
+      photographer: img.author,
+      title: `${query} Aircraft Image`,
+      link: img.page,
+      license: img.license,
+      license_url: img.license_url,
+    }));
 
-    const response = await fetch(url, {
-      headers: {
-        "X-RapidAPI-Host": AERODATABOX_HOST,
-        "X-RapidAPI-Key": AERODATABOX_API_KEY,
-        Accept: "application/json",
-      },
-      signal: controller.signal,
-    });
-
-    clearTimeout(timeoutId);
-
-    if (!response.ok) {
-      return NextResponse.json({ images: [] });
-    }
-
-    const data = await response.json();
-
-    if (!data || !data.url) {
-      return NextResponse.json({ images: [] });
-    }
-
-    return NextResponse.json({
-      images: [
-        {
-          url: data.url,
-          original: data.url,
-          source: "AeroDataBox",
-          author: data.author || "AeroDataBox",
-          title: data.title || `${query} Aircraft Image`,
-        },
-      ],
-    });
+    console.log(
+      `[GET /api/images] Returning ${images.length} Commons images for ${query}`
+    );
+    return NextResponse.json({ images });
   } catch (error) {
+    console.error("[GET /api/images] Error:", error);
     return NextResponse.json({ images: [] });
   }
 }

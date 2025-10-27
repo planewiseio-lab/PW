@@ -2,10 +2,14 @@ import type { Metadata } from "next";
 
 export const metadata: Metadata = {
   title: "Terms of Service - PlaneWise",
-  description: "PlaneWise terms of service and usage agreement.",
+  description:
+    "PlaneWise terms of service and usage agreement. Read our terms before using our aviation data platform.",
   robots: {
     index: true,
     follow: true,
+  },
+  alternates: {
+    canonical: "https://plane-wise.com/terms",
   },
 };
 
@@ -57,7 +61,3 @@ export default function TermsPage() {
     </main>
   );
 }
-
-
-
-

@@ -2,6 +2,14 @@ import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
 export async function middleware(request: NextRequest) {
+  // Redirect www to non-www (SEO best practice)
+  const hostname = request.headers.get("host") || "";
+  if (hostname.startsWith("www.")) {
+    const url = request.nextUrl.clone();
+    url.hostname = hostname.replace("www.", "");
+    return NextResponse.redirect(url);
+  }
+
   // Vérifier si Supabase est configuré
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;

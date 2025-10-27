@@ -18,7 +18,13 @@ const nextConfig: NextConfig = {
     minimumCacheTTL: 60,
     deviceSizes: [640, 750, 828, 1080, 1200, 1920, 2048, 3840],
     imageSizes: [16, 32, 48, 64, 96, 128, 256, 384],
-    domains: ["commons.wikimedia.org", "upload.wikimedia.org", "farm5.staticflickr.com", "farm66.staticflickr.com", "staticflickr.com"],
+    domains: [
+      "commons.wikimedia.org",
+      "upload.wikimedia.org",
+      "farm5.staticflickr.com",
+      "farm66.staticflickr.com",
+      "staticflickr.com",
+    ],
   },
   async headers() {
     return [
@@ -29,12 +35,12 @@ const nextConfig: NextConfig = {
             key: "Content-Security-Policy",
             value: [
               "default-src 'self'",
-              "script-src 'self' 'unsafe-eval' 'unsafe-inline' https://accounts.google.com",
+              "script-src 'self' 'unsafe-eval' 'unsafe-inline' https://accounts.google.com https://pagead2.googlesyndication.com https://*.googlesyndication.com",
               "style-src 'self' 'unsafe-inline' https://accounts.google.com",
-              "img-src 'self' data: https: *.wikimedia.org *.commons.wikimedia.org *.googleusercontent.com *.staticflickr.com *.flickr.com",
+              "img-src 'self' data: https: *.wikimedia.org *.commons.wikimedia.org *.googleusercontent.com *.staticflickr.com *.flickr.com https://pagead2.googlesyndication.com https://*.googlesyndication.com",
               "font-src 'self' fonts.gstatic.com",
-              "connect-src 'self' https://aerodatabox.p.rapidapi.com https://commons.wikimedia.org https://ssqqbcniphbdjttxgcug.supabase.co https://accounts.google.com https://oauth2.googleapis.com",
-              "frame-src 'self' https://accounts.google.com",
+              "connect-src 'self' https://aerodatabox.p.rapidapi.com https://commons.wikimedia.org https://ssqqbcniphbdjttxgcug.supabase.co https://accounts.google.com https://oauth2.googleapis.com https://pagead2.googlesyndication.com",
+              "frame-src 'self' https://accounts.google.com https://tpc.googlesyndication.com https://googleads.g.doubleclick.net",
               "frame-ancestors 'none'",
               "base-uri 'self'",
               "form-action 'self'",

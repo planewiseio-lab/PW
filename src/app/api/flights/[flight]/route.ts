@@ -44,6 +44,44 @@ function haversineKm(
   return R * c;
 }
 
+// Fonction pour obtenir l'offset UTC d'un timezone
+function getTimezoneOffset(timezone: string): number {
+  // Mapping des timezones courants vers leurs offsets UTC (en heures)
+  const timezoneOffsets: { [key: string]: number } = {
+    // Amérique du Nord
+    "America/New_York": -5, // EST/EDT
+    "America/Chicago": -6, // CST/CDT
+    "America/Denver": -7, // MST/MDT
+    "America/Los_Angeles": -8, // PST/PDT
+    "America/Toronto": -5, // EST/EDT
+    "America/Vancouver": -8, // PST/PDT
+    "America/Edmonton": -7, // MST/MDT (Calgary)
+    "America/Montreal": -5, // EST/EDT
+
+    // Europe
+    "Europe/London": 0, // GMT/BST
+    "Europe/Paris": 1, // CET/CEST
+    "Europe/Frankfurt": 1, // CET/CEST
+    "Europe/Rome": 1, // CET/CEST
+    "Europe/Madrid": 1, // CET/CEST
+
+    // Asie
+    "Asia/Tokyo": 9, // JST
+    "Asia/Shanghai": 8, // CST
+    "Asia/Hong_Kong": 8, // HKT
+    "Asia/Singapore": 8, // SGT
+
+    // Australie
+    "Australia/Sydney": 10, // AEST/AEDT
+    "Australia/Melbourne": 10, // AEST/AEDT
+
+    // UTC
+    UTC: 0,
+  };
+
+  return timezoneOffsets[timezone] || 0; // Default to UTC si timezone inconnu
+}
+
 // Fonction de cache
 function getCache(key: string): string | null {
   const cached = cache.get(key);
@@ -161,9 +199,11 @@ export const GET = withCreditChargeABD(
         );
       }
 
-      // Clé de cache optimisée
+      // Clé de cache optimisée (ajouter timestamp pour éviter le cache en dev)
       const isHistoricalDate = dateLocal && new Date(dateLocal) < new Date();
-      const cacheKey = `flight:${numberRaw}:${dateLocal || "today"}`;
+      const cacheKey = `flight:${numberRaw}:${
+        dateLocal || "today"
+      }:${Date.now()}`;
 
       // Vérifier le cache pour toutes les dates (avec TTL différent)
       const cached = getCache(cacheKey);
@@ -174,85 +214,158 @@ export const GET = withCreditChargeABD(
         return response;
       }
 
-      // Essayer plusieurs endpoints AeroDataBox (fallback)
-      const candidates = dateLocal
-        ? [
-            `/flights/number/${encodeURIComponent(
-              numberRaw
-            )}/${encodeURIComponent(
-              dateLocal
-            )}?withLocation=true&withCodeshared=true&withCancelled=true&limit=25`,
-            `/flights/number/${encodeURIComponent(
-              numberRaw
-            )}/${encodeURIComponent(dateLocal)}`,
-          ]
-        : [
-            `/flights/number/${encodeURIComponent(
-              numberRaw
-            )}?withLocation=true&withCodeshared=true&withCancelled=true&limit=25`,
-            `/flights/number/${encodeURIComponent(numberRaw)}`,
-          ];
+      // SOLUTION OPTIMALE: Une seule requête à AeroDataBox
+      let candidates: string[] = [];
 
-      let upstream = null;
+      if (dateLocal) {
+        candidates = [
+          `/flights/number/${encodeURIComponent(
+            numberRaw
+          )}/${encodeURIComponent(
+            dateLocal
+          )}?withLocation=true&withCodeshared=true&withCancelled=true&limit=25`,
+        ];
+      } else {
+        candidates = [
+          `/flights/number/${encodeURIComponent(
+            numberRaw
+          )}?withLocation=true&withCodeshared=true&withCancelled=true&limit=25`,
+        ];
+      }
+
+      // Collecter TOUS les résultats de tous les candidats pour filtrer ensuite
+      const allFlights: any[] = [];
+
       for (const pathPart of candidates) {
         const resp = await callAero(pathPart);
         console.log(`[AeroDataBox] ${resp.status} ${resp.url}`);
 
         if (resp.ok) {
-          upstream = resp.text;
-          break;
+          try {
+            const data = JSON.parse(resp.text);
+            const flights = Array.isArray(data)
+              ? data
+              : Array.isArray(data?.data)
+              ? data.data
+              : [];
+            console.log(
+              `[FlightAPI] Found ${flights.length} flights from ${pathPart}`
+            );
+            allFlights.push(...flights);
+          } catch (e) {
+            console.log(
+              `[FlightAPI] Failed to parse response from ${pathPart}: ${e}`
+            );
+          }
         }
 
-        // Si 5xx, arrêter; si 4xx, continuer
+        // Si 5xx, arrêter
         if (resp.status >= 500) {
           return NextResponse.json(
             { error: "AeroDataBox server error" },
             { status: resp.status }
           );
         }
-
-        upstream = resp;
       }
 
-      if (!upstream || typeof upstream !== "string") {
+      if (allFlights.length === 0) {
         return NextResponse.json(
           { error: "Flight not found" },
           { status: 404 }
         );
       }
 
-      // Parser la réponse
-      let data;
-      try {
-        data = JSON.parse(upstream);
-      } catch {
-        return NextResponse.json(
-          { error: "Invalid response from AeroDataBox" },
-          { status: 500 }
+      // Utiliser les vols collectés
+      const flights = allFlights;
+
+      // Trouver le bon avion en filtrant par date et en évitant les vols codeshare incorrects
+      let f = flights[0];
+
+      // Log détaillé pour débugger
+      console.log(
+        `[FlightAPI] Processing ${flights.length} flights for ${numberRaw} on ${
+          dateLocal || "today"
+        }`
+      );
+      flights.forEach((flight: any, idx: number) => {
+        // Essayer différentes structures possibles pour l'immatriculation
+        const reg =
+          flight.aircraft?.registration ||
+          flight.aircraft?.reg ||
+          flight.aircraft?.aircraft?.registration ||
+          flight.aircraft?.aircraft?.reg ||
+          flight.aircraft?.aircraftRegistration ||
+          "Unknown";
+        const codeshare =
+          flight.codeshare?.airlineIata ||
+          flight.codeshare?.airline?.iata ||
+          flight.codeshare?.airlineIataCode ||
+          "None";
+        console.log(
+          `[FlightAPI] Flight ${idx}: reg=${reg}, codeshare=${codeshare}, airline=${
+            flight.airline?.name || "Unknown"
+          }`
         );
+        console.log(
+          `[FlightAPI] Flight ${idx} aircraft structure:`,
+          JSON.stringify(flight.aircraft, null, 2)
+        );
+      });
+
+      // Si on a une date spécifique, filtrer par date locale de départ
+      if (dateLocal) {
+        // Filtrer les vols pour trouver celui qui correspond à la date locale demandée
+        const matchingFlight = flights.find((flight: any) => {
+          // Extraire la date locale de départ
+          const depLocalTime =
+            flight.departure?.scheduledTime?.local ||
+            flight.departure?.revisedTime?.local ||
+            flight.dep?.scheduledTime?.local ||
+            flight.dep?.revisedTime?.local;
+
+          if (!depLocalTime) return false;
+
+          // Extraire juste la date (sans heure)
+          // Format: "2025-10-23 17:35+09:00" -> "2025-10-23"
+          const depLocalDate = depLocalTime.match(/^\d{4}-\d{2}-\d{2}/)?.[0];
+
+          if (!depLocalDate) return false;
+
+          console.log(
+            `[FlightAPI] Comparing: requested=${dateLocal}, flight=${depLocalDate}`
+          );
+
+          return depLocalDate === dateLocal;
+        });
+
+        if (matchingFlight) {
+          f = matchingFlight;
+          console.log(
+            `[FlightAPI] ✅ Found flight matching date ${dateLocal}: reg=${f.aircraft?.reg}`
+          );
+        } else {
+          // Si aucun vol ne correspond à la date exacte, logger et prendre le premier
+          console.log(
+            `[FlightAPI] ⚠️ No flight matches date ${dateLocal}, using first result`
+          );
+          flights.forEach((flight: any, idx: number) => {
+            const depLocalTime =
+              flight.departure?.scheduledTime?.local ||
+              flight.dep?.scheduledTime?.local;
+            const depLocalDate = depLocalTime?.split("T")[0] || "Unknown";
+            const reg = flight.aircraft?.reg || "Unknown";
+            console.log(
+              `[FlightAPI] Flight ${idx}: date=${depLocalDate}, reg=${reg}`
+            );
+          });
+        }
       }
 
-      const flights = Array.isArray(data)
-        ? data
-        : Array.isArray(data?.data)
-        ? data.data
-        : [];
-
-      if (!flights.length) {
-        // Cache négatif court
-        setCache(
-          cacheKey,
-          JSON.stringify({ error: "Flight not found" }),
-          5 * 60 * 1000
-        );
-        return NextResponse.json(
-          { error: "Flight not found" },
-          { status: 404 }
-        );
-      }
-
-      // Prendre le premier vol (le plus pertinent)
-      const f = flights[0];
+      // Log de la structure complète du vol sélectionné pour débugger
+      console.log(
+        `[FlightAPI] Selected flight complete structure:`,
+        JSON.stringify(f, null, 2)
+      );
 
       // Récupérer les aéroports et coordonnées
       const depAp = f?.departure?.airport || f?.dep?.airport || {};
@@ -311,8 +424,7 @@ export const GET = withCreditChargeABD(
         },
         aircraft: {
           model: f?.aircraft?.model || f?.model || "Unknown Aircraft",
-          registration:
-            f?.aircraft?.reg || f?.aircraft?.registration || "Not available",
+          registration: f?.aircraft?.reg || "Not available",
         },
         departure: {
           airport: {

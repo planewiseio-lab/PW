@@ -8,6 +8,9 @@ export const metadata: Metadata = {
     index: true,
     follow: true,
   },
+  alternates: {
+    canonical: "https://plane-wise.com/about",
+  },
 };
 
 export default function AboutPage() {
@@ -79,7 +82,3 @@ export default function AboutPage() {
     </main>
   );
 }
-
-
-
-
