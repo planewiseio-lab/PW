@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { chargeOneCredit, InsufficientCreditsError } from "@/lib/credits";
+import { logApiRequest } from "@/lib/apiTracker";
 import { ActionType } from "@prisma/client";
 
 // Global cache for pending requests to prevent duplicate API calls
@@ -56,9 +57,14 @@ export function withCreditChargeABD<T = any>(
 
       // 4. Créer une Promise pour la requête et la stocker dans le cache
       const requestPromise = (async () => {
+        const startTime = Date.now();
+        let response: NextResponse<T>;
+        let statusCode = 200;
+
         try {
           // Exécuter la requête API ABD d'abord
-          const response = await handler(request, context);
+          response = await handler(request, context);
+          statusCode = response.status;
 
           // Vérifier si la réponse vient du cache
           const isCached = response.headers.get("X-Cache") === "HIT";
@@ -67,7 +73,14 @@ export function withCreditChargeABD<T = any>(
             console.log(
               `[ABD] 🎯 Cache hit for ${endpoint}, no credit charged`
             );
-            // Retourner la réponse sans débitter de crédit
+            // Log the cached request for usage tracking
+            logApiRequest(
+              endpoint,
+              request.method,
+              statusCode,
+              Date.now() - startTime,
+              user.id
+            );
             return response;
           }
 
@@ -90,6 +103,15 @@ export function withCreditChargeABD<T = any>(
             `[ABD] ✅ Credit charged: ${user.id} now has ${newBalance} credits`
           );
 
+          // Log the API request for usage tracking
+          logApiRequest(
+            endpoint,
+            request.method,
+            statusCode,
+            Date.now() - startTime,
+            user.id
+          );
+
           // Ajouter des headers de debug (optionnel)
           response.headers.set("X-Credits-Remaining", newBalance.toString());
           response.headers.set("X-Credits-Charged", "1");
@@ -98,6 +120,14 @@ export function withCreditChargeABD<T = any>(
         } catch (error) {
           if (error instanceof InsufficientCreditsError) {
             console.log(`[ABD] ❌ Insufficient credits for user: ${user.id}`);
+            // Log the failed request for usage tracking
+            logApiRequest(
+              endpoint,
+              request.method,
+              402,
+              Date.now() - startTime,
+              user.id
+            );
             return NextResponse.json(
               {
                 error: "Insufficient credits",
@@ -112,6 +142,14 @@ export function withCreditChargeABD<T = any>(
           console.error(
             `[ABD] 💥 Credit charging error for user ${user.id}:`,
             error
+          );
+          // Log the failed request for usage tracking
+          logApiRequest(
+            endpoint,
+            request.method,
+            500,
+            Date.now() - startTime,
+            user.id
           );
           return NextResponse.json(
             {
