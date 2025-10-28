@@ -3,17 +3,18 @@ import { createClient } from "@/lib/supabase/server";
 import { AdminUserSearch } from "@/components/admin/AdminUserSearch";
 import { AdminCreditManagement } from "@/components/admin/AdminCreditManagement";
 import { prisma } from "@/lib/prisma";
+import { AdminCreditsClient } from "./AdminCreditsClient";
 
 async function getAdminUser(userId: string) {
   const subscription = await prisma.subscription.findUnique({
     where: { userId },
   });
 
-  const creditBalance = await prisma.creditBalance.findUnique({
+  const creditBalance = await prisma.credit_balances.findUnique({
     where: { userId },
   });
 
-  const creditLedger = await prisma.creditLedger.findMany({
+  const creditLedger = await prisma.credit_ledger.findMany({
     where: { userId },
     orderBy: { createdAt: "desc" },
     take: 50,
@@ -59,7 +60,7 @@ export default async function AdminCreditsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8">
+    <div className="min-h-screen bg-white py-10">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-gray-900">
@@ -70,35 +71,7 @@ export default async function AdminCreditsPage() {
           </p>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          {/* User Search */}
-          <div className="bg-white rounded-lg shadow p-6">
-            <h2 className="text-xl font-semibold text-gray-900 mb-4">
-              Search User
-            </h2>
-            <Suspense
-              fallback={
-                <div className="animate-pulse h-32 bg-gray-200 rounded"></div>
-              }
-            >
-              <AdminUserSearch />
-            </Suspense>
-          </div>
-
-          {/* Credit Management */}
-          <div className="bg-white rounded-lg shadow p-6">
-            <h2 className="text-xl font-semibold text-gray-900 mb-4">
-              Credit Operations
-            </h2>
-            <Suspense
-              fallback={
-                <div className="animate-pulse h-32 bg-gray-200 rounded"></div>
-              }
-            >
-              <AdminCreditManagement />
-            </Suspense>
-          </div>
-        </div>
+        <AdminCreditsClient />
       </div>
     </div>
   );

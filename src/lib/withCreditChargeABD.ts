@@ -57,7 +57,21 @@ export function withCreditChargeABD<T = any>(
       // 4. Créer une Promise pour la requête et la stocker dans le cache
       const requestPromise = (async () => {
         try {
-          // Débiter 1 crédit (atomique et idempotent)
+          // Exécuter la requête API ABD d'abord
+          const response = await handler(request, context);
+
+          // Vérifier si la réponse vient du cache
+          const isCached = response.headers.get("X-Cache") === "HIT";
+
+          if (isCached) {
+            console.log(
+              `[ABD] 🎯 Cache hit for ${endpoint}, no credit charged`
+            );
+            // Retourner la réponse sans débitter de crédit
+            return response;
+          }
+
+          // Débiter 1 crédit seulement si ce n'est pas en cache (atomique et idempotent)
           const { newBalance } = await chargeOneCredit({
             userId: user.id,
             actionType,
@@ -75,9 +89,6 @@ export function withCreditChargeABD<T = any>(
           console.log(
             `[ABD] ✅ Credit charged: ${user.id} now has ${newBalance} credits`
           );
-
-          // Exécuter la requête API ABD
-          const response = await handler(request, context);
 
           // Ajouter des headers de debug (optionnel)
           response.headers.set("X-Credits-Remaining", newBalance.toString());

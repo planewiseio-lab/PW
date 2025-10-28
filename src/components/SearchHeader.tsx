@@ -29,6 +29,7 @@ export default function SearchHeader() {
     pathname === "/dashboard" ||
     pathname === "/reset-password" ||
     pathname === "/account-settings";
+  const isAdminPage = pathname.startsWith("/admin");
 
   // Éviter les différences d'hydration
   useEffect(() => {
@@ -61,8 +62,8 @@ export default function SearchHeader() {
     });
   };
 
-  // Pas de SearchHeader sur la home et les pages d'auth
-  if (isHome || isAuthPage) return null;
+  // Pas de SearchHeader sur la home, les pages d'auth, et les pages admin
+  if (isHome || isAuthPage || isAdminPage) return null;
 
   // Éviter les différences d'hydration - rendu initial avec transition
   if (!isMounted) {

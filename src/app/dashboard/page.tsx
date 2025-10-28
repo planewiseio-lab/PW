@@ -32,10 +32,12 @@ export default function DashboardPage() {
         const user = await validateUser();
 
         if (!user) {
+          console.log("No user found, redirecting to home");
           redirect("/");
           return;
         }
 
+        console.log("User found:", user.id);
         setUser(user);
         setLoading(false);
 
@@ -43,11 +45,20 @@ export default function DashboardPage() {
         setTimeout(() => loadFavoriteAircraft(), 100);
       } catch (err) {
         console.error("Error getting user:", err);
+        setLoading(false);
         redirect("/");
       }
     };
 
+    // Timeout de sécurité pour éviter un loading infini
+    const timeoutId = setTimeout(() => {
+      console.warn("Dashboard loading timeout, forcing stop");
+      setLoading(false);
+    }, 10000); // 10 secondes
+
     getUser();
+
+    return () => clearTimeout(timeoutId);
   }, [isSupabaseConfigured]);
 
   // Recharger les favoris quand l'utilisateur change

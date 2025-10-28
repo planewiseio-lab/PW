@@ -8,38 +8,36 @@ const AERODATABOX_API_KEY =
 
 // Mapping des endpoints vers les tiers AeroDataBox
 function getTier(endpoint: string): string {
-  // Tier 1: Informations de base
-  if (endpoint.includes("/airports/") && !endpoint.includes("/flights")) {
+  // Tier 1: Single aircraft (by tail-number, Mode-S or ID)
+  if (
+    endpoint.includes("/aircraft/") &&
+    !endpoint.includes("/flights") &&
+    !endpoint.includes("/history")
+  ) {
     return "Tier 1";
   }
 
-  // Tier 2: Recherche et navigation
+  // Tier 2: Airports et recherche de vols
   if (
+    endpoint.includes("/airports/") ||
     endpoint.includes("/flights/search") ||
     endpoint.includes("/flights/browse") ||
-    endpoint.includes("/airports/browse")
+    endpoint.includes("/airports/browse") ||
+    endpoint.includes("/flight/") // Single flight
   ) {
     return "Tier 2";
   }
 
-  // Tier 3: Détails spécifiques
+  // Tier 3: Détails spécifiques et historique des vols
   if (
     endpoint.includes("/flights/number") ||
-    endpoint.includes("/aircraft/registration")
+    endpoint.includes("/aircraft/registration") ||
+    (endpoint.includes("/aircraft/") && endpoint.includes("/flights")) // Historique des vols d'un avion
   ) {
     return "Tier 3";
   }
 
-  // Tier 4: Historique et données complexes
-  if (
-    endpoint.includes("/history") ||
-    endpoint.includes("/predictions") ||
-    endpoint.includes("/route")
-  ) {
-    return "Tier 4";
-  }
-
-  // Tier 2 par défaut (détails d'avion, recherche de vol, etc.)
+  // Tier 2 par défaut
   return "Tier 2";
 }
 

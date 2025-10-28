@@ -25,7 +25,9 @@ export async function middleware(request: NextRequest) {
   }
 
   let supabaseResponse = NextResponse.next({
-    request,
+    request: {
+      headers: request.headers,
+    },
   });
 
   const supabase = createServerClient(supabaseUrl, supabaseAnonKey, {
@@ -34,11 +36,13 @@ export async function middleware(request: NextRequest) {
         return request.cookies.getAll();
       },
       setAll(cookiesToSet) {
-        cookiesToSet.forEach(({ name, value, options }) =>
+        cookiesToSet.forEach(({ name, value }) =>
           request.cookies.set(name, value)
         );
         supabaseResponse = NextResponse.next({
-          request,
+          request: {
+            headers: request.headers,
+          },
         });
         cookiesToSet.forEach(({ name, value, options }) =>
           supabaseResponse.cookies.set(name, value, options)
@@ -49,26 +53,15 @@ export async function middleware(request: NextRequest) {
 
   // Refresh session if expired - required for Server Components
   try {
-    // Debug: Log all cookies
-    const allCookies = request.cookies.getAll();
-    console.log(`[Middleware] 🍪 Cookies count: ${allCookies.length}`);
-    allCookies.forEach((cookie) => {
-      if (cookie.name.includes("sb-") || cookie.name.includes("supabase")) {
-        console.log(
-          `[Middleware] 🍪 Auth cookie: ${
-            cookie.name
-          } = ${cookie.value.substring(0, 20)}...`
-        );
-      }
-    });
-
     const {
       data: { user },
       error,
     } = await supabase.auth.getUser();
 
-    console.log(`[Middleware] 🔍 User:`, user ? user.id : "null");
-    console.log(`[Middleware] 🔍 Error:`, error ? error.message : "none");
+    // Only log errors for debugging, but don't block requests
+    if (error && !error.message.includes("Auth session missing")) {
+      console.log(`[Middleware] 🔍 Error:`, error.message);
+    }
 
     // Si erreur 403, nettoyer les cookies de session
     if (

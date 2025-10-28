@@ -20,7 +20,7 @@ export async function refreshFreeCreditsDaily() {
 
     // Vérifier si on a déjà traité les crédits FREE aujourd'hui
     // On vérifie s'il y a eu un top-up pour n'importe quel utilisateur FREE aujourd'hui
-    const existingTopUp = await prisma.creditLedger.findFirst({
+    const existingTopUp = await prisma.credit_ledger.findFirst({
       where: {
         reason: CreditReason.DAILY_TOPUP,
         metadata: {
@@ -80,7 +80,7 @@ export async function refreshFreeCreditsDaily() {
       try {
         await prisma.$transaction(async (tx) => {
           // Vérifier le solde actuel
-          const currentBalance = await tx.creditBalance.findUnique({
+          const currentBalance = await tx.credit_balances.findUnique({
             where: { userId: user.userId },
             select: { credits: true },
           });
@@ -99,8 +99,9 @@ export async function refreshFreeCreditsDaily() {
           }
 
           // Créer l'entrée dans le ledger seulement si on ajoute des crédits
-          await tx.creditLedger.create({
+          await tx.credit_ledger.create({
             data: {
+              id: crypto.randomUUID(),
               userId: user.userId,
               delta: creditsToAdd,
               reason: CreditReason.DAILY_TOPUP,
@@ -115,7 +116,7 @@ export async function refreshFreeCreditsDaily() {
           });
 
           // Mettre à jour le solde (ajouter seulement les crédits nécessaires)
-          await tx.creditBalance.upsert({
+          await tx.credit_balances.upsert({
             where: { userId: user.userId },
             update: {
               credits: { increment: creditsToAdd },
@@ -189,7 +190,7 @@ export async function checkFreeCreditsStatus() {
 
     // Récupérer les soldes de crédits séparément
     const userIds = freeUsers.map((user) => user.userId);
-    const creditBalances = await prisma.creditBalance.findMany({
+    const creditBalances = await prisma.credit_balances.findMany({
       where: {
         userId: { in: userIds },
       },
@@ -210,7 +211,7 @@ export async function checkFreeCreditsStatus() {
       today.getDate()
     );
 
-    const recentTopUps = await prisma.creditLedger.count({
+    const recentTopUps = await prisma.credit_ledger.count({
       where: {
         reason: CreditReason.MONTHLY_TOPUP,
         metadata: {
@@ -276,8 +277,9 @@ export async function forceRefreshFreeCredits() {
     for (const user of freeUsers) {
       try {
         await prisma.$transaction(async (tx) => {
-          await tx.creditLedger.create({
+          await tx.credit_ledger.create({
             data: {
+              id: crypto.randomUUID(),
               userId: user.userId,
               delta: 5,
               reason: CreditReason.MONTHLY_TOPUP,
@@ -290,7 +292,7 @@ export async function forceRefreshFreeCredits() {
             },
           });
 
-          await tx.creditBalance.upsert({
+          await tx.credit_balances.upsert({
             where: { userId: user.userId },
             update: {
               credits: 5,

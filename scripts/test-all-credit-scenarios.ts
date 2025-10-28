@@ -38,10 +38,10 @@ async function testAllCreditScenarios() {
   console.log();
 
   // Test 2: Flight History (New endpoint)
-  console.log("2️⃣ Testing Flight History (/api/aircraft/c-goie/history)...");
+  console.log("2️⃣ Testing Flight History (/api/aircraft/c-goie/flights)...");
   try {
     const response = await fetch(
-      `${baseUrl}/api/aircraft/c-goie/history?days=7&limit=10`,
+      `${baseUrl}/api/aircraft/c-goie/flights?days=7&limit=10`,
       {
         method: "GET",
       }

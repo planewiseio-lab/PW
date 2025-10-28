@@ -17,10 +17,10 @@ async function testFlightHistoryEndpoint() {
   console.log();
 
   // Test Flight History endpoint
-  console.log("📋 Testing Flight History (/api/aircraft/c-goie/history)...");
+  console.log("📋 Testing Flight History (/api/aircraft/c-goie/flights)...");
   try {
     const response = await fetch(
-      `${baseUrl}/api/aircraft/c-goie/history?days=7&limit=10`,
+      `${baseUrl}/api/aircraft/c-goie/flights?days=7&limit=10`,
       {
         method: "GET",
       }
@@ -58,7 +58,7 @@ async function testFlightHistoryEndpoint() {
   console.log();
   console.log("📋 Summary:");
   console.log(
-    "✅ Flight History endpoint created: /api/aircraft/[reg]/history"
+    "✅ Flight History endpoint created: /api/aircraft/[reg]/flights"
   );
   console.log("✅ Charges 1 credit per request");
   console.log("✅ Requires authentication");
@@ -66,7 +66,7 @@ async function testFlightHistoryEndpoint() {
   console.log();
   console.log("🔐 To test with authentication:");
   console.log("1. Login to your app at http://localhost:3000");
-  console.log("2. Visit: /api/aircraft/c-goie/history");
+  console.log("2. Visit: /api/aircraft/c-goie/flights");
   console.log("3. Check your credits in Account Settings");
   console.log("4. You should see 1 credit deducted!");
 }

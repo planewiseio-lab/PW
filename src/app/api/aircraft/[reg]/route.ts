@@ -5,7 +5,8 @@ import { NextResponse } from "next/server";
 import { cachedRequest } from "@/lib/requestDeduplication";
 import { withAircraftLookupAccess } from "@/lib/withActionAccess";
 import { withAircraftLookupAndImagesSmart } from "@/lib/withAircraftLookupAndImagesSmart";
-// Combined access control (credits for authenticated, guest quota for anonymous)
+import { logApiRequest } from "@/lib/apiTracker";
+import { createClient } from "@/lib/supabase/server";
 
 // mêmes variables que l’ancienne version
 const RAPID_KEY = process.env.RAPID_KEY || process.env.AIRREG_API_KEY;
@@ -53,7 +54,21 @@ async function callAero(pathPart: string): Promise<Up> {
     if (attempt === 0) {
       const responseTime = Date.now() - startTime;
       const { logApiRequest } = await import("@/lib/apiTracker");
-      await logApiRequest(pathPart, "GET", r.status, responseTime, undefined);
+
+      // Récupérer l'utilisateur pour le logging
+      const { createClient } = await import("@/lib/supabase/server");
+      const supabase = await createClient();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      await logApiRequest(
+        pathPart,
+        "GET",
+        r.status,
+        responseTime,
+        user?.id || null
+      );
     }
 
     if (r.ok) return last;
@@ -147,6 +162,28 @@ export const GET = withAircraftLookupAndImagesSmart(
 
     const { reg } = await ctx.params;
     if (reg === "ping") return NextResponse.json({ ok: true, reg });
+
+    // Log API request
+    const startTime = Date.now();
+    const endpoint = `/api/aircraft/${reg}`;
+
+    try {
+      const supabase = await createClient();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      // Log the request (async, don't wait)
+      logApiRequest(
+        endpoint,
+        "GET",
+        200,
+        Date.now() - startTime,
+        user?.id || null
+      );
+    } catch (error) {
+      console.error("Error logging API request:", error);
+    }
 
     const cacheKey = `aircraft:${reg.toUpperCase()}`;
     const { searchParams } = new URL(req.url);

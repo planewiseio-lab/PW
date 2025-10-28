@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
@@ -17,27 +17,91 @@ export default function AccountSettingsPage() {
   const [message, setMessage] = useState("");
   const [loadingAction, setLoadingAction] = useState(false);
   const router = useRouter();
+  const isInitialized = useRef(false);
 
   useEffect(() => {
-    const getUser = async () => {
-      const supabase = createClient();
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
+    // Prevent multiple initializations
+    if (isInitialized.current) {
+      console.log("[Account Settings] Already initialized, skipping");
+      return;
+    }
 
-      if (!user) {
-        router.push("/");
-        return;
+    isInitialized.current = true;
+
+    const checkAuth = async () => {
+      try {
+        console.log("[Account Settings] Checking authentication...");
+        const supabase = createClient();
+
+        // Try to get session first
+        const {
+          data: { session },
+          error: sessionError,
+        } = await supabase.auth.getSession();
+
+        if (sessionError) {
+          console.log(
+            "[Account Settings] Session error:",
+            sessionError.message
+          );
+          // If session error, try to get user directly
+          const {
+            data: { user },
+            error: userError,
+          } = await supabase.auth.getUser();
+
+          if (userError) {
+            console.log("[Account Settings] User error:", userError.message);
+            setLoading(false);
+            router.push("/login");
+            return;
+          }
+
+          if (user) {
+            console.log("[Account Settings] User found via getUser:", user.id);
+            setUser(user);
+            setFullName(user.user_metadata?.full_name || "");
+            setEmail(user.email || "");
+            setLoading(false);
+            return;
+          }
+        }
+
+        if (session?.user) {
+          console.log(
+            "[Account Settings] User found via session:",
+            session.user.id
+          );
+          setUser(session.user);
+          setFullName(session.user.user_metadata?.full_name || "");
+          setEmail(session.user.email || "");
+          setLoading(false);
+          return;
+        }
+
+        // No user found
+        console.log("[Account Settings] No user found, redirecting to login");
+        setLoading(false);
+        router.push("/login");
+      } catch (err) {
+        console.error("[Account Settings] Error checking auth:", err);
+        setLoading(false);
+        router.push("/login");
       }
-
-      setUser(user);
-      setFullName(user.user_metadata?.full_name || "");
-      setEmail(user.email || "");
-      setLoading(false);
     };
 
-    getUser();
-  }, [router]);
+    checkAuth();
+
+    // Safety timeout
+    const timeoutId = setTimeout(() => {
+      console.log("[Account Settings] Safety timeout triggered");
+      setLoading(false);
+    }, 3000);
+
+    return () => {
+      clearTimeout(timeoutId);
+    };
+  }, []); // Empty dependency array - runs once on mount
 
   const handleUpdateProfile = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -67,9 +131,12 @@ export default function AccountSettingsPage() {
 
     try {
       const supabase = createClient();
-      const { error } = await supabase.auth.resetPasswordForEmail(user.email, {
-        redirectTo: `${window.location.origin}/reset-password`,
-      });
+      const { error } = await supabase.auth.resetPasswordForEmail(
+        user?.email || "",
+        {
+          redirectTo: `${window.location.origin}/reset-password`,
+        }
+      );
 
       if (error) throw error;
 
@@ -273,14 +340,16 @@ export default function AccountSettingsPage() {
                           Account Created
                         </label>
                         <p className="text-gray-900">
-                          {new Date(user.created_at).toLocaleDateString(
-                            "en-US",
-                            {
-                              year: "numeric",
-                              month: "long",
-                              day: "numeric",
-                            }
-                          )}
+                          {user?.created_at
+                            ? new Date(user.created_at).toLocaleDateString(
+                                "en-US",
+                                {
+                                  year: "numeric",
+                                  month: "long",
+                                  day: "numeric",
+                                }
+                              )
+                            : "N/A"}
                         </p>
                       </div>
                       <div>
@@ -288,7 +357,7 @@ export default function AccountSettingsPage() {
                           Last Sign In
                         </label>
                         <p className="text-gray-900">
-                          {user.last_sign_in_at
+                          {user?.last_sign_in_at
                             ? new Date(user.last_sign_in_at).toLocaleDateString(
                                 "en-US",
                                 {

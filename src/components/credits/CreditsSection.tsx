@@ -37,22 +37,35 @@ export function CreditsSection() {
         }
 
         // Fetch balance
-        const balanceResponse = await fetch("/api/credits/balance", {
-          credentials: "include",
-        });
-        if (!balanceResponse.ok) {
-          throw new Error("Failed to fetch balance");
+        let balance = 0;
+        try {
+          const balanceResponse = await fetch("/api/credits/balance", {
+            credentials: "include",
+          });
+          if (balanceResponse.ok) {
+            const data = await balanceResponse.json();
+            balance = data.credits || 0;
+          } else {
+            console.warn("Failed to fetch balance:", balanceResponse.status);
+          }
+        } catch (err) {
+          console.warn("Error fetching balance:", err);
         }
-        const { credits: balance } = await balanceResponse.json();
 
         // Fetch history
-        const historyResponse = await fetch("/api/credits/history?limit=10", {
-          credentials: "include",
-        });
-        if (!historyResponse.ok) {
-          throw new Error("Failed to fetch history");
+        let history = { items: [], nextCursor: null };
+        try {
+          const historyResponse = await fetch("/api/credits/history?limit=10", {
+            credentials: "include",
+          });
+          if (historyResponse.ok) {
+            history = await historyResponse.json();
+          } else {
+            console.warn("Failed to fetch history:", historyResponse.status);
+          }
+        } catch (err) {
+          console.warn("Error fetching history:", err);
         }
-        const history = await historyResponse.json();
 
         // Fetch subscription info (mock for now)
         const subscription = {
@@ -67,6 +80,7 @@ export function CreditsSection() {
           subscription,
         });
       } catch (err) {
+        console.error("Error in fetchCreditsData:", err);
         setError(
           err instanceof Error ? err.message : "Failed to load credits data"
         );
@@ -134,7 +148,6 @@ export function CreditsSection() {
     <div className="space-y-6">
       {/* Insufficient Credits Banner */}
       {creditsData.balance === 0 && <InsufficientCreditsBanner />}
-
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Credit Balance Card */}

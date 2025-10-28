@@ -41,7 +41,7 @@ export interface UsageHistoryResponse {
  * Get current credit balance for a user
  */
 export async function getCreditBalance(userId: string): Promise<number> {
-  const balance = await prisma.creditBalance.findUnique({
+  const balance = await prisma.credit_balances.findUnique({
     where: { userId },
     select: { credits: true },
   });
@@ -57,7 +57,7 @@ export async function getUsageHistory(
   limit = 100,
   cursor?: string
 ): Promise<UsageHistoryResponse> {
-  const items = await prisma.creditLedger.findMany({
+  const items = await prisma.credit_ledger.findMany({
     where: { userId },
     orderBy: { createdAt: "desc" },
     take: limit + 1,
@@ -100,8 +100,9 @@ export async function grantCredits(
 
   await prisma.$transaction(async (tx) => {
     // Create ledger entry
-    await tx.creditLedger.create({
+    await tx.credit_ledger.create({
       data: {
+        id: crypto.randomUUID(),
         userId,
         delta: amount,
         reason: reason as CreditReason,
@@ -110,7 +111,7 @@ export async function grantCredits(
     });
 
     // Update balance
-    await tx.creditBalance.upsert({
+    await tx.credit_balances.upsert({
       where: { userId },
       update: { credits: { increment: amount } },
       create: { userId, credits: amount },
@@ -136,13 +137,13 @@ export async function chargeOneCredit(opts: {
 
   return await prisma.$transaction(async (tx) => {
     // Check if this action was already processed (idempotency)
-    const existingEvent = await tx.usageEvent.findUnique({
+    const existingEvent = await tx.usage_events.findUnique({
       where: { idempotencyKey: key },
     });
 
     if (existingEvent) {
       // Return current balance without charging again
-      const balance = await tx.creditBalance.findUnique({
+      const balance = await tx.credit_balances.findUnique({
         where: { userId },
         select: { credits: true },
       });
@@ -150,7 +151,7 @@ export async function chargeOneCredit(opts: {
     }
 
     // Get current balance with row lock
-    const balance = await tx.creditBalance.findUnique({
+    const balance = await tx.credit_balances.findUnique({
       where: { userId },
       select: { credits: true },
     });
@@ -163,8 +164,9 @@ export async function chargeOneCredit(opts: {
     }
 
     // Create usage event
-    await tx.usageEvent.create({
+    await tx.usage_events.create({
       data: {
+        id: crypto.randomUUID(),
         userId,
         actionType,
         idempotencyKey: key,
@@ -173,8 +175,9 @@ export async function chargeOneCredit(opts: {
     });
 
     // Create ledger entry
-    await tx.creditLedger.create({
+    await tx.credit_ledger.create({
       data: {
+        id: crypto.randomUUID(),
         userId,
         delta: -1,
         reason: CreditReason.ACTION,
@@ -185,7 +188,7 @@ export async function chargeOneCredit(opts: {
     });
 
     // Update balance
-    await tx.creditBalance.upsert({
+    await tx.credit_balances.upsert({
       where: { userId },
       update: { credits: { decrement: 1 } },
       create: { userId, credits: currentCredits - 1 },
@@ -213,28 +216,29 @@ export async function chargeMultipleCredits(opts: {
   const totalCost = actions.length;
 
   // Generate base idempotency key if not provided
-  const baseKey = baseIdempotencyKey || `${userId}-multi-${Date.now()}-${Math.random()}`;
+  const baseKey =
+    baseIdempotencyKey || `${userId}-multi-${Date.now()}-${Math.random()}`;
 
   return await prisma.$transaction(async (tx) => {
     // Check if this multi-action was already processed (idempotency)
-    const existingEvent = await tx.usageEvent.findUnique({
+    const existingEvent = await tx.usage_events.findUnique({
       where: { idempotencyKey: baseKey },
     });
 
     if (existingEvent) {
       // Return current balance without charging again
-      const balance = await tx.creditBalance.findUnique({
+      const balance = await tx.credit_balances.findUnique({
         where: { userId },
         select: { credits: true },
       });
-      return { 
-        newBalance: balance?.credits ?? 0, 
-        chargedActions: actions.map(a => a.actionType) 
+      return {
+        newBalance: balance?.credits ?? 0,
+        chargedActions: actions.map((a) => a.actionType),
       };
     }
 
     // Get current balance with row lock
-    const balance = await tx.creditBalance.findUnique({
+    const balance = await tx.credit_balances.findUnique({
       where: { userId },
       select: { credits: true },
     });
@@ -250,14 +254,15 @@ export async function chargeMultipleCredits(opts: {
     for (let i = 0; i < actions.length; i++) {
       const action = actions[i];
       const actionKey = action.idempotencyKey || `${baseKey}-${i}`;
-      
+
       // Ensure actionType is defined
       if (!action.actionType) {
         throw new Error(`Action type is required for action at index ${i}`);
       }
-      
-      await tx.usageEvent.create({
+
+      await tx.usage_events.create({
         data: {
+          id: crypto.randomUUID(),
           userId,
           actionType: action.actionType,
           idempotencyKey: actionKey,
@@ -266,8 +271,9 @@ export async function chargeMultipleCredits(opts: {
       });
 
       // Create ledger entry for each action
-      await tx.creditLedger.create({
+      await tx.credit_ledger.create({
         data: {
+          id: crypto.randomUUID(),
           userId,
           delta: -1,
           reason: CreditReason.ACTION,
@@ -284,15 +290,15 @@ export async function chargeMultipleCredits(opts: {
     }
 
     // Update balance
-    await tx.creditBalance.upsert({
+    await tx.credit_balances.upsert({
       where: { userId },
       update: { credits: { decrement: totalCost } },
       create: { userId, credits: currentCredits - totalCost },
     });
 
-    return { 
-      newBalance: currentCredits - totalCost, 
-      chargedActions: actions.map(a => a.actionType) 
+    return {
+      newBalance: currentCredits - totalCost,
+      chargedActions: actions.map((a) => a.actionType),
     };
   });
 }

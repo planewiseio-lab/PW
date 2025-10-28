@@ -133,12 +133,20 @@ async function callAero(
       // Logger la requête API
       const responseTime = Date.now() - startTime;
       const { logApiRequest } = await import("@/lib/apiTracker");
+
+      // Récupérer l'utilisateur pour le logging
+      const { createClient } = await import("@/lib/supabase/server");
+      const supabase = await createClient();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
       await logApiRequest(
         path,
         "GET",
         response.status,
         responseTime,
-        undefined
+        user?.id || null
       );
 
       return {

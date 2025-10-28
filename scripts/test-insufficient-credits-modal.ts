@@ -43,7 +43,7 @@ async function testInsufficientCreditsModal() {
   console.log("2️⃣ Testing Flight History endpoint...");
   try {
     const response = await fetch(
-      `${baseUrl}/api/aircraft/c-goie/history?days=7&limit=10`,
+      `${baseUrl}/api/aircraft/c-goie/flights?days=7&limit=10`,
       {
         method: "GET",
       }

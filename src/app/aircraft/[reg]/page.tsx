@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
+import Link from "next/link";
 import { createPortal } from "react-dom";
 import { motion } from "framer-motion";
 import { useImagesReady } from "@/hooks/useImagesReady";
@@ -760,12 +761,26 @@ function AircraftCard({
             </button>
           </div>
 
-          <a
+          {/* Bouton View Flight History */}
+          <Link
             href={`/aircraft/${encodeURIComponent(data.registration)}/history`}
-            className="inline-flex items-center justify-center rounded-xl px-3.5 py-2 text-sm font-semibold bg-brand-600 text-white shadow-sm hover:bg-brand-700"
+            className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-blue-100 text-blue-600 border-2 border-blue-200 hover:bg-blue-200 hover:border-blue-300 transition-all duration-200 cursor-pointer shadow-sm hover:shadow-md"
+            title="View flight history"
           >
-            View flight history
-          </a>
+            <svg
+              className="w-5 h-5"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+              />
+            </svg>
+          </Link>
         </div>
       </div>
 

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { createClient } from "@/lib/supabase/client";
 
 interface ApiUsageStats {
   total_requests: number;
@@ -12,15 +13,43 @@ interface ApiUsageStats {
 export default function ApiUsageDashboard() {
   const [stats, setStats] = useState<ApiUsageStats[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isAdmin, setIsAdmin] = useState<boolean | null>(null);
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
+  const [totalUniqueUsers, setTotalUniqueUsers] = useState(0);
 
   // Utiliser une date de test pour octobre 2025
   const [selectedMonth, setSelectedMonth] = useState("2025-10");
   const [filterUser, setFilterUser] = useState("");
 
+  // Vérifier l'authentification et le rôle admin
   useEffect(() => {
-    loadStats();
-  }, [selectedMonth, filterUser]);
+    async function checkAuth() {
+      const supabase = createClient();
+      const {
+        data: { user },
+        error,
+      } = await supabase.auth.getUser();
 
+      if (error || !user) {
+        setIsAuthenticated(false);
+        setIsAdmin(false);
+        return;
+      }
+
+      setIsAuthenticated(true);
+
+      // Vérifier si l'utilisateur est admin
+      const adminCheck =
+        user.user_metadata?.role === "admin" ||
+        user.app_metadata?.role === "admin";
+
+      setIsAdmin(adminCheck);
+    }
+
+    checkAuth();
+  }, []);
+
+  // Fonction loadStats - définie avant le useEffect qui l'utilise
   async function loadStats() {
     setLoading(true);
     try {
@@ -34,6 +63,14 @@ export default function ApiUsageDashboard() {
       }
 
       console.log("[Admin Usage] Raw data from API:", result.count, "records");
+      console.log("[Admin Usage] Sample data:", result.data?.slice(0, 3));
+      
+      // Vérifier la structure des données
+      if (result.data && result.data.length > 0) {
+        console.log("[Admin Usage] First record structure:", Object.keys(result.data[0]));
+        console.log("[Admin Usage] First record user_id:", result.data[0].user_id);
+        console.log("[Admin Usage] All user_ids:", result.data.map((r: any) => r.user_id));
+      }
 
       let data = result.data || [];
 
@@ -82,7 +119,16 @@ export default function ApiUsageDashboard() {
         })
       );
 
+      console.log("[Admin Usage] Calculated stats:", formattedStats);
       setStats(formattedStats);
+
+      // Calculer les utilisateurs uniques globaux
+      const allUserIds = new Set(
+        data.map((req: any) => req.user_id).filter(Boolean)
+      );
+      console.log("[Admin Usage] Global unique users:", allUserIds.size);
+      console.log("[Admin Usage] User IDs:", Array.from(allUserIds));
+      setTotalUniqueUsers(allUserIds.size);
     } catch (error) {
       console.error("Error loading stats:", error);
     } finally {
@@ -90,11 +136,48 @@ export default function ApiUsageDashboard() {
     }
   }
 
-  const totalRequests = stats.reduce((sum, s) => sum + s.total_requests, 0);
+  // Deuxième useEffect pour charger les stats - après tous les hooks
+  useEffect(() => {
+    loadStats();
+  }, [selectedMonth, filterUser]);
 
-  const totalUsers = new Set(
-    stats.flatMap((s) => Array(s.unique_users)).map(() => s.unique_users)
-  ).size;
+  // Conditions de rendu - après tous les hooks
+  // Afficher le message de connexion si pas authentifié
+  if (isAuthenticated === false) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <h1 className="text-2xl font-bold text-gray-900">Please sign in</h1>
+        </div>
+      </div>
+    );
+  }
+
+  // Afficher le message d'accès refusé si pas admin
+  if (isAuthenticated === true && isAdmin === false) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <h1 className="text-2xl font-bold text-gray-900">Access Denied</h1>
+          <p className="text-gray-600 mt-2">Admin access required</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Afficher le loading pendant la vérification
+  if (isAuthenticated === null || isAdmin === null) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+          <p className="mt-4 text-gray-600">Verifying access...</p>
+        </div>
+      </div>
+    );
+  }
+
+  const totalRequests = stats.reduce((sum, s) => sum + s.total_requests, 0);
 
   return (
     <main className="p-8">
@@ -141,7 +224,9 @@ export default function ApiUsageDashboard() {
             <h3 className="text-sm font-medium text-green-600 mb-2">
               Unique Users
             </h3>
-            <p className="text-3xl font-bold text-green-900">{totalUsers}</p>
+            <p className="text-3xl font-bold text-green-900">
+              {totalUniqueUsers}
+            </p>
           </div>
           <div className="bg-purple-50 rounded-lg p-6">
             <h3 className="text-sm font-medium text-purple-600 mb-2">

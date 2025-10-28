@@ -34,7 +34,9 @@
     "test:credit-limit": "tsx scripts/test-credit-limit.ts",
     "test:credit-limit-max": "tsx scripts/test-credit-limit-max.ts",
     "check:subscription-dates": "tsx scripts/check-subscription-dates.ts",
-    "test:date-display": "tsx scripts/test-date-display.ts"
+    "test:date-display": "tsx scripts/test-date-display.ts",
+    "make-admin": "tsx scripts/make-user-admin.ts",
+    "init-user": "tsx scripts/init-user.ts"
   },
   "dependencies": {
     "@prisma/client": "^5.22.0",
