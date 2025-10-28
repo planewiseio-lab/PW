@@ -112,6 +112,7 @@ async function callAero(
   }
 
   const requestPromise = (async () => {
+    const startTime = Date.now();
     try {
       // Timeout de 15 secondes
       const controller = new AbortController();
@@ -128,6 +129,17 @@ async function callAero(
 
       clearTimeout(timeoutId);
       const text = await response.text();
+
+      // Logger la requête API
+      const responseTime = Date.now() - startTime;
+      const { logApiRequest } = await import("@/lib/apiTracker");
+      await logApiRequest(
+        path,
+        "GET",
+        response.status,
+        responseTime,
+        undefined
+      );
 
       return {
         ok: response.ok,

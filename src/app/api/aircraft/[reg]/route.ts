@@ -35,6 +35,8 @@ async function callAero(pathPart: string): Promise<Up> {
   const url = `https://${RAPID_HOST}${pathPart}`;
   let attempt = 0,
     last: Up = { ok: false, status: 0, text: "", url };
+  const startTime = Date.now();
+
   while (attempt < 3) {
     const r = await fetch(url, {
       cache: "no-store",
@@ -46,6 +48,14 @@ async function callAero(pathPart: string): Promise<Up> {
     });
     const text = await r.text();
     last = { ok: r.ok, status: r.status, text, url };
+
+    // Logger seulement la première tentative (éviter les dups)
+    if (attempt === 0) {
+      const responseTime = Date.now() - startTime;
+      const { logApiRequest } = await import("@/lib/apiTracker");
+      await logApiRequest(pathPart, "GET", r.status, responseTime, undefined);
+    }
+
     if (r.ok) return last;
     if (r.status >= 500 || r.status === 429) {
       await new Promise((res) =>
