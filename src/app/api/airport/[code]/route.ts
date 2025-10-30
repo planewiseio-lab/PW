@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { correctFlightStatus } from "@/lib/flightStatusRules";
 import { withAirportBrowseAccess } from "@/lib/withActionAccess";
+import { getAirport, getFlightsRelative } from "@/services/abdClient";
+import { normalizeAirportInfo, normalizeFids } from "@/utils/abdNormalizers";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -57,105 +59,14 @@ export const GET = withAirportBrowseAccess(
     const limit = Number(url.searchParams.get("limit")) || 20;
     const offset = Number(url.searchParams.get("offset")) || 0;
 
-    const codeType = detectCodeType(code);
-    const base =
-      process.env.AIRREG_API_BASE || "https://aerodatabox.p.rapidapi.com";
-    const upstream = new URL(
-      `${base}/flights/airports/${codeType}/${encodeURIComponent(code)}`
-    );
-    upstream.searchParams.set(
-      "direction",
-      dir === "departures" ? "Departure" : "Arrival"
-    );
-    upstream.searchParams.set("withCancelled", String(withCancelled));
-    upstream.searchParams.set("withCodeshared", String(withCodeshared));
-    upstream.searchParams.set("withLocation", String(withLocation));
-    upstream.searchParams.set("withCargoOnly", "false");
-    upstream.searchParams.set("withPrivateOnly", "false");
-    upstream.searchParams.set("withLeg", "false"); // Désactiver pour accélérer
-    upstream.searchParams.set("withAircraftImage", "false");
-    upstream.searchParams.set("withVirtual", "false"); // Désactiver pour accélérer
-    upstream.searchParams.set("withTimeSummaries", "false");
-    upstream.searchParams.set("hoursBeforeNow", String(hoursBefore));
-    upstream.searchParams.set("hoursAfterNow", String(hoursAfter));
-
-    // Short-lived in-memory cache to reduce upstream latency for repeated queries
-    const cacheKey = upstream.toString();
-    const now = Date.now();
-    const __cache: Map<string, { text: string; ts: number; ttl: number }> =
-      (global as any).__airportFidsCache || new Map();
-    (global as any).__airportFidsCache = __cache;
-
-    const cached = __cache.get(cacheKey);
-    if (cached && now - cached.ts < cached.ttl) {
-      let data: any;
-      try {
-        data = JSON.parse(cached.text);
-      } catch {
-        data = {};
-      }
-
-      const allFlights = normalizeFids(data, dir);
-      const paginatedFlights = allFlights.slice(offset, offset + limit);
-      const hasMore = offset + limit < allFlights.length;
-
-      return NextResponse.json(
-        {
-          flights: paginatedFlights,
-          pagination: {
-            total: allFlights.length,
-            limit,
-            offset,
-            hasMore,
-          },
-        },
-        {
-          headers: {
-            "Cache-Control":
-              "public, s-maxage=120, stale-while-revalidate=300, max-age=60",
-            Vary: "Accept-Encoding",
-            "X-Cache": "HIT",
-          },
-        }
-      );
-    }
-
     try {
-      // Add timeout to upstream fetch to avoid long waits
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 8000);
-      const r = await fetch(upstream.toString(), {
-        cache: "no-store",
-        headers: {
-          Accept: "application/json",
-          "X-RapidAPI-Key": String(apiKey),
-          "X-RapidAPI-Host": "aerodatabox.p.rapidapi.com",
-        },
-        signal: controller.signal,
-      });
-      clearTimeout(timeoutId);
-      const text = await r.text();
-      if (!r.ok) {
-        return NextResponse.json(
-          {
-            error: "upstream_error",
-            status: r.status,
-            detail: text,
-            url: upstream.toString(),
-          },
-          { status: 502 }
-        );
-      }
-      let data: any;
-      try {
-        data = JSON.parse(text);
-      } catch {
-        data = {};
-      }
-
-      // Cache for 90 seconds to absorb repeated queries
-      __cache.set(cacheKey, { text, ts: now, ttl: 90 * 1000 });
-
+      const { data } = await getFlightsRelative(
+        code,
+        dir,
+        hoursBefore,
+        hoursAfter,
+        { timeoutMs: 2500, retry: 1, cacheTtlSeconds: 60 }
+      );
       const allFlights = normalizeFids(data, dir);
 
       // Appliquer la pagination côté serveur
@@ -192,42 +103,9 @@ export const GET = withAirportBrowseAccess(
 );
 
 // TIER 1: Airport information endpoint
-async function getAirportInfo(code: string, apiKey: string) {
-  const codeType = detectCodeType(code);
-  const base =
-    process.env.AIRREG_API_BASE || "https://aerodatabox.p.rapidapi.com";
-  const upstream = new URL(
-    `${base}/airports/${codeType}/${encodeURIComponent(code)}`
-  );
-
+async function getAirportInfo(code: string, _apiKey: string) {
   try {
-    const r = await fetch(upstream.toString(), {
-      cache: "no-store",
-      headers: {
-        Accept: "application/json",
-        "X-RapidAPI-Key": String(apiKey),
-        "X-RapidAPI-Host": "aerodatabox.p.rapidapi.com",
-      },
-    });
-    const text = await r.text();
-    if (!r.ok) {
-      return NextResponse.json(
-        {
-          error: "upstream_error",
-          status: r.status,
-          detail: text,
-          url: upstream.toString(),
-        },
-        { status: 502 }
-      );
-    }
-    let data: any;
-    try {
-      data = JSON.parse(text);
-    } catch {
-      data = {};
-    }
-
+    const { data } = await getAirport(code, { timeoutMs: 2500, retry: 1, cacheTtlSeconds: 300 });
     const airportInfo = normalizeAirportInfo(data);
     return NextResponse.json(
       { airport: airportInfo },
