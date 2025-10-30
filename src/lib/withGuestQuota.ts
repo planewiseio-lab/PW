@@ -7,7 +7,7 @@ import {
 } from "./guestQuota";
 
 // In-memory short-lived dedup to avoid counting duplicate guest requests
-// Keyed by IP + method + path + search, TTL ~ 2s
+// Keyed by IP + method + path + search, TTL ~ 2s (fallback when Redis absent)
 const inflightGuestMap: Map<string, number> = new Map();
 const GUEST_DEDUP_WINDOW_MS = 2000;
 
@@ -57,23 +57,36 @@ export function withGuestQuota<T = any>(
       const url = new URL(request.url);
       const dedupKey = `${clientIp}:${request.method}:${url.pathname}:${url.search}`;
       const now = Date.now();
-      const lastTs = inflightGuestMap.get(dedupKey) || 0;
       let usage;
 
-      if (now - lastTs < GUEST_DEDUP_WINDOW_MS) {
-        console.log(`[Guest Quota] ⏩ Dedup hit, skipping increment for ${dedupKey}`);
-        // Ne pas incrémenter, mais obtenir l'état courant pour les headers
-        usage = await (async () => {
+      // Try Redis-based dedup if available
+      try {
+        const { getRedisValue, setRedisValue } = await import("@/lib/redis");
+        const redisKey = `dedup:${dedupKey}`;
+        const existing = await getRedisValue(redisKey);
+        if (existing) {
+          console.log(`[Guest Quota] ⏩ Dedup hit (redis), skipping increment for ${dedupKey}`);
           const { getGuestUsage } = await import("./guestQuota");
-          return getGuestUsage(clientIp);
-        })();
-      } else {
-        inflightGuestMap.set(dedupKey, now);
-        usage = await incrementGuestUsage(clientIp);
-        // Nettoyage asynchrone du marqueur
-        setTimeout(() => {
-          inflightGuestMap.delete(dedupKey);
-        }, GUEST_DEDUP_WINDOW_MS);
+          usage = await getGuestUsage(clientIp);
+        } else {
+          // set with TTL ~2s
+          await setRedisValue(redisKey, "1", Math.ceil(GUEST_DEDUP_WINDOW_MS / 1000));
+          usage = await incrementGuestUsage(clientIp);
+        }
+      } catch {
+        // Fallback in-memory
+        const lastTs = inflightGuestMap.get(dedupKey) || 0;
+        if (now - lastTs < GUEST_DEDUP_WINDOW_MS) {
+          console.log(`[Guest Quota] ⏩ Dedup hit, skipping increment for ${dedupKey}`);
+          const { getGuestUsage } = await import("./guestQuota");
+          usage = await getGuestUsage(clientIp);
+        } else {
+          inflightGuestMap.set(dedupKey, now);
+          usage = await incrementGuestUsage(clientIp);
+          setTimeout(() => {
+            inflightGuestMap.delete(dedupKey);
+          }, GUEST_DEDUP_WINDOW_MS);
+        }
       }
       console.log(
         `[Guest Quota] ✅ Guest usage incremented: ${usage.count}/${GUEST_QUOTA_LIMIT} remaining: ${usage.remaining}`

@@ -1,14 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { resetGuestQuota, getGuestQuotaStats } from "@/lib/guestQuota";
+import { guardAdminReset } from "@/lib/security/adminResetGuard";
+import { logger } from "@/lib/logger";
 
 export async function POST(request: NextRequest) {
   try {
-    const adminToken = process.env.ADMIN_TOKEN || process.env.NEXT_PUBLIC_ADMIN_TOKEN;
-    const provided = request.headers.get("x-admin-token") || request.headers.get("authorization")?.replace(/^Bearer\s+/i, "");
-
-    if (!adminToken || !provided || provided !== adminToken) {
-      return NextResponse.json({ error: "UNAUTHORIZED" }, { status: 401 });
-    }
+    const guard = await guardAdminReset(request);
+    if (!guard.ok) return guard.response;
 
     const body = await request.json().catch(() => ({}));
     const ip = String(body?.ip || "").trim();
@@ -18,9 +16,10 @@ export async function POST(request: NextRequest) {
 
     await resetGuestQuota(ip);
     const stats = await getGuestQuotaStats(ip);
-
+    logger.info("Admin guest quota reset", { ip, by: guard.ok ? "admin" : "unknown" });
     return NextResponse.json({ success: true, ip, stats });
   } catch (error: any) {
+    logger.error("Admin guest quota reset failed", { error: error?.message });
     return NextResponse.json({ error: error?.message || "RESET_FAILED" }, { status: 500 });
   }
 }
