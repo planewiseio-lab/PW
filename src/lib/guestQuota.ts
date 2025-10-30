@@ -7,7 +7,7 @@ import {
 } from "./redis";
 
 // Configuration du quota invité
-export const GUEST_QUOTA_LIMIT = 3;
+export const GUEST_QUOTA_LIMIT = 4;
 export const GUEST_QUOTA_TTL = 86400; // 24h en secondes
 
 // Interface pour l'usage invité

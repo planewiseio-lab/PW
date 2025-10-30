@@ -65,8 +65,9 @@ async function callAero(
   }
 }
 
-export const GET = withCreditChargeABD(
-  ActionType.VIEW_FLIGHT_HISTORY,
+import { withFlightHistoryAccess } from "@/lib/withActionAccess";
+
+export const GET = withFlightHistoryAccess(
   async (
     request: NextRequest,
     { params }: { params: Promise<{ reg: string }> }

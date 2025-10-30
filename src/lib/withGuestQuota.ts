@@ -3,11 +3,17 @@ import {
   getClientIp,
   isGuestQuotaExceeded,
   incrementGuestUsage,
+  GUEST_QUOTA_LIMIT,
 } from "./guestQuota";
+
+// In-memory short-lived dedup to avoid counting duplicate guest requests
+// Keyed by IP + method + path + search, TTL ~ 2s
+const inflightGuestMap: Map<string, number> = new Map();
+const GUEST_DEDUP_WINDOW_MS = 2000;
 
 /**
  * Middleware pour appliquer le quota invité
- * Vérifie si l'utilisateur a dépassé ses 3 requêtes sur 24h
+ * Vérifie si l'utilisateur a dépassé ses 4 requêtes sur 24h
  */
 export function withGuestQuota<T = any>(
   handler: (request: NextRequest, ...args: any[]) => Promise<NextResponse<T>>
@@ -36,7 +42,7 @@ export function withGuestQuota<T = any>(
             error: "GUEST_QUOTA_EXCEEDED",
             code: 429,
             message:
-              "Vous avez atteint la limite de 3 requêtes anonymes sur 24h. Connectez-vous pour débloquer le plan gratuit (5/jour).",
+              `Vous avez atteint la limite de ${GUEST_QUOTA_LIMIT} requêtes anonymes sur 24h. Connectez-vous pour débloquer le plan gratuit (5/jour).`,
             remaining: 0,
             guestRemaining: 0,
             requiresAuth: true,
@@ -47,10 +53,30 @@ export function withGuestQuota<T = any>(
         );
       }
 
-      // 3. Incrémenter l'usage et exécuter le handler
-      const usage = await incrementGuestUsage(clientIp);
+      // 3. Déduplication courte pour éviter le double comptage
+      const url = new URL(request.url);
+      const dedupKey = `${clientIp}:${request.method}:${url.pathname}:${url.search}`;
+      const now = Date.now();
+      const lastTs = inflightGuestMap.get(dedupKey) || 0;
+      let usage;
+
+      if (now - lastTs < GUEST_DEDUP_WINDOW_MS) {
+        console.log(`[Guest Quota] ⏩ Dedup hit, skipping increment for ${dedupKey}`);
+        // Ne pas incrémenter, mais obtenir l'état courant pour les headers
+        usage = await (async () => {
+          const { getGuestUsage } = await import("./guestQuota");
+          return getGuestUsage(clientIp);
+        })();
+      } else {
+        inflightGuestMap.set(dedupKey, now);
+        usage = await incrementGuestUsage(clientIp);
+        // Nettoyage asynchrone du marqueur
+        setTimeout(() => {
+          inflightGuestMap.delete(dedupKey);
+        }, GUEST_DEDUP_WINDOW_MS);
+      }
       console.log(
-        `[Guest Quota] ✅ Guest usage incremented: ${usage.count}/3 remaining: ${usage.remaining}`
+        `[Guest Quota] ✅ Guest usage incremented: ${usage.count}/${GUEST_QUOTA_LIMIT} remaining: ${usage.remaining}`
       );
 
       // 4. Exécuter le handler original
@@ -60,7 +86,7 @@ export function withGuestQuota<T = any>(
       if (response instanceof NextResponse) {
         response.headers.set("X-Guest-Remaining", usage.remaining.toString());
         response.headers.set("X-Guest-Used", usage.count.toString());
-        response.headers.set("X-Guest-Limit", "3");
+        response.headers.set("X-Guest-Limit", GUEST_QUOTA_LIMIT.toString());
       }
 
       // 6. Ajouter les informations de quota dans la réponse JSON
@@ -70,7 +96,7 @@ export function withGuestQuota<T = any>(
           ...responseData,
           guestRemaining: usage.remaining,
           guestUsed: usage.count,
-          guestLimit: 3,
+          guestLimit: GUEST_QUOTA_LIMIT,
           isGuest: true,
         };
 
@@ -114,7 +140,7 @@ export function withGuestQuotaCheck<T = any>(
             error: "GUEST_QUOTA_EXCEEDED",
             code: 429,
             message:
-              "Vous avez atteint la limite de 3 requêtes anonymes sur 24h. Connectez-vous pour débloquer le plan gratuit (5/jour).",
+              `Vous avez atteint la limite de ${GUEST_QUOTA_LIMIT} requêtes anonymes sur 24h. Connectez-vous pour débloquer le plan gratuit (5/jour).`,
             remaining: 0,
             guestRemaining: 0,
             requiresAuth: true,

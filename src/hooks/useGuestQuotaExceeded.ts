@@ -5,8 +5,8 @@ export function triggerGuestQuotaExceeded(error: any) {
     detail: {
       error: error.message || "Guest quota exceeded",
       guestRemaining: error.guestRemaining || 0,
-      guestUsed: error.guestUsed || 3,
-      guestLimit: error.guestLimit || 3,
+      guestUsed: error.guestUsed || 4,
+      guestLimit: error.guestLimit || 4,
     },
   });
 

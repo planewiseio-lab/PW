@@ -14,10 +14,12 @@ import {
 export function GuestQuotaExceededModal() {
   const [isOpen, setIsOpen] = useState(false);
   const [guestRemaining, setGuestRemaining] = useState(0);
+  const [guestLimit, setGuestLimit] = useState(4);
 
   useEffect(() => {
     const handleGuestQuotaExceeded = (event: CustomEvent) => {
-      setGuestRemaining(event.detail?.guestRemaining || 0);
+      setGuestRemaining(event.detail?.guestRemaining ?? 0);
+      setGuestLimit(event.detail?.guestLimit ?? 4);
       setIsOpen(true);
     };
 
@@ -78,8 +80,8 @@ export function GuestQuotaExceededModal() {
             Guest Limit Reached
           </h1>
           <p className="text-xl text-gray-600 max-w-2xl mx-auto">
-            You've used all your 3 anonymous requests in the last 24h. Log in to
-            continue and get 5 requests per day (free plan)!
+            You've used all your {guestLimit} anonymous requests in the last
+            24h. Log in to continue and get 5 requests per day (free plan)!
           </p>
         </div>
 
@@ -95,12 +97,14 @@ export function GuestQuotaExceededModal() {
                   Current: Guest Access
                 </h3>
                 <p className="text-gray-600">
-                  3 requests per 24h • Anonymous browsing
+                  {guestLimit} requests per 24h • Anonymous browsing
                 </p>
               </div>
             </div>
             <div className="text-right">
-              <div className="text-2xl font-bold text-orange-600">0</div>
+              <div className="text-2xl font-bold text-orange-600">
+                {guestRemaining}
+              </div>
               <div className="text-sm text-gray-500">requests remaining</div>
             </div>
           </div>
@@ -150,7 +154,7 @@ export function GuestQuotaExceededModal() {
               </div>
 
               <div className="text-center text-sm text-gray-500 mb-4">
-                3 requests per day
+                {guestLimit} requests per day
               </div>
 
               <div className="w-full bg-gray-300 text-gray-500 py-3 px-4 rounded-lg font-semibold flex items-center justify-center space-x-2 cursor-not-allowed">
@@ -305,7 +309,7 @@ export function GuestQuotaExceededModal() {
                 </div>
                 <h3 className="text-lg font-semibold mb-2">More Requests</h3>
                 <p className="text-blue-100">
-                  Up to 2500 requests per month for unlimited exploration
+                  Up to 500 requests per month for unlimited exploration
                 </p>
               </div>
 

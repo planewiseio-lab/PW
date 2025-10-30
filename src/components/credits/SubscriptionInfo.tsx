@@ -13,7 +13,7 @@ interface SubscriptionInfoProps {
 export function SubscriptionInfo({ subscription }: SubscriptionInfoProps) {
   if (!subscription) {
     return (
-      <div className="bg-white rounded-lg shadow p-6">
+      <div className="bg-white rounded-lg shadow p-6 h-full w-full flex flex-col">
         <h3 className="text-lg font-semibold text-gray-900 mb-4">
           Subscription
         </h3>
@@ -41,7 +41,7 @@ export function SubscriptionInfo({ subscription }: SubscriptionInfoProps) {
   };
 
   return (
-    <div className="bg-white rounded-lg shadow p-6">
+    <div className="bg-white rounded-lg shadow p-6 h-full w-full flex flex-col">
       <h3 className="text-lg font-semibold text-gray-900 mb-4">Subscription</h3>
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">

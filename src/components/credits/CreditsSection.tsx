@@ -149,14 +149,14 @@ export function CreditsSection() {
       {/* Insufficient Credits Banner */}
       {creditsData.balance === 0 && <InsufficientCreditsBanner />}
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-stretch">
         {/* Credit Balance Card */}
-        <div className="lg:col-span-1">
+        <div className="lg:col-span-1 flex">
           <CreditBalanceCard balance={creditsData.balance} />
         </div>
 
         {/* Subscription Info */}
-        <div className="lg:col-span-2">
+        <div className="lg:col-span-2 flex">
           <SubscriptionInfo subscription={creditsData.subscription} />
         </div>
       </div>

@@ -3,8 +3,7 @@ import {
   correctFlightStatus,
   logStatusCorrection,
 } from "@/lib/flightStatusRules";
-import { withCreditChargeABD } from "@/lib/withCreditChargeABD";
-import { ActionType } from "@prisma/client";
+import { withFlightBrowseAccess } from "@/lib/withActionAccess";
 
 const AERODATABOX_API_KEY =
   process.env.AERODATABOX_API_KEY || process.env.RAPID_KEY;
@@ -183,8 +182,7 @@ async function callAero(
   return requestPromise;
 }
 
-export const GET = withCreditChargeABD(
-  ActionType.BROWSE_FLIGHT,
+export const GET = withFlightBrowseAccess(
   async (
     request: NextRequest,
     { params }: { params: Promise<{ flight: string }> }

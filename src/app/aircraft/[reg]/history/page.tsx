@@ -2,9 +2,10 @@
 
 import { motion } from "framer-motion";
 import { useParams, useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { correctFlightsStatus } from "@/lib/flightStatusRules";
+import { triggerGuestQuotaExceeded } from "@/hooks/useGuestQuotaExceeded";
 
 interface FlightHistory {
   number: string;
@@ -56,6 +57,12 @@ export default function AircraftHistoryPage() {
   );
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [quotaExceeded, setQuotaExceeded] = useState<null | {
+    guestRemaining: number;
+    guestLimit: number;
+    requiresAuth?: boolean;
+    upgradeUrl?: string;
+  }>(null);
   const [days, setDays] = useState(3);
   const [stats, setStats] = useState<{
     totalFlights: number;
@@ -64,18 +71,42 @@ export default function AircraftHistoryPage() {
     airportsVisited: number;
   } | null>(null);
 
+  // Guards to ensure a single request (avoid StrictMode double effect and rapid re-triggers)
+  const didFetchRef = useRef(false);
+  const inFlightRef = useRef<AbortController | null>(null);
+  const lastKeyRef = useRef<string | null>(null);
+  const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
+
   useEffect(() => {
     const fetchFlightHistory = async () => {
       try {
         setLoading(true);
+        // Cancel any previous in-flight request
+        if (inFlightRef.current) {
+          inFlightRef.current.abort();
+        }
+        const controller = new AbortController();
+        inFlightRef.current = controller;
+
         const response = await fetch(
           `/api/aircraft/${registration}/flights?days=${days}`,
-          {
-            next: { revalidate: 21600 }, // Cache 6h (6 * 60 * 60)
-          }
+          { cache: "no-store", signal: controller.signal }
         );
-
         if (!response.ok) {
+          // Handle guest quota exceeded (429) by triggering global modal
+          if (response.status === 429) {
+            try {
+              const body = await response.json();
+              triggerGuestQuotaExceeded({
+                message: body?.message,
+                guestRemaining: body?.guestRemaining ?? 0,
+                guestLimit: body?.guestLimit ?? 4,
+                guestUsed: body?.guestUsed,
+              });
+            } catch {}
+            setError("GUEST_QUOTA_EXCEEDED");
+            return;
+          }
           throw new Error("Failed to fetch flight history");
         }
 
@@ -141,15 +172,39 @@ export default function AircraftHistoryPage() {
             airportsVisited: airports.size,
           });
         }
-      } catch (err) {
+      } catch (err: any) {
+        // Ignore aborts from our own debounce/cancellation
+        if (err?.name === "AbortError" || /aborted/i.test(String(err?.message))) {
+          return;
+        }
         setError(err instanceof Error ? err.message : "An error occurred");
       } finally {
         setLoading(false);
+        // Clear in-flight controller when done
+        if (inFlightRef.current) {
+          inFlightRef.current = null;
+        }
       }
     };
 
     if (registration) {
-      fetchFlightHistory();
+      // Prevent duplicate call in React StrictMode (dev) and only refetch on key changes
+      const schedule = () => {
+        if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
+        debounceTimerRef.current = setTimeout(() => {
+          fetchFlightHistory();
+        }, 150);
+      };
+
+      const key = `${registration}-${days}`;
+      if (!didFetchRef.current) {
+        didFetchRef.current = true;
+        lastKeyRef.current = key;
+        schedule();
+      } else if (lastKeyRef.current !== key) {
+        lastKeyRef.current = key;
+        schedule();
+      }
     }
   }, [registration, days]);
 
@@ -230,6 +285,8 @@ export default function AircraftHistoryPage() {
       </div>
     );
   }
+
+  // Quota invité dépassé: UI gérée par le modal global
 
   if (error) {
     return (

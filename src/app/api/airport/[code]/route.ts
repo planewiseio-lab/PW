@@ -79,7 +79,51 @@ export const GET = withAirportBrowseAccess(
     upstream.searchParams.set("hoursBeforeNow", String(hoursBefore));
     upstream.searchParams.set("hoursAfterNow", String(hoursAfter));
 
+    // Short-lived in-memory cache to reduce upstream latency for repeated queries
+    const cacheKey = upstream.toString();
+    const now = Date.now();
+    const __cache: Map<string, { text: string; ts: number; ttl: number }> =
+      (global as any).__airportFidsCache || new Map();
+    (global as any).__airportFidsCache = __cache;
+
+    const cached = __cache.get(cacheKey);
+    if (cached && now - cached.ts < cached.ttl) {
+      let data: any;
+      try {
+        data = JSON.parse(cached.text);
+      } catch {
+        data = {};
+      }
+
+      const allFlights = normalizeFids(data, dir);
+      const paginatedFlights = allFlights.slice(offset, offset + limit);
+      const hasMore = offset + limit < allFlights.length;
+
+      return NextResponse.json(
+        {
+          flights: paginatedFlights,
+          pagination: {
+            total: allFlights.length,
+            limit,
+            offset,
+            hasMore,
+          },
+        },
+        {
+          headers: {
+            "Cache-Control":
+              "public, s-maxage=120, stale-while-revalidate=300, max-age=60",
+            Vary: "Accept-Encoding",
+            "X-Cache": "HIT",
+          },
+        }
+      );
+    }
+
     try {
+      // Add timeout to upstream fetch to avoid long waits
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 8000);
       const r = await fetch(upstream.toString(), {
         cache: "no-store",
         headers: {
@@ -87,7 +131,9 @@ export const GET = withAirportBrowseAccess(
           "X-RapidAPI-Key": String(apiKey),
           "X-RapidAPI-Host": "aerodatabox.p.rapidapi.com",
         },
+        signal: controller.signal,
       });
+      clearTimeout(timeoutId);
       const text = await r.text();
       if (!r.ok) {
         return NextResponse.json(
@@ -106,6 +152,9 @@ export const GET = withAirportBrowseAccess(
       } catch {
         data = {};
       }
+
+      // Cache for 90 seconds to absorb repeated queries
+      __cache.set(cacheKey, { text, ts: now, ttl: 90 * 1000 });
 
       const allFlights = normalizeFids(data, dir);
 
@@ -128,13 +177,15 @@ export const GET = withAirportBrowseAccess(
             "Cache-Control":
               "public, s-maxage=120, stale-while-revalidate=300, max-age=60",
             Vary: "Accept-Encoding",
+            "X-Cache": "MISS",
           },
         }
       );
     } catch (e: any) {
+      const status = e?.name === "AbortError" ? 504 : 500;
       return NextResponse.json(
-        { error: e?.message || "fetch_failed" },
-        { status: 500 }
+        { error: e?.message || "fetch_failed", code: status === 504 ? "UPSTREAM_TIMEOUT" : "INTERNAL_ERROR" },
+        { status }
       );
     }
   }
