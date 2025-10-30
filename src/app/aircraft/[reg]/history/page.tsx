@@ -2,9 +2,10 @@
 
 import { motion } from "framer-motion";
 import { useParams, useRouter } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { correctFlightsStatus } from "@/lib/flightStatusRules";
+import { useAircraftHistory } from "@/hooks/useAircraftHistory";
 import { triggerGuestQuotaExceeded } from "@/hooks/useGuestQuotaExceeded";
 
 interface FlightHistory {
@@ -71,142 +72,46 @@ export default function AircraftHistoryPage() {
     airportsVisited: number;
   } | null>(null);
 
-  // Guards to ensure a single request (avoid StrictMode double effect and rapid re-triggers)
-  const didFetchRef = useRef(false);
-  const inFlightRef = useRef<AbortController | null>(null);
-  const lastKeyRef = useRef<string | null>(null);
-  const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const { data: rawData, error: fetchError, isLoading } = useAircraftHistory(registration, days);
 
   useEffect(() => {
-    const fetchFlightHistory = async () => {
-      try {
-        setLoading(true);
-        // Cancel any previous in-flight request
-        if (inFlightRef.current) {
-          inFlightRef.current.abort();
-        }
-        const controller = new AbortController();
-        inFlightRef.current = controller;
-
-        const response = await fetch(
-          `/api/aircraft/${registration}/flights?days=${days}`,
-          { cache: "no-store", signal: controller.signal }
-        );
-        if (!response.ok) {
-          // Handle guest quota exceeded (429) by triggering global modal
-          if (response.status === 429) {
-            try {
-              const body = await response.json();
-              triggerGuestQuotaExceeded({
-                message: body?.message,
-                guestRemaining: body?.guestRemaining ?? 0,
-                guestLimit: body?.guestLimit ?? 4,
-                guestUsed: body?.guestUsed,
-              });
-            } catch {}
-            setError("GUEST_QUOTA_EXCEEDED");
-            return;
-          }
-          throw new Error("Failed to fetch flight history");
-        }
-
-        const data = await response.json();
-
-        // Appliquer les règles centralisées de correction de statut
-        if (data.flights) {
-          const flightDataArray = data.flights.map((flight: FlightHistory) => ({
-            status: flight.status,
-            departure: {
-              scheduledTime: flight.departure.scheduledTime,
-              actualTime: flight.departure.actualTime,
-            },
-            arrival: {
-              scheduledTime: flight.arrival.scheduledTime,
-              actualTime: flight.arrival.actualTime,
-            },
-          }));
-
-          const correctedFlightData = correctFlightsStatus(flightDataArray);
-
-          // Appliquer les corrections aux vols originaux
-          data.flights = data.flights.map(
-            (flight: FlightHistory, index: number) => ({
-              ...flight,
-              status: correctedFlightData[index].status,
-            })
-          );
-        }
-
-        setFlightHistory(data);
-
-        // Calculer les statistiques
-        if (data.flights && data.flights.length > 0) {
-          const totalFlights = data.flights.length;
-          const totalDistance = data.flights.reduce(
-            (sum: number, flight: FlightHistory) =>
-              sum + (flight.distance || 0),
-            0
-          );
-
-          // Compter les aéroports uniques
-          const airports = new Set<string>();
-          data.flights.forEach((flight: FlightHistory) => {
-            airports.add(flight.departure.airport.iata);
-            airports.add(flight.arrival.airport.iata);
-          });
-
-          // Compter les pays uniques (approximation basée sur les codes IATA)
-          const countries = new Set<string>();
-          data.flights.forEach((flight: FlightHistory) => {
-            // Extraction approximative du pays basée sur le code IATA
-            const depCountry = flight.departure.airport.iata.substring(0, 1);
-            const arrCountry = flight.arrival.airport.iata.substring(0, 1);
-            countries.add(depCountry);
-            countries.add(arrCountry);
-          });
-
-          setStats({
-            totalFlights,
-            totalDistance: Math.round(totalDistance),
-            countriesVisited: countries.size,
-            airportsVisited: airports.size,
-          });
-        }
-      } catch (err: any) {
-        // Ignore aborts from our own debounce/cancellation
-        if (err?.name === "AbortError" || /aborted/i.test(String(err?.message))) {
-          return;
-        }
-        setError(err instanceof Error ? err.message : "An error occurred");
-      } finally {
-        setLoading(false);
-        // Clear in-flight controller when done
-        if (inFlightRef.current) {
-          inFlightRef.current = null;
-        }
-      }
-    };
-
-    if (registration) {
-      // Prevent duplicate call in React StrictMode (dev) and only refetch on key changes
-      const schedule = () => {
-        if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
-        debounceTimerRef.current = setTimeout(() => {
-          fetchFlightHistory();
-        }, 150);
-      };
-
-      const key = `${registration}-${days}`;
-      if (!didFetchRef.current) {
-        didFetchRef.current = true;
-        lastKeyRef.current = key;
-        schedule();
-      } else if (lastKeyRef.current !== key) {
-        lastKeyRef.current = key;
-        schedule();
-      }
+    if (!rawData) return;
+    const data: any = { ...rawData };
+    if (data.flights) {
+      const flightDataArray = data.flights.map((flight: FlightHistory) => ({
+        status: flight.status,
+        departure: { scheduledTime: flight.departure.scheduledTime, actualTime: flight.departure.actualTime },
+        arrival: { scheduledTime: flight.arrival.scheduledTime, actualTime: flight.arrival.actualTime },
+      }));
+      const correctedFlightData = correctFlightsStatus(flightDataArray);
+      data.flights = data.flights.map((flight: FlightHistory, index: number) => ({
+        ...flight,
+        status: correctedFlightData[index].status,
+      }));
     }
-  }, [registration, days]);
+    setFlightHistory(data);
+    if (data.flights && data.flights.length > 0) {
+      const totalFlights = data.flights.length;
+      const totalDistance = data.flights.reduce((sum: number, flight: FlightHistory) => sum + (flight.distance || 0), 0);
+      const airports = new Set<string>();
+      data.flights.forEach((flight: FlightHistory) => {
+        airports.add(flight.departure.airport.iata);
+        airports.add(flight.arrival.airport.iata);
+      });
+      const countries = new Set<string>();
+      data.flights.forEach((flight: FlightHistory) => {
+        const depCountry = flight.departure.airport.iata.substring(0, 1);
+        const arrCountry = flight.arrival.airport.iata.substring(0, 1);
+        countries.add(depCountry);
+        countries.add(arrCountry);
+      });
+      setStats({ totalFlights, totalDistance: Math.round(totalDistance), countriesVisited: countries.size, airportsVisited: airports.size });
+    }
+  }, [rawData]);
+
+  useEffect(() => {
+    setError(fetchError);
+  }, [fetchError]);
 
   const formatDateTime = (dateTime: string) => {
     if (!dateTime) return "N/A";
