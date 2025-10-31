@@ -238,28 +238,49 @@ export async function POST(request: NextRequest) {
         });
 
         // Attribuer les crédits initiaux lors de la création d'un nouvel abonnement payant
+        // Respecter le maximum : si l'utilisateur a déjà des crédits, ne pas dépasser le max
         if (event.type === "customer.subscription.created" && plan !== Plan.FREE) {
-          const creditsByPlan = {
+          const maxCreditsByPlan = {
             [Plan.PRO]: 500,
             [Plan.BUSINESS]: 2500,
           };
 
-          const initialCredits = creditsByPlan[plan];
-          if (initialCredits) {
-            await grantCredits(
-              userSubscription.userId,
-              initialCredits,
-              "MONTHLY_TOPUP",
-              {
-                stripeSubscriptionId: subscription.id,
-                stripeCustomerId: customerId,
-                plan,
-                reason: "initial_subscription_credits",
-              }
-            );
-            console.log(
-              `Granted ${initialCredits} initial credits to user ${userSubscription.userId} for ${plan} plan`
-            );
+          const maxCredits = maxCreditsByPlan[plan];
+          if (maxCredits) {
+            // Récupérer le solde actuel
+            const currentBalance = await prisma.credit_balances.findUnique({
+              where: { userId: userSubscription.userId },
+              select: { credits: true },
+            });
+
+            const currentCredits = currentBalance?.credits ?? 0;
+
+            // Calculer combien de crédits ajouter (seulement jusqu'au maximum)
+            const creditsToAdd = Math.max(0, maxCredits - currentCredits);
+
+            if (creditsToAdd > 0) {
+              await grantCredits(
+                userSubscription.userId,
+                creditsToAdd,
+                "MONTHLY_TOPUP",
+                {
+                  stripeSubscriptionId: subscription.id,
+                  stripeCustomerId: customerId,
+                  plan,
+                  reason: "initial_subscription_credits",
+                  currentCredits,
+                  maxCredits,
+                  creditsAdded: creditsToAdd,
+                }
+              );
+              console.log(
+                `Granted ${creditsToAdd} initial credits to user ${userSubscription.userId} for ${plan} plan (had ${currentCredits}, now has ${currentCredits + creditsToAdd}/${maxCredits})`
+              );
+            } else {
+              console.log(
+                `User ${userSubscription.userId} already has ${currentCredits}/${maxCredits} credits (${plan}), no initial credits needed`
+              );
+            }
           }
         }
 
@@ -346,7 +367,9 @@ export async function POST(request: NextRequest) {
       }
 
       default:
-        console.log(`Unhandled event type: ${event.type}`);
+        // Ignorer silencieusement les événements Stripe non critiques (invoice.paid, charge.succeeded, etc.)
+        // Ces événements sont normaux et n'ont pas besoin d'être traités
+        break;
     }
 
     return NextResponse.json({ received: true });

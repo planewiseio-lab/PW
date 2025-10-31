@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { supabaseAdmin } from "@/lib/supabase/admin";
+import { prisma } from "@/lib/prisma";
+import { Plan, SubscriptionStatus } from "@prisma/client";
+import { randomUUID } from "crypto";
 
 export async function POST(request: NextRequest) {
   try {
@@ -35,89 +37,65 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    console.log(`Granting ${amount} credits to user ${userId}`);
+    console.log(`[Admin] Granting ${amount} credits to user ${userId}`);
 
     // 1. S'assurer que l'abonnement existe (pour éviter l'erreur FK)
-    const { error: subscriptionError } = await supabaseAdmin
-      .from("subscriptions")
-      .upsert(
-        {
-          id: crypto.randomUUID(),
+    // Si l'abonnement existe déjà, NE PAS le modifier (préserver le plan et le statut)
+    let subscription = await prisma.subscriptions.findUnique({
+      where: { userId },
+    });
+
+    if (!subscription) {
+      // Si l'utilisateur n'a pas d'abonnement, en créer un avec FREE par défaut
+      subscription = await prisma.subscriptions.create({
+        data: {
+          id: randomUUID(),
           userId: userId,
-          plan: "FREE",
-          status: "ACTIVE",
-          renewsAt: new Date(Date.now() + 30 * 24 * 3600 * 1000).toISOString(),
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
+          plan: Plan.FREE,
+          status: SubscriptionStatus.ACTIVE,
+          renewsAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // Dans 30 jours
         },
-        {
-          onConflict: "userId",
-          ignoreDuplicates: false,
-        }
-      );
-
-    if (subscriptionError) {
-      console.error("Error creating subscription:", subscriptionError);
-      return NextResponse.json(
-        { error: subscriptionError.message },
-        { status: 500 }
-      );
-    }
-
-    // 2. Créer l'entrée dans le ledger
-    const { data: ledgerData, error: ledgerError } = await supabaseAdmin
-      .from("credit_ledger")
-      .insert({
-        id: crypto.randomUUID(),
-        userId: userId,
-        delta: amount,
-        reason: reason || "MANUAL_ADJUST",
-        metadata: { note, adminAction: true },
-        createdAt: new Date().toISOString(),
       });
-
-    if (ledgerError) {
-      console.error("Error creating ledger entry:", ledgerError);
-      return NextResponse.json({ error: ledgerError.message }, { status: 500 });
-    }
-
-    // 3. Mettre à jour le solde de crédits (incrémenter au lieu de remplacer)
-    const { data: currentBalance } = await supabaseAdmin
-      .from("credit_balances")
-      .select("credits")
-      .eq("userId", userId)
-      .single();
-
-    const currentCredits = currentBalance?.credits ?? 0;
-    const newCredits = currentCredits + amount;
-
-    const { data: balanceData, error: balanceError } = await supabaseAdmin
-      .from("credit_balances")
-      .upsert(
-        {
-          userId: userId,
-          credits: newCredits,
-          updatedAt: new Date().toISOString(),
-        },
-        {
-          onConflict: "userId",
-          ignoreDuplicates: false,
-        }
-      );
-
-    if (balanceError) {
-      console.error("Error updating balance:", balanceError);
-      return NextResponse.json(
-        { error: balanceError.message },
-        { status: 500 }
+      console.log(`[Admin] Created default FREE subscription for user ${userId}`);
+    } else {
+      console.log(
+        `[Admin] Preserving existing subscription: plan=${subscription.plan}, status=${subscription.status}`
       );
     }
+
+    // 2. Utiliser la fonction grantCredits de Prisma pour gérer correctement les crédits
+    // Cela garantit la cohérence des données et évite les problèmes de FK
+    const { grantCredits } = await import("@/lib/credits");
+
+    await grantCredits(
+      userId,
+      amount,
+      (reason as "MONTHLY_TOPUP" | "MANUAL_ADJUST" | "PURCHASE") || "MANUAL_ADJUST",
+      {
+        note,
+        adminAction: true,
+        adminId: user.id,
+        source: "admin_credit_management",
+      }
+    );
+
+    // 3. Récupérer le nouveau solde pour la réponse
+    const creditBalance = await prisma.credit_balances.findUnique({
+      where: { userId },
+    });
+
+    console.log(
+      `[Admin] Successfully granted ${amount} credits to user ${userId}. New balance: ${creditBalance?.credits ?? 0}`
+    );
 
     return NextResponse.json({
       success: true,
       message: `Successfully granted ${amount} credits to user ${userId}`,
-      ledgerData,
-      balanceData,
+      newBalance: creditBalance?.credits ?? 0,
+      subscription: {
+        plan: subscription.plan,
+        status: subscription.status,
+      },
     });
   } catch (error: any) {
     console.error("Error granting credits:", error);

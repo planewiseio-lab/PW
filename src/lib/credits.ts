@@ -86,7 +86,8 @@ export async function getUsageHistory(
 }
 
 /**
- * Grant credits to a user
+ * Grant or remove credits to/from a user
+ * @param amount - Positive number to add credits, negative number to remove credits
  */
 export async function grantCredits(
   userId: string,
@@ -94,17 +95,33 @@ export async function grantCredits(
   reason: "MONTHLY_TOPUP" | "MANUAL_ADJUST" | "PURCHASE",
   metadata?: any
 ): Promise<void> {
-  if (amount <= 0) {
-    throw new Error("Amount must be positive");
+  if (amount === 0) {
+    throw new Error("Amount must not be zero");
   }
 
   await prisma.$transaction(async (tx) => {
+    // Get current balance to check if removal would result in negative balance
+    const currentBalance = await tx.credit_balances.findUnique({
+      where: { userId },
+      select: { credits: true },
+    });
+
+    const currentCredits = currentBalance?.credits ?? 0;
+    const newCredits = currentCredits + amount;
+
+    // Prevent negative balance
+    if (newCredits < 0) {
+      throw new Error(
+        `Cannot remove ${Math.abs(amount)} credits. Current balance: ${currentCredits}`
+      );
+    }
+
     // Create ledger entry
     await tx.credit_ledger.create({
       data: {
         id: crypto.randomUUID(),
         userId,
-        delta: amount,
+        delta: amount, // Can be negative for removal
         reason: reason as CreditReason,
         metadata,
       },
@@ -114,7 +131,7 @@ export async function grantCredits(
     await tx.credit_balances.upsert({
       where: { userId },
       update: { credits: { increment: amount } },
-      create: { userId, credits: amount },
+      create: { userId, credits: Math.max(0, amount) }, // For new users, ensure non-negative
     });
   });
 }
@@ -346,20 +363,44 @@ export async function ensureMonthlyTopUp(userId: string): Promise<void> {
     return; // Not time for renewal yet
   }
 
-  // Calculate credits by plan
-  const creditsByPlan = {
-    [Plan.FREE]: 5, // 5 crédits par jour
-    [Plan.PRO]: 500, // 500 crédits par mois
-    [Plan.BUSINESS]: 2500, // 2500 crédits par mois
+  // Calculate maximum credits by plan
+  const maxCreditsByPlan = {
+    [Plan.FREE]: 5, // 5 crédits maximum par jour
+    [Plan.PRO]: 500, // 500 crédits maximum par mois
+    [Plan.BUSINESS]: 2500, // 2500 crédits maximum par mois
   };
 
-  const creditsToGrant = creditsByPlan[subscription.plan];
+  const maxCredits = maxCreditsByPlan[subscription.plan];
 
-  // Grant credits
-  await grantCredits(userId, creditsToGrant, "MONTHLY_TOPUP", {
-    plan: subscription.plan,
-    previousRenewsAt: subscription.renewsAt,
+  // Get current credit balance
+  const currentBalance = await prisma.credit_balances.findUnique({
+    where: { userId },
+    select: { credits: true },
   });
+
+  const currentCredits = currentBalance?.credits ?? 0;
+
+  // Calculate how many credits to add (only up to the maximum)
+  const creditsToAdd = Math.max(0, maxCredits - currentCredits);
+
+  if (creditsToAdd === 0) {
+    // User already has maximum credits, just update renewal date
+    console.log(
+      `[Top-up] User ${userId} already has ${currentCredits}/${maxCredits} credits (${subscription.plan}), no top-up needed`
+    );
+  } else {
+    // Grant only the difference to reach the maximum
+    console.log(
+      `[Top-up] User ${userId} has ${currentCredits}/${maxCredits} credits (${subscription.plan}), adding ${creditsToAdd} to reach maximum`
+    );
+    await grantCredits(userId, creditsToAdd, "MONTHLY_TOPUP", {
+      plan: subscription.plan,
+      previousRenewsAt: subscription.renewsAt,
+      currentCredits,
+      maxCredits,
+      creditsAdded: creditsToAdd,
+    });
+  }
 
   // Update subscription renewal date based on plan
   const nextRenewal = new Date(now);

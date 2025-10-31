@@ -99,9 +99,12 @@ export function AdminCreditManagement({
             value={amount}
             onChange={(e) => setAmount(e.target.value)}
             className="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-base px-4 py-3"
-            placeholder="100"
+            placeholder="100 or -50 to remove"
             required
           />
+          <p className="mt-1 text-sm text-gray-500">
+            Enter a positive number to add credits, or a negative number to remove credits
+          </p>
         </div>
 
         <div>

@@ -170,21 +170,6 @@ export function CreditsSection() {
     };
   }, [fetchCreditsData]); // Include fetchCreditsData as dependency
 
-  // Auto-refresh via polling when page is visible (every 1 second for faster updates)
-  useEffect(() => {
-    const interval = setInterval(() => {
-      // Only refresh if page is visible (not in background)
-      if (!document.hidden) {
-        console.log("[Credits] Auto-refreshing credits data...");
-        fetchCreditsData(false); // Don't show loading spinner on auto-refresh
-      }
-    }, 1000); // Refresh every 1 second for faster updates
-
-    return () => {
-      clearInterval(interval);
-    };
-  }, [fetchCreditsData]); // Include fetchCreditsData as dependency
-
   // Listen for custom credit update events
   useEffect(() => {
     const handleCreditUpdate = () => {

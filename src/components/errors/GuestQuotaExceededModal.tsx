@@ -18,11 +18,9 @@ export function GuestQuotaExceededModal() {
 
   useEffect(() => {
     const handleGuestQuotaExceeded = (event: CustomEvent) => {
-      console.log("[GuestQuotaModal] ✅ Event received:", event.detail);
       setGuestRemaining(event.detail?.guestRemaining ?? 0);
       setGuestLimit(event.detail?.guestLimit ?? 4);
       setIsOpen(true);
-      console.log("[GuestQuotaModal] ✅ Modal opened, isOpen=true");
     };
 
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -46,16 +44,9 @@ export function GuestQuotaExceededModal() {
     };
   }, [isOpen]);
 
-  useEffect(() => {
-    console.log("[GuestQuotaModal] 🔍 Modal state changed - isOpen:", isOpen);
-  }, [isOpen]);
-
   if (!isOpen) {
-    console.log("[GuestQuotaModal] ❌ Modal not open, returning null");
     return null;
   }
-
-  console.log("[GuestQuotaModal] ✅ Rendering modal");
 
   const handleClose = () => {
     setIsOpen(false);
