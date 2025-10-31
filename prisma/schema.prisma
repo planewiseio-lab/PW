@@ -466,8 +466,8 @@ model user_subscriptions {
 model subscriptions {
   id               String             @id @default(dbgenerated("gen_random_uuid()"))
   userId           String             @unique @map("userId")
-  plan             String             @default("FREE") @map("plan")
-  status           String             @default("ACTIVE") @map("status")
+  plan             Plan               @default(FREE) @map("plan")
+  status           SubscriptionStatus @default(ACTIVE) @map("status")
   renewsAt         DateTime           @map("renewsAt")
   stripeCustomerId String?            @map("stripeCustomerId")
   stripeSubId      String?            @map("stripeSubId")

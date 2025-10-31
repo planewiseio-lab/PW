@@ -48,7 +48,10 @@ export function withCreditChargeABD<T = any>(
         return pendingResponse;
       }
 
-      const idempotencyKey = `abd-${user.id}-${endpoint}-${Date.now()}`;
+      // Create a stable idempotency key to prevent duplicate charges
+      // This prevents multiple charges for the same request (e.g., React Strict Mode double calls)
+      // Each unique search by the user will have a different endpoint/params and debit a credit
+      const idempotencyKey = `abd-${user.id}-${endpoint}`;
 
       // 3. Logger la requête ABD (avant traitement)
       console.log(
@@ -62,29 +65,8 @@ export function withCreditChargeABD<T = any>(
         let statusCode = 200;
 
         try {
-          // Exécuter la requête API ABD d'abord
-          response = await handler(request, context);
-          statusCode = response.status;
-
-          // Vérifier si la réponse vient du cache
-          const isCached = response.headers.get("X-Cache") === "HIT";
-
-          if (isCached) {
-            console.log(
-              `[ABD] 🎯 Cache hit for ${endpoint}, no credit charged`
-            );
-            // Log the cached request for usage tracking
-            logApiRequest(
-              endpoint,
-              request.method,
-              statusCode,
-              Date.now() - startTime,
-              user.id
-            );
-            return response;
-          }
-
-          // Débiter 1 crédit seulement si ce n'est pas en cache (atomique et idempotent)
+          // Débiter 1 crédit AVANT d'exécuter la requête (même si c'est un cache hit)
+          // Cela garantit que chaque recherche débite un crédit
           const { newBalance } = await chargeOneCredit({
             userId: user.id,
             actionType,
@@ -98,6 +80,19 @@ export function withCreditChargeABD<T = any>(
               source: "abd_api_request",
             },
           });
+
+          // Exécuter la requête API ABD (peut venir du cache)
+          response = await handler(request, context);
+          statusCode = response.status;
+
+          // Vérifier si la réponse vient du cache (pour logging seulement)
+          const isCached = response.headers.get("X-Cache") === "HIT";
+
+          if (isCached) {
+            console.log(
+              `[ABD] 🎯 Cache hit for ${endpoint}, credit still charged`
+            );
+          }
 
           console.log(
             `[ABD] ✅ Credit charged: ${user.id} now has ${newBalance} credits`

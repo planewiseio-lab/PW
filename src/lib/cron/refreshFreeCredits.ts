@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import { Plan, CreditReason } from "@prisma/client";
+import { Plan, CreditReason, SubscriptionStatus } from "@prisma/client";
 
 /**
  * Cron job pour renouveler les crédits des utilisateurs FREE chaque jour
@@ -47,10 +47,10 @@ export async function refreshFreeCreditsDaily() {
     }
 
     // Récupérer tous les utilisateurs avec le plan FREE
-    const freeUsers = await prisma.subscription.findMany({
+    const freeUsers = await prisma.subscriptions.findMany({
       where: {
         plan: Plan.FREE,
-        status: "ACTIVE",
+        status: SubscriptionStatus.ACTIVE,
       },
       select: {
         userId: true,
@@ -181,10 +181,10 @@ export async function checkFreeCreditsStatus() {
   console.log("[CRON] 🔍 Checking FREE credits status...");
 
   try {
-    const freeUsers = await prisma.subscription.findMany({
+    const freeUsers = await prisma.subscriptions.findMany({
       where: {
         plan: Plan.FREE,
-        status: "ACTIVE",
+        status: SubscriptionStatus.ACTIVE,
       },
     });
 
@@ -257,10 +257,10 @@ export async function forceRefreshFreeCredits() {
   );
 
   try {
-    const freeUsers = await prisma.subscription.findMany({
+    const freeUsers = await prisma.subscriptions.findMany({
       where: {
         plan: Plan.FREE,
-        status: "ACTIVE",
+        status: SubscriptionStatus.ACTIVE,
       },
       select: {
         userId: true,

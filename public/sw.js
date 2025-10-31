@@ -89,8 +89,9 @@ self.addEventListener("fetch", (event) => {
     event.respondWith(
       fetch(request)
         .then((response) => {
-          // Mettre en cache seulement les réponses réussies
-          if (response.ok) {
+          // Mettre en cache seulement les réponses réussies ET les requêtes GET
+          // Le Cache API ne supporte pas les méthodes POST, PUT, DELETE, etc.
+          if (response.ok && request.method === "GET") {
             const responseClone = response.clone();
             caches.open(DYNAMIC_CACHE).then((cache) => {
               cache.put(request, responseClone);
@@ -125,6 +126,13 @@ self.addEventListener("fetch", (event) => {
   }
 
   // Stratégie Stale While Revalidate pour les autres requêtes
+  // Ne mettre en cache que les requêtes GET (le Cache API ne supporte pas POST, PUT, DELETE, etc.)
+  if (request.method !== "GET") {
+    // Pour les requêtes non-GET, passer directement au réseau sans cache
+    event.respondWith(fetch(request));
+    return;
+  }
+
   event.respondWith(
     caches.match(request).then((cachedResponse) => {
       const fetchPromise = fetch(request).then((networkResponse) => {

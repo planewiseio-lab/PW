@@ -1,9 +1,8 @@
 "use client";
 
-import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
-import { useEffect, useState } from "react";
-import { usePathname } from "next/navigation";
+import { useEffect, useState, useMemo } from "react";
+import { usePathname, useRouter } from "next/navigation";
 import { validateUser } from "@/lib/auth-utils";
 import Link from "next/link";
 
@@ -12,17 +11,20 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [favoriteAircraft, setFavoriteAircraft] = useState<any[]>([]);
 
-  // Vérifier si Supabase est configuré
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-
-  const isSupabaseConfigured =
-    supabaseUrl &&
-    supabaseAnonKey &&
-    supabaseUrl !== "https://your-project.supabase.co" &&
-    supabaseAnonKey !== "your-anon-key-here";
+  // Vérifier si Supabase est configuré (mémorisé pour éviter recalcul)
+  const isSupabaseConfigured = useMemo(() => {
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+    return (
+      supabaseUrl &&
+      supabaseAnonKey &&
+      supabaseUrl !== "https://your-project.supabase.co" &&
+      supabaseAnonKey !== "your-anon-key-here"
+    );
+  }, []);
 
   const pathname = usePathname();
+  const router = useRouter();
 
   useEffect(() => {
     // Reset state when component mounts or pathname changes (navigation)
@@ -37,11 +39,18 @@ export default function DashboardPage() {
       }
 
       try {
-        const user = await validateUser();
+        // Timeout pour validateUser pour éviter qu'il bloque
+        const userPromise = validateUser();
+        const timeoutPromise = new Promise((_, reject) =>
+          setTimeout(() => reject(new Error("User validation timeout")), 5000)
+        );
+
+        const user = await Promise.race([userPromise, timeoutPromise]) as any;
 
         if (!user) {
           console.log("No user found, redirecting to home");
-          redirect("/");
+          setLoading(false);
+          router.replace("/");
           return;
         }
 
@@ -51,23 +60,32 @@ export default function DashboardPage() {
 
         // Charger les favoris après avoir défini l'utilisateur
         setTimeout(() => loadFavoriteAircraft(), 100);
-      } catch (err) {
+      } catch (err: any) {
         console.error("Error getting user:", err);
         setLoading(false);
-        redirect("/");
+        // Ne pas rediriger si c'est juste un timeout, afficher l'erreur
+        if (err?.message?.includes("timeout")) {
+          console.warn("User validation timed out, but continuing anyway");
+          // Continuer sans user si timeout
+          return;
+        }
+        router.replace("/");
       }
     };
 
-    // Timeout de sécurité pour éviter un loading infini
+    // Timeout de sécurité pour éviter un loading infini (backup au cas où)
     const timeoutId = setTimeout(() => {
       console.warn("Dashboard loading timeout, forcing stop");
       setLoading(false);
-    }, 10000); // 10 secondes
+      // Ne pas rediriger, juste arrêter le loading pour éviter les boucles
+    }, 8000); // 8 secondes (backup)
 
     getUser();
 
-    return () => clearTimeout(timeoutId);
-  }, [isSupabaseConfigured, pathname]);
+    return () => {
+      clearTimeout(timeoutId);
+    };
+  }, [isSupabaseConfigured, pathname, router]);
 
   // Recharger les favoris quand l'utilisateur change
   useEffect(() => {

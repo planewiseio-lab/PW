@@ -31,9 +31,13 @@ export async function deduplicatedFetch(
   options: RequestInit = {},
   timeout: number = 10000
 ): Promise<any> {
+  // Clé de cache pour déduplication (sans timestamp pour éviter les appels multiples simultanés)
+  // La déduplication empêche les appels multiples causés par React Strict Mode ou re-renders
   const cacheKey = `client:${url}:${JSON.stringify(options)}`;
 
-  // Vérifier si une requête identique est déjà en cours
+  // Vérifier si une requête identique est déjà en cours (déduplication pour éviter les appels multiples)
+  // Cela empêche les appels multiples causés par React Strict Mode, mais chaque recherche manuelle
+  // unique (par l'utilisateur) aura toujours un appel API avec débit de crédit
   if (pendingRequests.has(cacheKey)) {
     console.log(`[CLIENT-DEDUP] Deduplicating request: ${url}`);
     const pending = pendingRequests.get(cacheKey)!;
@@ -129,16 +133,70 @@ export async function fetchImagesData(
 
 /**
  * Version spécialisée pour les APIs d'avions
+ * Utilise la déduplication mais émet aussi l'événement credits:updated
  */
 export async function fetchAircraftData(registration: string): Promise<any> {
   const url = `/api/aircraft/${encodeURIComponent(registration)}`;
+  const cacheKey = `client:${url}:${JSON.stringify({ cache: "no-store", credentials: "include" })}`;
 
-  return deduplicatedFetch(
-    url,
-    {
-      cache: "no-store",
-      credentials: "include",
-    },
-    8000
-  ); // 8s timeout pour les avions
+  // Vérifier si une requête identique est déjà en cours (déduplication)
+  if (pendingRequests.has(cacheKey)) {
+    console.log(`[CLIENT-DEDUP] Deduplicating aircraft request: ${url}`);
+    const pending = pendingRequests.get(cacheKey)!;
+    return pending.promise;
+  }
+
+  // Créer une nouvelle requête avec timeout
+  const abortController = new AbortController();
+  const timeoutId = setTimeout(() => abortController.abort(), 8000);
+
+  const requestPromise = (async (): Promise<any> => {
+    try {
+      const response = await fetch(url, {
+        cache: "no-store",
+        credentials: "include",
+        signal: abortController.signal,
+      });
+
+      clearTimeout(timeoutId);
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+
+      const data = await response.json();
+
+      // Vérifier si un crédit a été débité (présence du header X-Credits-Charged)
+      const creditsCharged = response.headers.get("X-Credits-Charged");
+      const creditsRemaining = response.headers.get("X-Credits-Remaining");
+
+      if (creditsCharged === "1" || creditsRemaining) {
+        // Émettre l'événement pour mettre à jour la page des crédits
+        console.log(
+          `[Aircraft] 💳 Credit charged, dispatching credits:updated event (remaining: ${creditsRemaining || "unknown"})`
+        );
+        window.dispatchEvent(new CustomEvent("credits:updated"));
+      }
+
+      return data;
+    } catch (error: any) {
+      clearTimeout(timeoutId);
+      if (error.name === "AbortError") {
+        throw new Error(`Request timeout after 8000ms for ${url}`);
+      }
+      throw error;
+    } finally {
+      // Nettoyer la requête en cours
+      pendingRequests.delete(cacheKey);
+    }
+  })();
+
+  // Enregistrer la requête en cours
+  pendingRequests.set(cacheKey, {
+    promise: requestPromise,
+    timestamp: Date.now(),
+    abortController,
+  });
+
+  return requestPromise;
 }

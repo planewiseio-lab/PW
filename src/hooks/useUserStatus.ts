@@ -51,32 +51,54 @@ export function useUserStatus(): UserStatusData {
 
         if (user) {
           // Vérifier si l'utilisateur a une souscription active et le plan
+          // Utiliser la nouvelle table subscriptions via l'API
           try {
-            const { data: subscription, error: subError } = await supabase
-              .from("user_subscriptions")
-              .select("status, plan")
-              .eq("user_id", user.id)
-              .eq("status", "active")
-              .maybeSingle();
+            const subscriptionResponse = await fetch("/api/user/subscription", {
+              credentials: "include",
+              cache: "no-store",
+            });
 
-            if (!subError && subscription && subscription.status === "active") {
-              // Différencier entre "pro" (plan premium) et "subscribed" (plan basique)
-              if (
-                subscription.plan === "pro" ||
-                subscription.plan === "premium"
-              ) {
-                setStatus("pro");
+            if (subscriptionResponse.ok) {
+              const data = await subscriptionResponse.json();
+              if (data.subscription) {
+                // Différencier entre PRO/BUSINESS (plans payants) et FREE (plan gratuit)
+                // IMPORTANT: Vérifier le PLAN réel ET la date de fin de période (renewsAt)
+                // Si le plan est PRO/BUSINESS (même avec status CANCELED) ET que renewsAt est dans le futur,
+                // l'utilisateur a encore accès jusqu'à sa date de fin individuelle, donc pas de pubs
+                const plan = data.subscription.plan;
+                const renewsAt = data.subscription.renewsAt
+                  ? new Date(data.subscription.renewsAt)
+                  : null;
+                const now = new Date();
+
+                if (plan === "PRO" || plan === "BUSINESS") {
+                  // Vérifier si la période est encore valide (renewsAt dans le futur)
+                  // Chaque utilisateur a sa propre date de fin de période
+                  if (renewsAt && renewsAt > now) {
+                    // Plan payant (PRO ou BUSINESS) avec période encore valide = pas de pubs
+                    // même si status est CANCELED, car l'utilisateur a encore accès jusqu'à renewsAt
+                    setStatus("pro");
+                  } else {
+                    // Plan payant mais période terminée = l'utilisateur devrait être sur FREE
+                    // (normalement le webhook devrait avoir mis à jour, mais on affiche les pubs pour être sûr)
+                    setStatus("subscribed");
+                  }
+                } else {
+                  // FREE plan = shows ads
+                  setStatus("subscribed");
+                }
               } else {
-                setStatus("subscribed");
+                // Pas de souscription = shows ads
+                setStatus("guest");
               }
             } else {
-              // Utilisateur connecté mais pas de souscription active = shows ads
+              // Pas de souscription = shows ads
               setStatus("guest");
             }
           } catch (subErr) {
-            // Table inexistante ou pas de souscription = shows ads
-            console.log(
-              "[useUserStatus] No subscription table or error:",
+            // Erreur API ou pas de souscription = shows ads
+            console.error(
+              "[useUserStatus] Error fetching subscription:",
               subErr
             );
             setStatus("guest");
@@ -106,28 +128,46 @@ export function useUserStatus(): UserStatusData {
         // Vérifier la souscription après connexion
         if (session.user) {
           try {
-            const { data: subscriptionData, error: subErr } = await supabase
-              .from("user_subscriptions")
-              .select("status, plan")
-              .eq("user_id", session.user.id)
-              .eq("status", "active")
-              .maybeSingle();
+            const subscriptionResponse = await fetch("/api/user/subscription", {
+              credentials: "include",
+              cache: "no-store",
+            });
 
-            if (
-              !subErr &&
-              subscriptionData &&
-              subscriptionData.status === "active"
-            ) {
-              // Différencier entre "pro" (plan premium) et "subscribed" (plan basique)
-              if (
-                subscriptionData.plan === "pro" ||
-                subscriptionData.plan === "premium"
-              ) {
-                setStatus("pro");
+            if (subscriptionResponse.ok) {
+              const data = await subscriptionResponse.json();
+              if (data.subscription) {
+                // Différencier entre PRO/BUSINESS (plans payants) et FREE (plan gratuit)
+                // IMPORTANT: Vérifier le PLAN réel ET la date de fin de période (renewsAt)
+                // Si le plan est PRO/BUSINESS (même avec status CANCELED) ET que renewsAt est dans le futur,
+                // l'utilisateur a encore accès jusqu'à sa date de fin individuelle, donc pas de pubs
+                const plan = data.subscription.plan;
+                const renewsAt = data.subscription.renewsAt
+                  ? new Date(data.subscription.renewsAt)
+                  : null;
+                const now = new Date();
+
+                if (plan === "PRO" || plan === "BUSINESS") {
+                  // Vérifier si la période est encore valide (renewsAt dans le futur)
+                  // Chaque utilisateur a sa propre date de fin de période
+                  if (renewsAt && renewsAt > now) {
+                    // Plan payant (PRO ou BUSINESS) avec période encore valide = pas de pubs
+                    // même si status est CANCELED, car l'utilisateur a encore accès jusqu'à renewsAt
+                    setStatus("pro");
+                  } else {
+                    // Plan payant mais période terminée = l'utilisateur devrait être sur FREE
+                    // (normalement le webhook devrait avoir mis à jour, mais on affiche les pubs pour être sûr)
+                    setStatus("subscribed");
+                  }
+                } else {
+                  // FREE plan = shows ads
+                  setStatus("subscribed");
+                }
               } else {
-                setStatus("subscribed");
+                // Pas de souscription = shows ads
+                setStatus("guest");
               }
             } else {
+              // Erreur API = shows ads
               setStatus("guest");
             }
           } catch (err) {

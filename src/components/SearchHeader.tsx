@@ -31,6 +31,7 @@ export default function SearchHeader() {
     pathname === "/account-settings" ||
     pathname === "/credits";
   const isAdminPage = pathname.startsWith("/admin");
+  const isCheckoutPage = pathname.startsWith("/checkout");
 
   // Éviter les différences d'hydration
   useEffect(() => {
@@ -63,8 +64,8 @@ export default function SearchHeader() {
     });
   };
 
-  // Pas de SearchHeader sur la home, les pages d'auth, et les pages admin
-  if (isHome || isAuthPage || isAdminPage) return null;
+  // Pas de SearchHeader sur la home, les pages d'auth, les pages admin, et les pages checkout
+  if (isHome || isAuthPage || isAdminPage || isCheckoutPage) return null;
 
   // Éviter les différences d'hydration - rendu initial avec transition
   if (!isMounted) {

@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { useRouter, usePathname } from "next/navigation";
+import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { motion } from "framer-motion";
 import PasswordRequirements from "@/components/PasswordRequirements";
 
@@ -14,9 +14,16 @@ export default function AccountSettingsPage() {
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [message, setMessage] = useState("");
+  const [subscription, setSubscription] = useState<{
+    plan: string;
+    status: string;
+    renewsAt: string;
+  } | null>(null);
+  const [billingHistory, setBillingHistory] = useState<any[]>([]);
   const [loadingAction, setLoadingAction] = useState(false);
   const router = useRouter();
   const pathname = usePathname();
+  const searchParams = useSearchParams();
 
   useEffect(() => {
     // Reset state when component mounts or pathname changes (navigation)
@@ -59,6 +66,31 @@ export default function AccountSettingsPage() {
             setUser(user);
             setFullName(user.user_metadata?.full_name || "");
             setEmail(user.email || "");
+            
+            // Récupérer l'abonnement et l'historique de facturation
+            try {
+              const subResponse = await fetch("/api/user/subscription", {
+                credentials: "include",
+                cache: "no-store",
+              });
+              if (subResponse.ok) {
+                const subData = await subResponse.json();
+                setSubscription(subData.subscription);
+              }
+              
+              // Récupérer l'historique de facturation
+              const billingResponse = await fetch("/api/user/billing-history", {
+                credentials: "include",
+                cache: "no-store",
+              });
+              if (billingResponse.ok) {
+                const billingData = await billingResponse.json();
+                setBillingHistory(billingData.invoices || []);
+              }
+            } catch (err) {
+              console.error("[Account Settings] Error fetching subscription:", err);
+            }
+            
             setLoading(false);
             return;
           }
@@ -72,6 +104,31 @@ export default function AccountSettingsPage() {
           setUser(session.user);
           setFullName(session.user.user_metadata?.full_name || "");
           setEmail(session.user.email || "");
+          
+          // Récupérer l'abonnement et l'historique de facturation
+          try {
+            const subResponse = await fetch("/api/user/subscription", {
+              credentials: "include",
+              cache: "no-store",
+            });
+            if (subResponse.ok) {
+              const subData = await subResponse.json();
+              setSubscription(subData.subscription);
+            }
+            
+            // Récupérer l'historique de facturation
+            const billingResponse = await fetch("/api/user/billing-history", {
+              credentials: "include",
+              cache: "no-store",
+            });
+            if (billingResponse.ok) {
+              const billingData = await billingResponse.json();
+              setBillingHistory(billingData.invoices || []);
+            }
+          } catch (err) {
+            console.error("[Account Settings] Error fetching subscription:", err);
+          }
+          
           setLoading(false);
           return;
         }
@@ -99,6 +156,70 @@ export default function AccountSettingsPage() {
       clearTimeout(timeoutId);
     };
   }, [pathname, router]); // Re-run when pathname changes (navigation)
+
+  // Fonction pour recharger les données d'abonnement
+  const refreshSubscriptionData = async () => {
+    try {
+      const subResponse = await fetch("/api/user/subscription", {
+        credentials: "include",
+        cache: "no-store",
+      });
+      if (subResponse.ok) {
+        const subData = await subResponse.json();
+        setSubscription(subData.subscription);
+      }
+
+      // Récupérer l'historique de facturation
+      const billingResponse = await fetch("/api/user/billing-history", {
+        credentials: "include",
+        cache: "no-store",
+      });
+      if (billingResponse.ok) {
+        const billingData = await billingResponse.json();
+        setBillingHistory(billingData.invoices || []);
+      }
+    } catch (err) {
+      console.error("[Account Settings] Error refreshing subscription:", err);
+    }
+  };
+
+  // Recharger les données quand l'onglet subscription est actif et qu'on revient du Customer Portal
+  useEffect(() => {
+    if (activeTab === "subscription") {
+      // Vérifier si on vient de revenir du Customer Portal (via le paramètre tab=subscription dans l'URL)
+      try {
+        const tabParam = searchParams?.get("tab");
+        if (tabParam === "subscription") {
+          // Attendre un peu pour laisser le temps au webhook d'être traité
+          const refreshTimer = setTimeout(() => {
+            refreshSubscriptionData();
+          }, 2000); // 2 secondes pour laisser le temps au webhook
+
+          return () => clearTimeout(refreshTimer);
+        } else {
+          // Recharger immédiatement si on change d'onglet vers subscription
+          refreshSubscriptionData();
+        }
+      } catch (err) {
+        // Si searchParams n'est pas disponible, recharger quand même
+        refreshSubscriptionData();
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab]);
+
+  // Écouter le focus de la fenêtre pour recharger les données (si l'utilisateur revient du Customer Portal)
+  useEffect(() => {
+    const handleFocus = () => {
+      if (activeTab === "subscription") {
+        // Recharger les données d'abonnement quand la fenêtre reprend le focus
+        refreshSubscriptionData();
+      }
+    };
+
+    window.addEventListener("focus", handleFocus);
+    return () => window.removeEventListener("focus", handleFocus);
+  }, [activeTab]);
 
   const handleUpdateProfile = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -582,6 +703,203 @@ export default function AccountSettingsPage() {
               {/* Subscription Tab */}
               {activeTab === "subscription" && (
                 <div className="space-y-6">
+                  {/* Subscription messages - Mutually exclusive conditions */}
+                  {subscription ? (
+                    <>
+                      {/* Message 1: Subscription canceling (plan PRO, status CANCELED) - Plan PRO en attente de fin */}
+                      {subscription.plan !== "FREE" && subscription.status === "CANCELED" ? (
+                        <div className="bg-yellow-50 border border-yellow-200 rounded-2xl p-6 shadow-sm">
+                          <div className="flex items-start gap-3">
+                            <svg
+                              className="w-5 h-5 text-yellow-600 flex-shrink-0 mt-0.5"
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+                              />
+                            </svg>
+                            <div className="flex-1">
+                              <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                                Subscription Canceling
+                              </h3>
+                              <p className="text-sm text-gray-600">
+                                Your subscription has been canceled and will end on{" "}
+                                <span className="font-semibold">
+                                  {new Date(subscription.renewsAt).toLocaleDateString(
+                                    "en-US",
+                                    {
+                                      year: "numeric",
+                                      month: "long",
+                                      day: "numeric",
+                                    }
+                                  )}
+                                </span>
+                                . You will continue to have access to the <span className="font-semibold">{subscription.plan}</span> plan until then, then you'll be switched to the{" "}
+                                <span className="font-semibold">Free plan</span>.
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      ) : subscription.plan === "FREE" && subscription.status === "CANCELED" ? (
+                        /* Message 2: Subscription canceled (plan FREE, status CANCELED) - Période terminée */
+                        <div className="bg-blue-50 border border-blue-200 rounded-2xl p-6 shadow-sm">
+                          <div className="flex items-start gap-3">
+                            <svg
+                              className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5"
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                              />
+                            </svg>
+                            <div className="flex-1">
+                              <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                                Subscription Canceled
+                              </h3>
+                              <p className="text-sm text-gray-600">
+                                Your subscription has been canceled. You now have access to the{" "}
+                                <span className="font-semibold">Free plan</span> with 5 credits per day.
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      ) : null}
+
+                      {/* Message 3: Current Subscription Info (plan PRO, status ACTIVE) */}
+                      {subscription.plan !== "FREE" && subscription.status === "ACTIVE" && (
+                    <div className="bg-gradient-to-r from-brand-50 to-blue-50 rounded-2xl border border-brand-200 p-6 shadow-sm">
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                            Current Subscription
+                          </h3>
+                          <div className="space-y-2">
+                            <div className="flex items-center gap-3">
+                              <span className="font-semibold text-gray-900">
+                                Plan: {subscription.plan}
+                              </span>
+                              <span
+                                className={`px-2 py-1 rounded-full text-xs font-medium ${
+                                  subscription.status === "ACTIVE"
+                                    ? "bg-green-100 text-green-800"
+                                    : subscription.status === "PAST_DUE"
+                                    ? "bg-yellow-100 text-yellow-800"
+                                    : "bg-red-100 text-red-800"
+                                }`}
+                              >
+                                {subscription.status}
+                              </span>
+                            </div>
+                            <p className="text-sm text-gray-600">
+                              Your subscription{" "}
+                              <span className="font-semibold">
+                                automatically renews
+                              </span>{" "}
+                              on{" "}
+                              {new Date(subscription.renewsAt).toLocaleDateString(
+                                "en-US",
+                                {
+                                  year: "numeric",
+                                  month: "long",
+                                  day: "numeric",
+                                }
+                              )}
+                            </p>
+                            <p className="text-xs text-gray-500">
+                              You will be charged automatically unless you cancel
+                              your subscription.
+                            </p>
+                          </div>
+                        </div>
+                        <button
+                          onClick={async () => {
+                            try {
+                              setLoadingAction(true);
+                              const response = await fetch(
+                                "/api/stripe/create-portal-session",
+                                {
+                                  method: "POST",
+                                  credentials: "include",
+                                }
+                              );
+
+                              if (!response.ok) {
+                                const errorData = await response.json();
+                                
+                                // Vérifier si c'est une erreur de configuration
+                                if (errorData.requiresSetup) {
+                                  throw new Error(
+                                    errorData.error ||
+                                      "Stripe Customer Portal needs to be configured. Please contact support."
+                                  );
+                                }
+                                
+                                throw new Error(
+                                  errorData.error ||
+                                    "Failed to open subscription management"
+                                );
+                              }
+
+                              const data = await response.json();
+                              if (data.url) {
+                                window.location.href = data.url;
+                              }
+                            } catch (err: any) {
+                              const errorMessage = err.message || "An error occurred";
+                              
+                              // Vérifier si c'est une erreur de configuration Stripe Portal
+                              if (errorMessage.includes("configuration") || errorMessage.includes("portal")) {
+                                setMessage(
+                                  "Subscription management is not configured yet. Please contact support or configure Stripe Customer Portal in the dashboard."
+                                );
+                              } else {
+                                setMessage(errorMessage);
+                              }
+                              console.error("Error opening portal:", err);
+                            } finally {
+                              setLoadingAction(false);
+                            }
+                          }}
+                          disabled={loadingAction}
+                          className="px-4 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800 focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 transition-colors disabled:opacity-50 flex items-center gap-2 whitespace-nowrap"
+                        >
+                          <svg
+                            className="w-4 h-4"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"
+                            />
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+                            />
+                          </svg>
+                          {loadingAction ? "Loading..." : "Manage Subscription"}
+                        </button>
+                      </div>
+                    </div>
+                      )}
+                    </>
+                  ) : null}
+
                   {/* Available Plans */}
                   <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm">
                     <h3 className="text-lg font-semibold text-gray-900 mb-6">
@@ -591,7 +909,8 @@ export default function AccountSettingsPage() {
                     <div className="grid gap-6 md:grid-cols-2">
                       {[
                         {
-                          name: "Subscribed",
+                          name: "Free",
+                          planCode: "FREE",
                           price: "$0",
                           note: "/mo",
                           perks: [
@@ -608,11 +927,11 @@ export default function AccountSettingsPage() {
                             className: "bg-brand-600 hover:bg-brand-700",
                           },
                           wrapClass: "border-brand-200",
-                          badge: "Popular",
-                          current: true,
+                          badge: subscription?.plan === "FREE" ? undefined : "Popular",
                         },
                         {
                           name: "Pro",
+                          planCode: "PRO",
                           price: "$9.99",
                           note: "/mo",
                           perks: [
@@ -622,22 +941,25 @@ export default function AccountSettingsPage() {
                             "Basic specs & photos",
                             "Community support",
                             "Priority processing",
+                            "No ads",
+                            "500 credits/month",
                           ],
                           cta: {
                             href: "/checkout?plan=pro",
-                            text: "Choose Pro",
+                            text: subscription?.plan === "PRO" ? "Current Plan" : "Choose Pro",
                             className: "bg-gray-900 hover:bg-black",
                           },
                           wrapClass: "border-gray-200",
-                          current: false,
                         },
-                      ].map((p, i) => (
+                      ].map((p, i) => {
+                        const isCurrent = subscription?.plan === p.planCode;
+                        return (
                         <div
                           key={p.name}
                           className={`relative rounded-2xl border ${
                             p.wrapClass
                           } bg-white p-6 shadow-sm hover:shadow-md transition flex flex-col ${
-                            p.current ? "ring-2 ring-blue-500" : ""
+                            isCurrent ? "ring-2 ring-blue-500" : ""
                           }`}
                         >
                           {p.badge && (
@@ -647,7 +969,7 @@ export default function AccountSettingsPage() {
                               </span>
                             </div>
                           )}
-                          {p.current && (
+                          {isCurrent && (
                             <div className="absolute -top-3 left-4">
                               <span className="rounded-full bg-green-100 text-green-800 text-xs font-semibold px-3 py-1 border border-green-200">
                                 Current Plan
@@ -663,8 +985,7 @@ export default function AccountSettingsPage() {
                           </p>
                           <p className="mt-3 text-sm text-gray-600">
                             {i === 0 && "3 requests per day"}
-                            {i === 1 && "5 requests per day"}
-                            {i === 2 && "500 requests per month"}
+                            {i === 1 && "500 credits/month"}
                           </p>
                           <ul className="mt-5 space-y-2 text-sm text-gray-700 flex-1">
                             {p.perks.map((perk) => (
@@ -690,17 +1011,19 @@ export default function AccountSettingsPage() {
                             ))}
                           </ul>
                           <a
-                            href={p.cta.href}
+                            href={isCurrent ? "#" : p.cta.href}
                             className={`mt-6 inline-flex w-full justify-center rounded-xl ${
                               p.cta.className
                             } text-white px-4 py-2.5 font-semibold ${
-                              p.current ? "opacity-50 cursor-not-allowed" : ""
+                              isCurrent ? "opacity-50 cursor-not-allowed" : ""
                             }`}
+                            onClick={(e) => isCurrent && e.preventDefault()}
                           >
-                            {p.current ? "Current Plan" : p.cta.text}
+                            {isCurrent ? "Current Plan" : p.cta.text}
                           </a>
                         </div>
-                      ))}
+                      );
+                      })}
                     </div>
                   </div>
 
@@ -708,26 +1031,98 @@ export default function AccountSettingsPage() {
                     <h3 className="text-lg font-semibold text-gray-900 mb-4">
                       Billing History
                     </h3>
-                    <div className="text-center py-8">
-                      <div className="text-gray-400 mb-2">
-                        <svg
-                          className="w-12 h-12 mx-auto"
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={1}
-                            d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-                          />
-                        </svg>
+                    {billingHistory.length === 0 ? (
+                      <div className="text-center py-8">
+                        <div className="text-gray-400 mb-2">
+                          <svg
+                            className="w-12 h-12 mx-auto"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={1}
+                              d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                            />
+                          </svg>
+                        </div>
+                        <p className="text-gray-500">
+                          No billing history available
+                        </p>
                       </div>
-                      <p className="text-gray-500">
-                        No billing history available
-                      </p>
-                    </div>
+                    ) : (
+                      <div className="space-y-3">
+                        {billingHistory.map((invoice: any) => (
+                          <div
+                            key={invoice.id}
+                            className="flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+                          >
+                            <div className="flex-1">
+                              <div className="flex items-center gap-3">
+                                <h4 className="font-semibold text-gray-900">
+                                  {invoice.description}
+                                </h4>
+                                <span
+                                  className={`px-2 py-1 rounded-full text-xs font-medium ${
+                                    invoice.status === "paid"
+                                      ? "bg-green-100 text-green-800"
+                                      : invoice.status === "open"
+                                      ? "bg-yellow-100 text-yellow-800"
+                                      : invoice.status === "draft"
+                                      ? "bg-gray-100 text-gray-800"
+                                      : "bg-red-100 text-red-800"
+                                  }`}
+                                >
+                                  {invoice.status.toUpperCase()}
+                                </span>
+                              </div>
+                              <p className="text-sm text-gray-500 mt-1">
+                                {new Date(invoice.date).toLocaleDateString("en-US", {
+                                  year: "numeric",
+                                  month: "long",
+                                  day: "numeric",
+                                })}
+                              </p>
+                            </div>
+                            <div className="flex items-center gap-4">
+                              <div className="text-right">
+                                <p className="font-semibold text-gray-900">
+                                  {new Intl.NumberFormat("en-US", {
+                                    style: "currency",
+                                    currency: invoice.currency.toUpperCase() || "USD",
+                                  }).format(invoice.amount)}
+                                </p>
+                              </div>
+                              {invoice.invoiceUrl && (
+                                <a
+                                  href={invoice.invoiceUrl}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="text-brand-600 hover:text-brand-700 font-medium text-sm flex items-center gap-1"
+                                >
+                                  <svg
+                                    className="w-4 h-4"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    viewBox="0 0 24 24"
+                                  >
+                                    <path
+                                      strokeLinecap="round"
+                                      strokeLinejoin="round"
+                                      strokeWidth={2}
+                                      d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"
+                                    />
+                                  </svg>
+                                  View
+                                </a>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 </div>
               )}

@@ -6,7 +6,7 @@ import { prisma } from "@/lib/prisma";
 import { AdminCreditsClient } from "./AdminCreditsClient";
 
 async function getAdminUser(userId: string) {
-  const subscription = await prisma.subscription.findUnique({
+  const subscription = await prisma.subscriptions.findUnique({
     where: { userId },
   });
 

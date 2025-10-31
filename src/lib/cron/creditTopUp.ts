@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { ensureMonthlyTopUp } from "@/lib/credits";
-import { Plan } from "@prisma/client";
+import { Plan, SubscriptionStatus } from "@prisma/client";
 
 /**
  * Cron job to handle credit top-ups based on subscription plans
@@ -14,9 +14,9 @@ export async function runCreditTopUpCron() {
 
   try {
     // Get all active subscriptions that need renewal
-    const subscriptions = await prisma.subscription.findMany({
+    const subscriptions = await prisma.subscriptions.findMany({
       where: {
-        status: "ACTIVE",
+        status: SubscriptionStatus.ACTIVE,
         renewsAt: {
           lte: new Date(), // renewsAt <= now
         },

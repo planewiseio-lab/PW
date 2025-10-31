@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { usePathname } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { CreditBalanceCard } from "./CreditBalanceCard";
@@ -23,104 +23,130 @@ export function CreditsSection() {
   const [error, setError] = useState<string | null>(null);
   const pathname = usePathname();
 
+  // Extract fetch logic to a reusable function with useCallback
+  const fetchCreditsData = useCallback(async (showLoading = true) => {
+    if (showLoading) {
+      setLoading(true);
+      setError(null);
+    }
+
+    // Safety guard: force-resolve skeleton after 3s
+    let didTimeout = false;
+    const safetyTimer = setTimeout(() => {
+      didTimeout = true;
+      setLoading(false);
+    }, 3000);
+
+    const abortControllers: AbortController[] = [];
+    const withTimeout = (ms: number) => {
+      const ac = new AbortController();
+      abortControllers.push(ac);
+      const t = setTimeout(() => ac.abort(), ms);
+      return { signal: ac.signal, clear: () => clearTimeout(t) };
+    };
+
+    try {
+      const supabase = createClient();
+      const {
+        data: { user },
+        error: authError,
+      } = await supabase.auth.getUser();
+
+      if (authError || !user) {
+        setError("Please sign in to view your credits");
+        setLoading(false);
+        return;
+      }
+
+      // Fetch balance
+      let balance = 0;
+      try {
+        const tt = withTimeout(3000);
+        const balanceResponse = await fetch("/api/credits/balance", {
+          credentials: "include",
+          cache: "no-store",
+          signal: tt.signal,
+        });
+        tt.clear();
+        if (balanceResponse.ok) {
+          const data = await balanceResponse.json();
+          balance = data.credits || 0;
+        } else {
+          console.warn("Failed to fetch balance:", balanceResponse.status);
+        }
+      } catch (err) {
+        console.warn("Error fetching balance:", err);
+      }
+
+      // Fetch history
+      let history = { items: [], nextCursor: null };
+      try {
+        const tt = withTimeout(3000);
+        const historyResponse = await fetch("/api/credits/history?limit=10", {
+          credentials: "include",
+          cache: "no-store",
+          signal: tt.signal,
+        });
+        tt.clear();
+        if (historyResponse.ok) {
+          history = await historyResponse.json();
+        } else {
+          console.warn("Failed to fetch history:", historyResponse.status);
+        }
+      } catch (err) {
+        console.warn("Error fetching history:", err);
+      }
+
+      // Fetch subscription info
+      let subscription = null;
+      try {
+        const tt = withTimeout(3000);
+        const subscriptionResponse = await fetch("/api/user/subscription", {
+          credentials: "include",
+          cache: "no-store",
+          signal: tt.signal,
+        });
+        tt.clear();
+        if (subscriptionResponse.ok) {
+          const data = await subscriptionResponse.json();
+          if (data.subscription) {
+            subscription = {
+              plan: data.subscription.plan,
+              status: data.subscription.status,
+              renewsAt: new Date(data.subscription.renewsAt),
+            };
+          }
+        } else {
+          console.warn("Failed to fetch subscription:", subscriptionResponse.status);
+        }
+      } catch (err) {
+        console.warn("Error fetching subscription:", err);
+      }
+
+      setCreditsData({
+        balance,
+        history,
+        subscription,
+      });
+    } catch (err) {
+      console.error("Error in fetchCreditsData:", err);
+      setError(
+        err instanceof Error ? err.message : "Failed to load credits data"
+      );
+    } finally {
+      // Always clear skeleton unless safety timer already did
+      if (!didTimeout && showLoading) setLoading(false);
+      clearTimeout(safetyTimer);
+    }
+  }, []); // No dependencies - function is stable
+
   useEffect(() => {
     // Reset state when pathname changes (navigation)
     setLoading(true);
     setCreditsData(null);
     setError(null);
 
-    const fetchCreditsData = async () => {
-      // Safety guard: force-resolve skeleton after 3s
-      let didTimeout = false;
-      const safetyTimer = setTimeout(() => {
-        didTimeout = true;
-        setLoading(false);
-      }, 3000);
-
-      const abortControllers: AbortController[] = [];
-      const withTimeout = (ms: number) => {
-        const ac = new AbortController();
-        abortControllers.push(ac);
-        const t = setTimeout(() => ac.abort(), ms);
-        return { signal: ac.signal, clear: () => clearTimeout(t) };
-      };
-
-      try {
-        const supabase = createClient();
-        const {
-          data: { user },
-          error: authError,
-        } = await supabase.auth.getUser();
-
-        if (authError || !user) {
-          setError("Please sign in to view your credits");
-          setLoading(false);
-          return;
-        }
-
-        // Fetch balance
-        let balance = 0;
-        try {
-          const tt = withTimeout(3000);
-          const balanceResponse = await fetch("/api/credits/balance", {
-            credentials: "include",
-            cache: "no-store",
-            signal: tt.signal,
-          });
-          tt.clear();
-          if (balanceResponse.ok) {
-            const data = await balanceResponse.json();
-            balance = data.credits || 0;
-          } else {
-            console.warn("Failed to fetch balance:", balanceResponse.status);
-          }
-        } catch (err) {
-          console.warn("Error fetching balance:", err);
-        }
-
-        // Fetch history
-        let history = { items: [], nextCursor: null };
-        try {
-          const tt = withTimeout(3000);
-          const historyResponse = await fetch("/api/credits/history?limit=10", {
-            credentials: "include",
-            cache: "no-store",
-            signal: tt.signal,
-          });
-          tt.clear();
-          if (historyResponse.ok) {
-            history = await historyResponse.json();
-          } else {
-            console.warn("Failed to fetch history:", historyResponse.status);
-          }
-        } catch (err) {
-          console.warn("Error fetching history:", err);
-        }
-
-        // Fetch subscription info (mock for now)
-        const subscription = {
-          plan: "FREE",
-          status: "ACTIVE",
-          renewsAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days from now
-        };
-
-        setCreditsData({
-          balance,
-          history,
-          subscription,
-        });
-      } catch (err) {
-        console.error("Error in fetchCreditsData:", err);
-        setError(
-          err instanceof Error ? err.message : "Failed to load credits data"
-        );
-      } finally {
-        // Always clear skeleton unless safety timer already did
-        if (!didTimeout) setLoading(false);
-        clearTimeout(safetyTimer);
-      }
-    };
-
+    // Initial fetch
     fetchCreditsData();
 
     return () => {
@@ -128,7 +154,48 @@ export function CreditsSection() {
       // Note: abortControllers is closed over inside fetchCreditsData, but
       // we ensure individual requests time out via their own timers.
     };
-  }, [pathname]); // Re-run when pathname changes (navigation)
+  }, [pathname, fetchCreditsData]); // Re-run when pathname changes (navigation)
+
+  // Auto-refresh when window regains focus (user comes back from another tab/window)
+  useEffect(() => {
+    const handleFocus = () => {
+      console.log("[Credits] Window focused, refreshing credits data...");
+      fetchCreditsData(false); // Don't show loading spinner on auto-refresh
+    };
+
+    window.addEventListener("focus", handleFocus);
+    return () => {
+      window.removeEventListener("focus", handleFocus);
+    };
+  }, [fetchCreditsData]); // Include fetchCreditsData as dependency
+
+  // Auto-refresh via polling when page is visible (every 1 second for faster updates)
+  useEffect(() => {
+    const interval = setInterval(() => {
+      // Only refresh if page is visible (not in background)
+      if (!document.hidden) {
+        console.log("[Credits] Auto-refreshing credits data...");
+        fetchCreditsData(false); // Don't show loading spinner on auto-refresh
+      }
+    }, 1000); // Refresh every 1 second for faster updates
+
+    return () => {
+      clearInterval(interval);
+    };
+  }, [fetchCreditsData]); // Include fetchCreditsData as dependency
+
+  // Listen for custom credit update events
+  useEffect(() => {
+    const handleCreditUpdate = () => {
+      console.log("[Credits] Credit update event received, refreshing...");
+      fetchCreditsData(false); // Don't show loading spinner on event-based refresh
+    };
+
+    window.addEventListener("credits:updated", handleCreditUpdate);
+    return () => {
+      window.removeEventListener("credits:updated", handleCreditUpdate);
+    };
+  }, [fetchCreditsData]); // Include fetchCreditsData as dependency
 
   if (loading) {
     return (
@@ -165,7 +232,7 @@ export function CreditsSection() {
         </div>
         <p className="text-red-600 mb-4">{error}</p>
         <a
-          href="/account/usage"
+          href="/credits"
           className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
         >
           View Full Credits Page

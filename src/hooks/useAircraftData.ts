@@ -51,14 +51,8 @@ export function useAircraftData(registration: string): UseAircraftDataReturn {
   const fetchData = async () => {
     if (!registration) return;
 
-    // Vérifier le cache global d'abord
-    const cached = globalCache.get(cacheKey);
-    if (cached && Date.now() - cached.timestamp < CACHE_DURATION) {
-      setData(cached.data);
-      setError(cached.error);
-      setLoading(cached.loading);
-      return;
-    }
+    // Toujours faire l'appel API pour débiter les crédits, même si on a le cache
+    // Le cache serveur gérera les performances, mais le crédit sera toujours débité
 
     // Annuler la requête précédente
     if (abortControllerRef.current) {

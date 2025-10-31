@@ -142,13 +142,24 @@ export async function chargeOneCredit(opts: {
     });
 
     if (existingEvent) {
+      console.log(
+        `[Credits] ⏭️ Action already processed (idempotency): ${key}. Skipping credit charge.`
+      );
       // Return current balance without charging again
       const balance = await tx.credit_balances.findUnique({
         where: { userId },
         select: { credits: true },
       });
-      return { newBalance: balance?.credits ?? 0 };
+      const currentBalance = balance?.credits ?? 0;
+      console.log(
+        `[Credits] 📊 Returning existing balance: ${currentBalance} credits`
+      );
+      return { newBalance: currentBalance };
     }
+
+    console.log(
+      `[Credits] 💳 Processing new credit charge for user ${userId} with key: ${key}`
+    );
 
     // Get current balance with row lock
     const balance = await tx.credit_balances.findUnique({
@@ -164,20 +175,25 @@ export async function chargeOneCredit(opts: {
     }
 
     // Create usage event
+    const usageEventId = crypto.randomUUID();
     await tx.usage_events.create({
       data: {
-        id: crypto.randomUUID(),
+        id: usageEventId,
         userId,
         actionType,
         idempotencyKey: key,
         cost: 1,
       },
     });
+    console.log(
+      `[Credits] ✅ Created usage event: ${usageEventId} for action ${actionType}`
+    );
 
     // Create ledger entry
+    const ledgerId = crypto.randomUUID();
     await tx.credit_ledger.create({
       data: {
-        id: crypto.randomUUID(),
+        id: ledgerId,
         userId,
         delta: -1,
         reason: CreditReason.ACTION,
@@ -186,6 +202,9 @@ export async function chargeOneCredit(opts: {
         metadata,
       },
     });
+    console.log(
+      `[Credits] 📝 Created ledger entry: ${ledgerId} (delta: -1)`
+    );
 
     // Update balance
     await tx.credit_balances.upsert({
@@ -193,6 +212,9 @@ export async function chargeOneCredit(opts: {
       update: { credits: { decrement: 1 } },
       create: { userId, credits: currentCredits - 1 },
     });
+    console.log(
+      `[Credits] 💰 Updated balance: ${currentCredits} -> ${currentCredits - 1} credits`
+    );
 
     return { newBalance: currentCredits - 1 };
   });
@@ -307,7 +329,7 @@ export async function chargeMultipleCredits(opts: {
  * Ensure top-up is applied based on subscription plan and timing
  */
 export async function ensureMonthlyTopUp(userId: string): Promise<void> {
-  const subscription = await prisma.subscription.findUnique({
+  const subscription = await prisma.subscriptions.findUnique({
     where: { userId },
   });
 
@@ -350,7 +372,7 @@ export async function ensureMonthlyTopUp(userId: string): Promise<void> {
     nextRenewal.setMonth(nextRenewal.getMonth() + 1);
   }
 
-  await prisma.subscription.update({
+  await prisma.subscriptions.update({
     where: { userId },
     data: { renewsAt: nextRenewal },
   });
