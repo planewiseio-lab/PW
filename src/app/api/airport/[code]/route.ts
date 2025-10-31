@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { correctFlightStatus } from "@/lib/flightStatusRules";
 import { withAirportBrowseAccess } from "@/lib/withActionAccess";
-import { getAirport, getFlightsRelative } from "@/services/abdClient";
+import { getAirport, getFlightsRelative, getFlightsRelativeCachedOnly } from "@/services/abdClient";
 import { normalizeAirportInfo, normalizeFids } from "@/utils/abdNormalizers";
 
 export const runtime = "nodejs";
@@ -65,7 +65,7 @@ export const GET = withAirportBrowseAccess(
         dir,
         hoursBefore,
         hoursAfter,
-        { timeoutMs: 2500, retry: 1, cacheTtlSeconds: 60 }
+        { timeoutMs: 3000, retry: 1, cacheTtlSeconds: 60 }
       );
       const allFlights = normalizeFids(data, dir);
 
@@ -93,6 +93,15 @@ export const GET = withAirportBrowseAccess(
         }
       );
     } catch (e: any) {
+      // Fallback: tenter un cache récent pour éviter 504
+      const cached = await getFlightsRelativeCachedOnly(code, dir, hoursBefore, hoursAfter);
+      if (cached) {
+        const allFlights = normalizeFids(cached, dir);
+        return NextResponse.json(
+          { flights: allFlights, pagination: { total: allFlights.length, limit, offset, hasMore: false }, stale: true },
+          { headers: { "X-Cache": "STALE" } }
+        );
+      }
       const status = e?.name === "AbortError" ? 504 : 500;
       return NextResponse.json(
         { error: e?.message || "fetch_failed", code: status === 504 ? "UPSTREAM_TIMEOUT" : "INTERNAL_ERROR" },
@@ -123,142 +132,4 @@ async function getAirportInfo(code: string, _apiKey: string) {
   }
 }
 
-function normalizeAirportInfo(u: any) {
-  // Handle nested objects for name, city, country
-  const getName = (obj: any) => {
-    if (typeof obj === "string") return obj;
-    if (obj && typeof obj === "object") {
-      return obj.name || obj.fullName || obj.text || "";
-    }
-    return "";
-  };
-
-  const getCity = (obj: any) => {
-    if (typeof obj === "string") return obj;
-    if (obj && typeof obj === "object") {
-      return obj.name || obj.city || obj.municipality || "";
-    }
-    return "";
-  };
-
-  const getCountry = (obj: any) => {
-    if (typeof obj === "string") return obj;
-    if (obj && typeof obj === "object") {
-      return obj.name || obj.country || obj.countryName || "";
-    }
-    return "";
-  };
-
-  // Handle elevation object with multiple units
-  const getElevation = (obj: any) => {
-    if (typeof obj === "number") return obj;
-    if (obj && typeof obj === "object") {
-      // Prefer feet, then meters, then any other unit
-      return obj.feet || obj.meter || obj.km || obj.mile || obj.nm || null;
-    }
-    return null;
-  };
-
-  return {
-    name: getName(u?.name) || getName(u?.fullName) || "",
-    iata: u?.iata || u?.iataCode || "",
-    icao: u?.icao || u?.icaoCode || "",
-    city: getCity(u?.city) || getCity(u?.municipality) || "",
-    country: getCountry(u?.country) || getCountry(u?.countryName) || "",
-    countryCode: u?.countryCode || u?.countryIso || "",
-    timezone: u?.timezone || u?.timeZone || "",
-    latitude: u?.latitude || u?.lat || null,
-    longitude: u?.longitude || u?.lng || u?.lon || null,
-    elevation:
-      getElevation(u?.elevation) || getElevation(u?.elevationFeet) || null,
-    website: u?.website || u?.url || "",
-    description: u?.description || u?.summary || "",
-  };
-}
-
-function normalizeFids(u: any, direction: Direction = "departures") {
-  const list = Array.isArray(u)
-    ? u
-    : u?.departures || u?.arrivals || u?.items || u?.data || [];
-
-  return (list as any[]).map((x) => {
-    // Status extraction
-    const status = x?.status || x?.movement?.status || {};
-    const statusText =
-      status?.text || status?.generic?.statusText || status || "Unknown";
-
-    // Flight info
-    const flight = x?.flight || {};
-    const number = flight?.number || x?.number || x?.callsign || "";
-    const icao = flight?.icao || x?.icao || "";
-    const iata = flight?.iata || x?.iata || "";
-
-    // Airline
-    const airline = x?.airline || x?.airlineName || x?.operator || {};
-    const airlineName = airline?.name || airline || "";
-
-    // Time extraction - use the correct API structure
-    let time = "";
-    let timeObj = null;
-
-    // Les données sont dans movement.scheduledTime
-    timeObj = x?.movement?.scheduledTime;
-
-    if (typeof timeObj === "string") {
-      time = timeObj;
-    } else if (timeObj && typeof timeObj === "object") {
-      time = timeObj.local || timeObj.utc || timeObj.scheduled || "";
-    }
-
-    // Airport codes - use the correct API structure
-    let airport: any = {};
-
-    // Les données d'aéroport sont dans movement.airport
-    airport = x?.movement?.airport || {};
-
-    const airportCode = airport?.iata || airport?.icao || airport?.code || "";
-    const airportName =
-      airport?.name || airport?.shortName || airport?.city || "";
-
-    // Aircraft registration
-    const aircraft = x?.aircraft || {};
-    const reg =
-      aircraft?.reg || aircraft?.registration || x?.registration || "";
-
-    // Gate/Terminal
-    const gate = x?.departure?.gate || x?.arrival?.gate || x?.gate || "";
-    const terminal =
-      x?.departure?.terminal || x?.arrival?.terminal || x?.terminal || "";
-    const gateInfo = gate || terminal || "";
-
-    // Appliquer les règles de correction de statut
-    const flightData = {
-      status: statusText,
-      departure: {
-        scheduledTime: direction === "departures" ? time : undefined,
-        actualTime: direction === "departures" ? time : undefined,
-      },
-      arrival: {
-        scheduledTime: direction === "arrivals" ? time : undefined,
-        estimatedTime: direction === "arrivals" ? time : undefined,
-        actualTime: direction === "arrivals" ? time : undefined,
-      },
-    };
-
-    const correctedFlight = correctFlightStatus(flightData);
-    const finalStatus = correctedFlight.status;
-
-    return {
-      id: String(x?.id || `${number}-${time}-${Math.random()}`),
-      number: number || iata || icao,
-      airline: airlineName,
-      to: direction === "departures" ? airportCode : "",
-      from: direction === "arrivals" ? airportCode : "",
-      airportName: airportName,
-      reg,
-      status: finalStatus,
-      time,
-      gate: gateInfo,
-    };
-  });
-}
+// Local normalizers removed in favor of utils/abdNormalizers imports

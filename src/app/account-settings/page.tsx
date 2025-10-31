@@ -2,10 +2,9 @@
 
 import { useState, useEffect, useRef } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import { motion } from "framer-motion";
 import PasswordRequirements from "@/components/PasswordRequirements";
-import { CreditsSection } from "@/components/credits/CreditsSection";
 
 export default function AccountSettingsPage() {
   const [user, setUser] = useState<any>(null);
@@ -17,16 +16,14 @@ export default function AccountSettingsPage() {
   const [message, setMessage] = useState("");
   const [loadingAction, setLoadingAction] = useState(false);
   const router = useRouter();
-  const isInitialized = useRef(false);
+  const pathname = usePathname();
 
   useEffect(() => {
-    // Prevent multiple initializations
-    if (isInitialized.current) {
-      console.log("[Account Settings] Already initialized, skipping");
-      return;
-    }
-
-    isInitialized.current = true;
+    // Reset state when component mounts or pathname changes (navigation)
+    setLoading(true);
+    setUser(null);
+    setFullName("");
+    setEmail("");
 
     const checkAuth = async () => {
       try {
@@ -53,7 +50,7 @@ export default function AccountSettingsPage() {
           if (userError) {
             console.log("[Account Settings] User error:", userError.message);
             setLoading(false);
-            router.push("/login");
+            router.replace("/login");
             return;
           }
 
@@ -82,7 +79,7 @@ export default function AccountSettingsPage() {
         // No user found
         console.log("[Account Settings] No user found, redirecting to login");
         setLoading(false);
-        router.push("/login");
+        router.replace("/login");
       } catch (err) {
         console.error("[Account Settings] Error checking auth:", err);
         setLoading(false);
@@ -101,7 +98,7 @@ export default function AccountSettingsPage() {
     return () => {
       clearTimeout(timeoutId);
     };
-  }, []); // Empty dependency array - runs once on mount
+  }, [pathname, router]); // Re-run when pathname changes (navigation)
 
   const handleUpdateProfile = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -211,7 +208,6 @@ export default function AccountSettingsPage() {
     { id: "profile", name: "Profile", icon: "👤" },
     { id: "security", name: "Security", icon: "🔒" },
     { id: "subscription", name: "Subscription", icon: "💳" },
-    { id: "credits", name: "Credits", icon: "🪙" },
     { id: "preferences", name: "Preferences", icon: "⚙️" },
   ];
 
@@ -733,16 +729,6 @@ export default function AccountSettingsPage() {
                       </p>
                     </div>
                   </div>
-                </div>
-              )}
-
-              {/* Credits Tab */}
-              {activeTab === "credits" && (
-                <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm">
-                  <h2 className="text-xl font-semibold text-gray-900 mb-6">
-                    Usage & Credits
-                  </h2>
-                  <CreditsSection />
                 </div>
               )}
 

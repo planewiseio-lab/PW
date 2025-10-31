@@ -38,7 +38,21 @@ export function normalizeAirportInfo(u: any) {
 export type Direction = "departures" | "arrivals";
 
 export function normalizeFids(u: any, direction: Direction = "departures") {
-	const list = Array.isArray(u) ? u : u?.departures || u?.arrivals || u?.items || u?.data || [];
+	// Safely extract a list of flights from various possible shapes
+	let list: any = Array.isArray(u)
+		? u
+		: u?.departures ?? u?.arrivals ?? u?.items ?? u?.data ?? [];
+
+	// Some providers wrap arrays inside an object (e.g., { departures: [...] })
+	if (!Array.isArray(list)) {
+		const inner = list?.departures ?? list?.arrivals ?? list?.items ?? list?.data;
+		if (Array.isArray(inner)) list = inner;
+	}
+
+	if (!Array.isArray(list)) {
+		return [];
+	}
+
 	return (list as any[]).map((x) => {
 		const status = x?.status || x?.movement?.status || {};
 		const statusText = status?.text || status?.generic?.statusText || status || "Unknown";

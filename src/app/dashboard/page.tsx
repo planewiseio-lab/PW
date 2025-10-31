@@ -3,6 +3,7 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { useEffect, useState } from "react";
+import { usePathname } from "next/navigation";
 import { validateUser } from "@/lib/auth-utils";
 import Link from "next/link";
 
@@ -21,7 +22,14 @@ export default function DashboardPage() {
     supabaseUrl !== "https://your-project.supabase.co" &&
     supabaseAnonKey !== "your-anon-key-here";
 
+  const pathname = usePathname();
+
   useEffect(() => {
+    // Reset state when component mounts or pathname changes (navigation)
+    setLoading(true);
+    setUser(null);
+    setFavoriteAircraft([]);
+
     const getUser = async () => {
       if (!isSupabaseConfigured) {
         setLoading(false);
@@ -59,7 +67,7 @@ export default function DashboardPage() {
     getUser();
 
     return () => clearTimeout(timeoutId);
-  }, [isSupabaseConfigured]);
+  }, [isSupabaseConfigured, pathname]);
 
   // Recharger les favoris quand l'utilisateur change
   useEffect(() => {

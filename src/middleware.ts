@@ -2,12 +2,16 @@ import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
 export async function middleware(request: NextRequest) {
+  // Request ID propagation
+  const reqId = request.headers.get("x-request-id") || `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
   // Redirect www to non-www (SEO best practice)
   const hostname = request.headers.get("host") || "";
   if (hostname.startsWith("www.")) {
     const url = request.nextUrl.clone();
     url.hostname = hostname.replace("www.", "");
-    return NextResponse.redirect(url);
+    const res = NextResponse.redirect(url);
+    res.headers.set("X-Request-Id", reqId);
+    return res;
   }
 
   // Vérifier si Supabase est configuré
@@ -84,6 +88,7 @@ export async function middleware(request: NextRequest) {
     console.error("Error in middleware auth check:", err);
   }
 
+  supabaseResponse.headers.set("X-Request-Id", reqId);
   return supabaseResponse;
 }
 

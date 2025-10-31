@@ -2,7 +2,7 @@
 
 import { motion } from "framer-motion";
 import { useParams, useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { correctFlightsStatus } from "@/lib/flightStatusRules";
 import { useAircraftHistory } from "@/hooks/useAircraftHistory";
@@ -53,10 +53,35 @@ export default function AircraftHistoryPage() {
   const router = useRouter();
   const registration = params.reg as string;
 
+  // Early return if no registration
+  if (!registration) {
+    console.error("[AircraftHistoryPage] No registration found");
+    return (
+      <div className="min-h-screen bg-white py-8">
+        <div className="max-w-6xl mx-auto px-4">
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-8 text-center">
+            <h2 className="text-xl font-semibold text-gray-900 mb-2">
+              Invalid Registration
+            </h2>
+            <p className="text-gray-600 mb-4">
+              No aircraft registration provided.
+            </p>
+            <Link
+              href="/"
+              className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition"
+            >
+              Go Home
+            </Link>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   const [flightHistory, setFlightHistory] = useState<FlightHistoryData | null>(
     null
   );
-  const [loading, setLoading] = useState(true);
+  // Loading handled by useAircraftHistory hook (isLoading)
   const [error, setError] = useState<string | null>(null);
   const [quotaExceeded, setQuotaExceeded] = useState<null | {
     guestRemaining: number;
@@ -65,6 +90,9 @@ export default function AircraftHistoryPage() {
     upgradeUrl?: string;
   }>(null);
   const [days, setDays] = useState(3);
+  const autoTriedRef = useRef(false);
+  const [isAutoExtending, setIsAutoExtending] = useState(false);
+  const fallbackDays = [3, 7, 14, 30];
   const [stats, setStats] = useState<{
     totalFlights: number;
     totalDistance: number;
@@ -72,7 +100,11 @@ export default function AircraftHistoryPage() {
     airportsVisited: number;
   } | null>(null);
 
-  const { data: rawData, error: fetchError, isLoading } = useAircraftHistory(registration, days);
+  const {
+    data: rawData,
+    error: fetchError,
+    isLoading,
+  } = useAircraftHistory(registration, days);
 
   useEffect(() => {
     if (!rawData) return;
@@ -80,19 +112,39 @@ export default function AircraftHistoryPage() {
     if (data.flights) {
       const flightDataArray = data.flights.map((flight: FlightHistory) => ({
         status: flight.status,
-        departure: { scheduledTime: flight.departure.scheduledTime, actualTime: flight.departure.actualTime },
-        arrival: { scheduledTime: flight.arrival.scheduledTime, actualTime: flight.arrival.actualTime },
+        departure: {
+          scheduledTime: flight.departure.scheduledTime,
+          actualTime: flight.departure.actualTime,
+        },
+        arrival: {
+          scheduledTime: flight.arrival.scheduledTime,
+          actualTime: flight.arrival.actualTime,
+        },
       }));
       const correctedFlightData = correctFlightsStatus(flightDataArray);
-      data.flights = data.flights.map((flight: FlightHistory, index: number) => ({
-        ...flight,
-        status: correctedFlightData[index].status,
-      }));
+      data.flights = data.flights.map(
+        (flight: FlightHistory, index: number) => ({
+          ...flight,
+          status: correctedFlightData[index].status,
+        })
+      );
     }
     setFlightHistory(data);
+    // Auto-extend range on first load if empty
+    if (!autoTriedRef.current && (!data.flights || data.flights.length === 0)) {
+      const idx = fallbackDays.indexOf(days);
+      if (idx > -1 && idx < fallbackDays.length - 1) {
+        autoTriedRef.current = true; // avoid loops
+        setIsAutoExtending(true);
+        setDays(fallbackDays[idx + 1]);
+      }
+    }
     if (data.flights && data.flights.length > 0) {
       const totalFlights = data.flights.length;
-      const totalDistance = data.flights.reduce((sum: number, flight: FlightHistory) => sum + (flight.distance || 0), 0);
+      const totalDistance = data.flights.reduce(
+        (sum: number, flight: FlightHistory) => sum + (flight.distance || 0),
+        0
+      );
       const airports = new Set<string>();
       data.flights.forEach((flight: FlightHistory) => {
         airports.add(flight.departure.airport.iata);
@@ -105,7 +157,16 @@ export default function AircraftHistoryPage() {
         countries.add(depCountry);
         countries.add(arrCountry);
       });
-      setStats({ totalFlights, totalDistance: Math.round(totalDistance), countriesVisited: countries.size, airportsVisited: airports.size });
+      setStats({
+        totalFlights,
+        totalDistance: Math.round(totalDistance),
+        countriesVisited: countries.size,
+        airportsVisited: airports.size,
+      });
+    }
+    // Stop auto-extending spinner once we have tried extension
+    if (autoTriedRef.current) {
+      setIsAutoExtending(false);
     }
   }, [rawData]);
 
@@ -171,24 +232,27 @@ export default function AircraftHistoryPage() {
     return `${hours}h ${minutes}m`;
   };
 
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-white py-8">
-        <div className="max-w-6xl mx-auto px-4">
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-8">
-            <div className="animate-pulse">
-              <div className="h-8 bg-gray-200 rounded w-1/3 mb-4"></div>
-              <div className="h-4 bg-gray-200 rounded w-1/2 mb-8"></div>
-              <div className="space-y-4">
-                {[...Array(5)].map((_, i) => (
-                  <div key={i} className="h-20 bg-gray-200 rounded"></div>
-                ))}
+  // Show skeleton if loading OR auto-extending (and no data/error yet)
+  if (isLoading || isAutoExtending) {
+    if (!rawData && !error) {
+      return (
+        <div className="min-h-screen bg-white py-8">
+          <div className="max-w-6xl mx-auto px-4">
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-8">
+              <div className="animate-pulse">
+                <div className="h-8 bg-gray-200 rounded w-1/3 mb-4"></div>
+                <div className="h-4 bg-gray-200 rounded w-1/2 mb-8"></div>
+                <div className="space-y-4">
+                  {[...Array(5)].map((_, i) => (
+                    <div key={i} className="h-20 bg-gray-200 rounded"></div>
+                  ))}
+                </div>
               </div>
             </div>
           </div>
         </div>
-      </div>
-    );
+      );
+    }
   }
 
   // Quota invité dépassé: UI gérée par le modal global
@@ -312,7 +376,9 @@ export default function AircraftHistoryPage() {
         </motion.div>
 
         {/* Flight History */}
-        {flightHistory?.flights && flightHistory.flights.length > 0 ? (
+        {flightHistory?.flights &&
+        Array.isArray(flightHistory.flights) &&
+        flightHistory.flights.length > 0 ? (
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -519,6 +585,17 @@ export default function AircraftHistoryPage() {
                 </div>
               </motion.div>
             ))}
+          </motion.div>
+        ) : (isAutoExtending || isLoading) && !rawData ? (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="bg-white rounded-xl shadow-sm border border-gray-200 p-8 text-center"
+          >
+            <div className="animate-pulse">
+              <div className="h-4 bg-gray-200 rounded w-1/3 mx-auto mb-4"></div>
+              <div className="h-20 bg-gray-200 rounded mx-auto"></div>
+            </div>
           </motion.div>
         ) : (
           <motion.div

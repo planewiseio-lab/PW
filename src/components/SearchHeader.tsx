@@ -28,7 +28,8 @@ export default function SearchHeader() {
     pathname === "/register" ||
     pathname === "/dashboard" ||
     pathname === "/reset-password" ||
-    pathname === "/account-settings";
+    pathname === "/account-settings" ||
+    pathname === "/credits";
   const isAdminPage = pathname.startsWith("/admin");
 
   // Éviter les différences d'hydration

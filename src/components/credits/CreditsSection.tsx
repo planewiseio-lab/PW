@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { usePathname } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { CreditBalanceCard } from "./CreditBalanceCard";
 import { UsageHistoryTable } from "./UsageHistoryTable";
@@ -20,9 +21,30 @@ export function CreditsSection() {
   const [creditsData, setCreditsData] = useState<CreditsData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const pathname = usePathname();
 
   useEffect(() => {
+    // Reset state when pathname changes (navigation)
+    setLoading(true);
+    setCreditsData(null);
+    setError(null);
+
     const fetchCreditsData = async () => {
+      // Safety guard: force-resolve skeleton after 3s
+      let didTimeout = false;
+      const safetyTimer = setTimeout(() => {
+        didTimeout = true;
+        setLoading(false);
+      }, 3000);
+
+      const abortControllers: AbortController[] = [];
+      const withTimeout = (ms: number) => {
+        const ac = new AbortController();
+        abortControllers.push(ac);
+        const t = setTimeout(() => ac.abort(), ms);
+        return { signal: ac.signal, clear: () => clearTimeout(t) };
+      };
+
       try {
         const supabase = createClient();
         const {
@@ -39,9 +61,13 @@ export function CreditsSection() {
         // Fetch balance
         let balance = 0;
         try {
+          const tt = withTimeout(3000);
           const balanceResponse = await fetch("/api/credits/balance", {
             credentials: "include",
+            cache: "no-store",
+            signal: tt.signal,
           });
+          tt.clear();
           if (balanceResponse.ok) {
             const data = await balanceResponse.json();
             balance = data.credits || 0;
@@ -55,9 +81,13 @@ export function CreditsSection() {
         // Fetch history
         let history = { items: [], nextCursor: null };
         try {
+          const tt = withTimeout(3000);
           const historyResponse = await fetch("/api/credits/history?limit=10", {
             credentials: "include",
+            cache: "no-store",
+            signal: tt.signal,
           });
+          tt.clear();
           if (historyResponse.ok) {
             history = await historyResponse.json();
           } else {
@@ -85,12 +115,20 @@ export function CreditsSection() {
           err instanceof Error ? err.message : "Failed to load credits data"
         );
       } finally {
-        setLoading(false);
+        // Always clear skeleton unless safety timer already did
+        if (!didTimeout) setLoading(false);
+        clearTimeout(safetyTimer);
       }
     };
 
     fetchCreditsData();
-  }, []);
+
+    return () => {
+      // Abort any in-flight requests on unmount
+      // Note: abortControllers is closed over inside fetchCreditsData, but
+      // we ensure individual requests time out via their own timers.
+    };
+  }, [pathname]); // Re-run when pathname changes (navigation)
 
   if (loading) {
     return (

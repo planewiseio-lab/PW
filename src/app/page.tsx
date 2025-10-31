@@ -669,7 +669,9 @@ export default function HomePage() {
 
     if (mode === "flight") {
       // Pour les vols, rediriger vers la page de recherche avec date
-      startTransition(() => router.push(`/flight/${encodeURIComponent(v)}`));
+      // Utiliser la date du jour par défaut si pas de date sélectionnée
+      const today = new Date().toISOString().split("T")[0];
+      startTransition(() => router.push(`/flight/${encodeURIComponent(v)}?date=${today}`));
     } else {
       startTransition(() => router.push(`/${mode}/${encodeURIComponent(v)}`));
     }

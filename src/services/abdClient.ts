@@ -5,9 +5,9 @@ const ABD_HOST = "aerodatabox.p.rapidapi.com";
 const ABD_KEY = process.env.AIRREG_API_KEY || process.env.RAPID_KEY || "";
 
 export interface AbdClientOptions {
-	timeoutMs?: number; // default 2500
-	retry?: number; // default 1
-	cacheTtlSeconds?: number; // default 60
+    timeoutMs?: number; // default 3000
+    retry?: number; // default 1
+    cacheTtlSeconds?: number; // default 60
 }
 
 async function fetchWithTimeout(url: string, init: RequestInit, timeoutMs: number) {
@@ -22,7 +22,7 @@ async function fetchWithTimeout(url: string, init: RequestInit, timeoutMs: numbe
 }
 
 async function getJsonWithRetry(path: string, params: URLSearchParams, opts: AbdClientOptions) {
-	const timeoutMs = opts.timeoutMs ?? 2500;
+    const timeoutMs = opts.timeoutMs ?? 3000;
 	const retry = Math.max(0, opts.retry ?? 1);
 	const url = `${ABD_BASE}${path}?${params.toString()}`;
 	let attempt = 0;
@@ -56,14 +56,19 @@ async function getJsonWithRetry(path: string, params: URLSearchParams, opts: Abd
 }
 
 async function cachedJson(key: string, fn: () => Promise<any>, ttlSeconds: number) {
-	const redis = getRedisLike();
-	const cached = await redis.get(key);
-	if (cached) {
-		try { return { data: JSON.parse(cached), fromCache: true }; } catch { /* ignore */ }
-	}
-	const res = await fn();
-	try { await redis.set(key, JSON.stringify(res), undefined, ttlSeconds); } catch { /* ignore */ }
-	return { data: res, fromCache: false };
+    const redis = getRedisLike();
+    const cached = await redis.get(key);
+    if (cached) {
+        try { return { data: JSON.parse(cached), fromCache: true }; } catch { /* ignore */ }
+    }
+    try {
+        const res = await fn();
+        try { await redis.set(key, JSON.stringify(res), undefined, ttlSeconds); } catch { /* ignore */ }
+        return { data: res, fromCache: false };
+    } catch (e) {
+        // Fallback: if no fresh data and no cache, propagate error to caller
+        throw e;
+    }
 }
 
 export async function getAirport(code: string, opts: AbdClientOptions = {}) {
@@ -76,6 +81,15 @@ export async function getAirport(code: string, opts: AbdClientOptions = {}) {
 		const { data, latencyMs } = await getJsonWithRetry(path, params, opts);
 		return { data, metrics: { latencyMs } };
 	}, ttl);
+}
+
+export async function getAirportCachedOnly(code: string) {
+    const codeType = code.trim().length === 4 ? "icao" : "iata";
+    const cacheKey = `abd:airport:${codeType}:${code.toUpperCase()}`;
+    const redis = getRedisLike();
+    const cached = await redis.get(cacheKey);
+    if (!cached) return null;
+    try { return JSON.parse(cached); } catch { return null; }
 }
 
 export async function getFlightsRelative(code: string, direction: "departures"|"arrivals", beforeHours: number, afterHours: number, opts: AbdClientOptions = {}) {
@@ -102,6 +116,15 @@ export async function getFlightsRelative(code: string, direction: "departures"|"
 	}, ttl);
 }
 
+export async function getFlightsRelativeCachedOnly(code: string, direction: "departures"|"arrivals", beforeHours: number, afterHours: number) {
+    const codeType = code.trim().length === 4 ? "icao" : "iata";
+    const cacheKey = `abd:fids:${codeType}:${code.toUpperCase()}:${direction}:${beforeHours}:${afterHours}`;
+    const redis = getRedisLike();
+    const cached = await redis.get(cacheKey);
+    if (!cached) return null;
+    try { return JSON.parse(cached); } catch { return null; }
+}
+
 export async function getHistory(reg: string, fromDate: string, toDate: string, opts: AbdClientOptions = {}) {
 	const ttl = opts.cacheTtlSeconds ?? 60;
 	const cacheKey = `abd:history:${reg.toUpperCase()}:${fromDate}:${toDate}`;
@@ -115,6 +138,14 @@ export async function getHistory(reg: string, fromDate: string, toDate: string, 
 		const { data, latencyMs } = await getJsonWithRetry(path, params, opts);
 		return { data, metrics: { latencyMs } };
 	}, ttl);
+}
+
+export async function getHistoryCachedOnly(reg: string, fromDate: string, toDate: string) {
+    const cacheKey = `abd:history:${reg.toUpperCase()}:${fromDate}:${toDate}`;
+    const redis = getRedisLike();
+    const cached = await redis.get(cacheKey);
+    if (!cached) return null;
+    try { return JSON.parse(cached); } catch { return null; }
 }
 
 

@@ -138,9 +138,22 @@ export default function FlightPage() {
       );
 
       if (data && !data.error) {
-        setFlightData(data);
+        // Vérifier si on a des vols ou si c'est un payload vide
+        if (data.flights && Array.isArray(data.flights) && data.flights.length > 0) {
+          // Si on a des vols, utiliser le premier vol
+          setFlightData(data.flights[0] || data);
+        } else if (data.number && (data.airline || data.aircraft || data.departure)) {
+          // Si c'est un objet de vol unique (ancien format)
+          setFlightData(data);
+        } else {
+          // Pas de vol trouvé, mais ce n'est pas une erreur - afficher le message approprié
+          setFlightData(null);
+          setError(null); // Pas d'erreur, juste pas de données
+        }
       } else {
-        setError(data.error || "No flight data found for the selected date");
+        // Il y a une vraie erreur dans la réponse
+        setError(data?.error || "No flight data found for the selected date");
+        setFlightData(null);
       }
     } catch (err: any) {
       if (err.name === "AbortError") {
@@ -244,7 +257,19 @@ export default function FlightPage() {
             </motion.div>
           )}
 
-          {flightData && !loading && (
+          {!loading && !error && !flightData && (
+            <motion.div
+              key="no-data"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              className="bg-yellow-50 border border-yellow-200 rounded-xl p-6 text-center"
+            >
+              <p className="text-yellow-800 font-medium">No flight data available for this date.</p>
+            </motion.div>
+          )}
+
+          {flightData && !loading && !error && (
             <motion.div
               key="flight-data"
               initial={{ opacity: 0, y: 20 }}

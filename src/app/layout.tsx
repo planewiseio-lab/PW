@@ -138,17 +138,6 @@ export default function RootLayout({
               </svg>
               <span className="font-semibold">PlaneWise</span>
             </a>
-            <nav className="hidden md:flex items-center gap-6 text-sm">
-              <a className="text-gray-600 hover:text-gray-900 relative after:absolute after:left-0 after:-bottom-1 after:h-[2px] after:w-0 after:bg-gray-900 after:transition-[width] hover:after:w-full">
-                Product
-              </a>
-              <a className="text-gray-600 hover:text-gray-900 relative after:absolute after:left-0 after:-bottom-1 after:h-[2px] after:w-0 after:bg-gray-900 after:transition-[width] hover:after:w-full">
-                Docs
-              </a>
-              <a className="text-gray-600 hover:text-gray-900 relative after:absolute after:left-0 after:-bottom-1 after:h-[2px] after:w-0 after:bg-gray-900 after:transition-[width] hover:after:w-full">
-                Pricing
-              </a>
-            </nav>
             <AuthButton />
           </div>
         </header>

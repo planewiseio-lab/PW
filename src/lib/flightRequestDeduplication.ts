@@ -56,10 +56,25 @@ export async function fetchFlightData(
       });
 
       if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: Failed to fetch flight data`);
+        // Si c'est une erreur serveur, essayer de récupérer le message d'erreur
+        let errorMessage = `HTTP ${response.status}: Failed to fetch flight data`;
+        try {
+          const errorData = await response.json();
+          if (errorData.error) {
+            errorMessage = errorData.error;
+          }
+        } catch {
+          // Si on ne peut pas parser l'erreur, utiliser le message par défaut
+        }
+        throw new Error(errorMessage);
       }
 
       const data = await response.json();
+      
+      // Vérifier si l'API a retourné une erreur dans le payload même avec status 200
+      if (data.error) {
+        throw new Error(data.error);
+      }
 
       // Mettre en cache la réponse
       responseCache.set(cacheKey, {

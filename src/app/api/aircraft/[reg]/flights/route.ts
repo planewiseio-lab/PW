@@ -95,94 +95,81 @@ export const GET = withFlightHistoryAccess(
       ];
 
       let last = null;
-      for (const pathPart of candidates) {
-        const resp = await callAero(pathPart);
-        console.log(`[AeroDataBox] ${resp.status} ${resp.url}`);
+      // Try first candidate (most complete endpoint)
+      const resp = await callAero(candidates[0]);
+      console.log(`[AeroDataBox] ${resp.status} ${resp.url}`);
 
-        // Handle empty responses or 204
-        if (resp.status === 204 || !resp.text) {
-          last = resp;
-          continue;
-        }
-
-        if (resp.ok) {
-          let out = resp.text || "[]";
-
-          // Parse and filter the response
-          try {
-            const payload = JSON.parse(out);
-            if (Array.isArray(payload)) {
-              const filtered = payload.filter(
-                (f) =>
-                  f?.codeshareStatus !== "IsCodeshared" &&
-                  (!f?.aircraft?.reg ||
-                    String(f.aircraft.reg).toUpperCase() === registration)
-              );
-
-              // Debug: Log first flight to see structure
-              if (filtered.length > 0) {
-                console.log(
-                  "First flight data structure:",
-                  JSON.stringify(filtered[0], null, 2)
-                );
-              }
-
-              // Transform the data to match our interface
-              const transformedFlights = filtered.map((flight) => ({
-                number: flight.number || "",
-                airline: {
-                  name: flight.airline?.name || "",
-                  iata: flight.airline?.iata || "",
-                  icao: flight.airline?.icao || "",
-                },
-                departure: {
-                  airport: {
-                    iata: flight.departure?.airport?.iata || "",
-                    name: flight.departure?.airport?.name || "",
-                    city: flight.departure?.airport?.city || "",
-                  },
-                  scheduledTime: flight.departure?.scheduledTime?.local || "",
-                  actualTime: flight.departure?.actualTime?.local || "",
-                  terminal: flight.departure?.terminal || "",
-                  gate: flight.departure?.gate || "",
-                },
-                arrival: {
-                  airport: {
-                    iata: flight.arrival?.airport?.iata || "",
-                    name: flight.arrival?.airport?.name || "",
-                    city: flight.arrival?.airport?.city || "",
-                  },
-                  scheduledTime: flight.arrival?.scheduledTime?.local || "",
-                  actualTime: flight.arrival?.actualTime?.local || "",
-                  terminal: flight.arrival?.terminal || "",
-                  gate: flight.arrival?.gate || "",
-                },
-                status: flight.status || "",
-                distance:
-                  flight.greatCircleDistance?.km ||
-                  flight.distance?.km ||
-                  flight.distance ||
-                  0,
-                duration: flight.duration?.minutes || flight.duration || 0,
-                date:
-                  flight.departure?.scheduledTime?.local?.slice(0, 10) || "",
-              }));
-
-              const result = { flights: transformedFlights };
-              setCache(cacheKey, result, FLIGHTS_TTL_MS);
-
-              return NextResponse.json(result, {
-                headers: { "X-Cache": "MISS", "X-Filtered": "codeshare,reg" },
-              });
-            }
-          } catch (parseError) {
-            console.log("Failed to parse JSON response:", parseError);
-          }
-        }
-
+      // Handle empty responses or 204
+      if (resp.status === 204 || !resp.text) {
         last = resp;
-        if (resp.status >= 500) break; // upstream KO -> exit
+      } else if (resp.ok) {
+        let out = resp.text || "[]";
+
+        // Parse and filter the response
+        try {
+          const payload = JSON.parse(out);
+          if (Array.isArray(payload)) {
+            const filtered = payload.filter(
+              (f) =>
+                f?.codeshareStatus !== "IsCodeshared" &&
+                (!f?.aircraft?.reg ||
+                  String(f.aircraft.reg).toUpperCase() === registration)
+            );
+
+            // Transform the data to match our interface
+            const transformedFlights = filtered.map((flight) => ({
+              number: flight.number || "",
+              airline: {
+                name: flight.airline?.name || "",
+                iata: flight.airline?.iata || "",
+                icao: flight.airline?.icao || "",
+              },
+              departure: {
+                airport: {
+                  iata: flight.departure?.airport?.iata || "",
+                  name: flight.departure?.airport?.name || "",
+                  city: flight.departure?.airport?.city || "",
+                },
+                scheduledTime: flight.departure?.scheduledTime?.local || "",
+                actualTime: flight.departure?.actualTime?.local || "",
+                terminal: flight.departure?.terminal || "",
+                gate: flight.departure?.gate || "",
+              },
+              arrival: {
+                airport: {
+                  iata: flight.arrival?.airport?.iata || "",
+                  name: flight.arrival?.airport?.name || "",
+                  city: flight.arrival?.airport?.city || "",
+                },
+                scheduledTime: flight.arrival?.scheduledTime?.local || "",
+                actualTime: flight.arrival?.actualTime?.local || "",
+                terminal: flight.arrival?.terminal || "",
+                gate: flight.arrival?.gate || "",
+              },
+              status: flight.status || "",
+              distance:
+                flight.greatCircleDistance?.km ||
+                flight.distance?.km ||
+                flight.distance ||
+                0,
+              duration: flight.duration?.minutes || flight.duration || 0,
+              date:
+                flight.departure?.scheduledTime?.local?.slice(0, 10) || "",
+            }));
+
+            const result = { flights: transformedFlights };
+            setCache(cacheKey, result, FLIGHTS_TTL_MS);
+
+            return NextResponse.json(result, {
+              headers: { "X-Cache": "MISS", "X-Filtered": "codeshare,reg" },
+            });
+          }
+        } catch (parseError) {
+          console.error("Failed to parse JSON response:", parseError);
+        }
       }
+
+      last = resp;
 
       // If nothing found
       if (

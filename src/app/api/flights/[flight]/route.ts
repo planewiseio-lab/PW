@@ -284,13 +284,16 @@ export const GET = withFlightBrowseAccess(
             { status: resp.status }
           );
         }
+
+        // Si 204 (pas de contenu), continuer sans erreur
+        if (resp.status === 204) {
+          continue;
+        }
       }
 
       if (allFlights.length === 0) {
-        return NextResponse.json(
-          { error: "Flight not found" },
-          { status: 404 }
-        );
+        // Retourner un payload vide 200 plutôt qu'un 404 pour éviter erreurs UI
+        return NextResponse.json({ number: numberRaw, flights: [] });
       }
 
       // Utiliser les vols collectés

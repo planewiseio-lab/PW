@@ -110,7 +110,8 @@ export default function FlightCard({ flightData }: FlightCardProps) {
 
   // Calculer le pourcentage de progression basé sur le statut (fallback)
   const getProgressPercentage = () => {
-    switch (flightData.status.toLowerCase()) {
+    const status = (flightData?.status || "").toLowerCase();
+    switch (status) {
       case "scheduled":
         return 0;
       case "boarding":
@@ -185,7 +186,7 @@ export default function FlightCard({ flightData }: FlightCardProps) {
 
   // Obtenir la couleur du statut
   const getStatusColor = (status: string) => {
-    switch (status.toLowerCase()) {
+    switch ((status || "").toLowerCase()) {
       case "arrived":
       case "landed":
         return "bg-green-100 text-green-800 border-green-200";
@@ -232,19 +233,19 @@ export default function FlightCard({ flightData }: FlightCardProps) {
             <div>
               <h1 className="text-xl md:text-2xl font-bold text-gray-900">
                 <span className="block md:inline">
-                  {flightData.airline.name}
+                  {flightData?.airline?.name || "Unknown Airline"}
                 </span>
                 <span className="block md:inline md:ml-2 text-blue-600">
                   {flightData.number}
                 </span>
               </h1>
               <p className="text-sm text-gray-600">
-                {flightData.aircraft.model} •
+                {(flightData?.aircraft?.model || "Unknown Aircraft")} •
                 <a
-                  href={`/aircraft/${flightData.aircraft.registration}`}
+                  href={`/aircraft/${flightData?.aircraft?.registration || ""}`}
                   className="text-blue-600 hover:text-blue-700 transition cursor-pointer ml-1"
                 >
-                  {flightData.aircraft.registration}
+                  {flightData?.aircraft?.registration || "N/A"}
                 </a>
               </p>
             </div>
@@ -281,13 +282,13 @@ export default function FlightCard({ flightData }: FlightCardProps) {
                 </svg>
               </div>
               <h3 className="font-semibold text-gray-900 text-center">
-                {flightData.departure.airport.iata}
+                {flightData?.departure?.airport?.iata || "---"}
               </h3>
               <p className="text-sm text-gray-600 text-center">
-                {flightData.departure.airport.name}
+                {flightData?.departure?.airport?.name || "Unknown"}
               </p>
               <p className="text-xs text-gray-500 text-center">
-                {flightData.departure.airport.city}
+                {flightData?.departure?.airport?.city || ""}
               </p>
             </div>
 
@@ -346,13 +347,13 @@ export default function FlightCard({ flightData }: FlightCardProps) {
                 </svg>
               </div>
               <h3 className="font-semibold text-gray-900 text-center">
-                {flightData.arrival.airport.iata}
+                {flightData?.arrival?.airport?.iata || "---"}
               </h3>
               <p className="text-sm text-gray-600 text-center">
-                {flightData.arrival.airport.name}
+                {flightData?.arrival?.airport?.name || "Unknown"}
               </p>
               <p className="text-xs text-gray-500 text-center">
-                {flightData.arrival.airport.city}
+                {flightData?.arrival?.airport?.city || ""}
               </p>
             </div>
           </div>
@@ -372,13 +373,13 @@ export default function FlightCard({ flightData }: FlightCardProps) {
                   </svg>
                 </div>
                 <h3 className="font-semibold text-gray-900 text-sm text-center">
-                  {flightData.departure.airport.iata}
+                  {flightData?.departure?.airport?.iata || "---"}
                 </h3>
                 <p className="text-xs text-gray-600 truncate text-center">
-                  {flightData.departure.airport.city}
+                  {flightData?.departure?.airport?.city || ""}
                 </p>
                 <p className="text-xs text-gray-500 truncate text-center mt-1">
-                  {flightData.departure.airport.name}
+                  {flightData?.departure?.airport?.name || "Unknown"}
                 </p>
               </div>
 
@@ -429,13 +430,13 @@ export default function FlightCard({ flightData }: FlightCardProps) {
                   </svg>
                 </div>
                 <h3 className="font-semibold text-gray-900 text-sm text-center">
-                  {flightData.arrival.airport.iata}
+                  {flightData?.arrival?.airport?.iata || "---"}
                 </h3>
                 <p className="text-xs text-gray-600 truncate text-center">
-                  {flightData.arrival.airport.city}
+                  {flightData?.arrival?.airport?.city || ""}
                 </p>
                 <p className="text-xs text-gray-500 truncate text-center mt-1">
-                  {flightData.arrival.airport.name}
+                  {flightData?.arrival?.airport?.name || "Unknown"}
                 </p>
               </div>
             </div>
@@ -452,7 +453,7 @@ export default function FlightCard({ flightData }: FlightCardProps) {
                 Aircraft
               </h3>
               <p className="text-lg font-semibold text-gray-900">
-                {flightData.aircraft.model}
+                {flightData?.aircraft?.model || "Unknown Aircraft"}
               </p>
             </div>
 
@@ -462,10 +463,10 @@ export default function FlightCard({ flightData }: FlightCardProps) {
                 Registration
               </h3>
               <a
-                href={`/aircraft/${flightData.aircraft.registration}`}
+                href={`/aircraft/${flightData?.aircraft?.registration || ""}`}
                 className="text-lg font-semibold text-blue-600 hover:text-blue-700 transition cursor-pointer"
               >
-                {flightData.aircraft.registration}
+                {flightData?.aircraft?.registration || "N/A"}
               </a>
             </div>
 
@@ -488,11 +489,11 @@ export default function FlightCard({ flightData }: FlightCardProps) {
             <div>
               <h3 className="text-sm font-medium text-gray-500 mb-2">From</h3>
               <a
-                href={`/airport/${flightData.departure.airport.iata}`}
+                href={`/airport/${flightData?.departure?.airport?.iata || ""}`}
                 className="text-lg font-semibold text-blue-600 hover:text-blue-700 transition cursor-pointer"
               >
-                {flightData.departure.airport.iata} —{" "}
-                {flightData.departure.airport.name}
+                {flightData?.departure?.airport?.iata || "---"} —{" "}
+                {flightData?.departure?.airport?.name || "Unknown"}
               </a>
             </div>
 
@@ -500,11 +501,11 @@ export default function FlightCard({ flightData }: FlightCardProps) {
             <div>
               <h3 className="text-sm font-medium text-gray-500 mb-2">To</h3>
               <a
-                href={`/airport/${flightData.arrival.airport.iata}`}
+                href={`/airport/${flightData?.arrival?.airport?.iata || ""}`}
                 className="text-lg font-semibold text-blue-600 hover:text-blue-700 transition cursor-pointer"
               >
-                {flightData.arrival.airport.iata} —{" "}
-                {flightData.arrival.airport.name}
+                {flightData?.arrival?.airport?.iata || "---"} —{" "}
+                {flightData?.arrival?.airport?.name || "Unknown"}
               </a>
             </div>
           </div>

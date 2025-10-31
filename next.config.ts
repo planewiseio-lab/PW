@@ -8,6 +8,19 @@ const nextConfig: NextConfig = {
   // Optimisations de performance
   experimental: {
     optimizePackageImports: ["framer-motion", "lucide-react"],
+    // Exclure ioredis du bundling client (c'est un module serveur uniquement)
+    serverComponentsExternalPackages: ["ioredis"],
+  },
+  // Webpack configuration pour exclure ioredis du bundle client
+  webpack: (config, { isServer }) => {
+    if (!isServer) {
+      // Exclure ioredis du bundle client
+      config.resolve.fallback = {
+        ...config.resolve.fallback,
+        ioredis: false,
+      };
+    }
+    return config;
   },
   // Compression et optimisations
   compress: true,

@@ -23,38 +23,83 @@ export default function ApiUsageDashboard() {
 
   // Vérifier l'authentification et le rôle admin
   useEffect(() => {
+    let mounted = true;
     async function checkAuth() {
-      const supabase = createClient();
-      const {
-        data: { user },
-        error,
-      } = await supabase.auth.getUser();
+      try {
+        const supabase = createClient();
+        const {
+          data: { user },
+          error,
+        } = await supabase.auth.getUser();
 
-      if (error || !user) {
+        if (!mounted) return;
+
+        if (error || !user) {
+          setIsAuthenticated(false);
+          setIsAdmin(false);
+          return;
+        }
+
+        setIsAuthenticated(true);
+
+        // Vérifier si l'utilisateur est admin
+        const adminCheck =
+          user.user_metadata?.role === "admin" ||
+          user.app_metadata?.role === "admin";
+
+        setIsAdmin(adminCheck);
+      } catch (e) {
+        if (!mounted) return;
+        // En cas d'erreur inattendue, ne pas bloquer le rendu
         setIsAuthenticated(false);
         setIsAdmin(false);
-        return;
       }
-
-      setIsAuthenticated(true);
-
-      // Vérifier si l'utilisateur est admin
-      const adminCheck =
-        user.user_metadata?.role === "admin" ||
-        user.app_metadata?.role === "admin";
-
-      setIsAdmin(adminCheck);
     }
 
     checkAuth();
+
+    // Filet de sécurité: éviter spinner infini
+    const t = setTimeout(() => {
+      if (mounted && (isAuthenticated === null || isAdmin === null)) {
+        setIsAuthenticated(false);
+        setIsAdmin(false);
+      }
+    }, 3000);
+
+    return () => {
+      mounted = false;
+      clearTimeout(t);
+    };
   }, []);
 
   // Fonction loadStats - définie avant le useEffect qui l'utilise
   async function loadStats() {
     setLoading(true);
     try {
-      // Utiliser l'endpoint API avec client admin
-      const response = await fetch("/api/admin/usage-stats");
+      // Utiliser l'endpoint API avec client admin (force cookies + timeout)
+      const ctl = new AbortController();
+      const to = setTimeout(() => ctl.abort(), 5000);
+      const response = await fetch("/api/admin/usage-stats", {
+        credentials: "include",
+        signal: ctl.signal,
+      });
+      clearTimeout(to);
+      // Déterminer l'état d'accès à partir du statut HTTP
+      if (response.status === 401) {
+        setIsAuthenticated(false);
+        setIsAdmin(false);
+        setLoading(false);
+        return;
+      }
+      if (response.status === 403) {
+        setIsAuthenticated(true);
+        setIsAdmin(false);
+        setLoading(false);
+        return;
+      }
+      // Succès: considérer authentifié + admin
+      setIsAuthenticated(true);
+      setIsAdmin(true);
       const result = await response.json();
 
       if (result.error) {
@@ -131,6 +176,9 @@ export default function ApiUsageDashboard() {
       setTotalUniqueUsers(allUserIds.size);
     } catch (error) {
       console.error("Error loading stats:", error);
+      // En cas d'erreur (timeout/réseau), arrêter le spinner
+      setIsAuthenticated(false);
+      setIsAdmin(false);
     } finally {
       setLoading(false);
     }
@@ -142,8 +190,8 @@ export default function ApiUsageDashboard() {
   }, [selectedMonth, filterUser]);
 
   // Conditions de rendu - après tous les hooks
-  // Afficher le message de connexion si pas authentifié
-  if (isAuthenticated === false) {
+  // Afficher le message de connexion si pas authentifié et aucune donnée
+  if (isAuthenticated === false && stats.length === 0) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
