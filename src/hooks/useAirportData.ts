@@ -51,8 +51,28 @@ export function useAirportData(code: string, dir: Direction) {
       });
 
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData?.error || "Failed to fetch flights");
+        let errorData: any = null;
+        try {
+          errorData = await response.json();
+        } catch {
+          // Si le body n'est pas du JSON, utiliser le status text
+        }
+
+        // Gérer les erreurs de quota invité (429)
+        if (response.status === 429 || errorData?.code === "GUEST_QUOTA_EXCEEDED") {
+          // Déclencher l'événement pour afficher le modal
+          const { triggerGuestQuotaExceeded } = await import("@/hooks/useGuestQuotaExceeded");
+          triggerGuestQuotaExceeded({
+            message: errorData?.message || "Guest quota exceeded",
+            guestRemaining: errorData?.guestRemaining ?? errorData?.remaining ?? 0,
+            guestUsed: errorData?.guestUsed ?? errorData?.used ?? 4,
+            guestLimit: errorData?.guestLimit ?? errorData?.limit ?? 4,
+            status: 429,
+            code: "GUEST_QUOTA_EXCEEDED",
+          });
+        }
+
+        throw new Error(errorData?.error || errorData?.message || "Failed to fetch flights");
       }
 
       const data = await response.json();

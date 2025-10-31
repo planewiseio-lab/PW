@@ -161,6 +161,14 @@ export default function FlightPage() {
         return;
       } else if (err.name === "AbortError" && err.message.includes("timeout")) {
         setError("Request timeout - please try again");
+      } else if (
+        err.message?.includes("GUEST_QUOTA_EXCEEDED") ||
+        err.message?.includes("Guest quota exceeded")
+      ) {
+        // Ne pas afficher l'erreur sur la page pour les erreurs de quota invité
+        // Le modal s'affichera automatiquement via triggerGuestQuotaExceeded
+        setError(null);
+        return;
       } else {
         setError(err instanceof Error ? err.message : "An error occurred");
       }

@@ -100,9 +100,11 @@ export function useAircraftData(registration: string): UseAircraftDataReturn {
           err.message?.includes("HTTP 429") ||
           err.message?.includes("GUEST_QUOTA_EXCEEDED")
         ) {
-          errorMessage = "Guest quota exceeded. Please log in to continue.";
-          // Déclencher la modal de quota invité dépassé
+          // Ne pas définir l'erreur dans le hook pour les erreurs de quota invité
+          // Le modal s'affichera automatiquement via triggerGuestQuotaExceeded
           triggerGuestQuotaExceeded(err);
+          // Ne pas appeler setError pour éviter l'affichage sur la page
+          return;
         } else if (err.message?.includes("HTTP 401")) {
           errorMessage = "Authentication required. Please log in.";
         }

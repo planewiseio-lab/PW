@@ -19,6 +19,7 @@ export interface GuestUsage {
 
 /**
  * Extrait l'IP client depuis les headers de la requête
+ * En développement, normalise toutes les variantes de localhost vers 127.0.0.1
  */
 export function getClientIp(req: NextRequest): string {
   // 1. Vérifier x-forwarded-for (premier élément)
@@ -27,17 +28,28 @@ export function getClientIp(req: NextRequest): string {
     const ips = forwardedFor.split(",").map((ip) => ip.trim());
     const firstIp = ips[0];
     if (firstIp && firstIp !== "unknown") {
-      return normalizeIp(firstIp);
+      const normalized = normalizeIp(firstIp);
+      // En développement, forcer 127.0.0.1 pour localhost
+      if (process.env.NODE_ENV === "development" && (normalized === "::1" || normalized.includes("::"))) {
+        return "127.0.0.1";
+      }
+      return normalized;
     }
   }
 
   // 2. Vérifier x-real-ip
   const realIp = req.headers.get("x-real-ip");
   if (realIp && realIp !== "unknown") {
-    return normalizeIp(realIp);
+    const normalized = normalizeIp(realIp);
+    // En développement, forcer 127.0.0.1 pour localhost
+    if (process.env.NODE_ENV === "development" && (normalized === "::1" || normalized.includes("::"))) {
+      return "127.0.0.1";
+    }
+    return normalized;
   }
 
-  // 3. Fallback pour le développement
+  // 3. Essayer de détecter l'IP depuis la connexion (pour localhost IPv6)
+  // En développement, forcer 127.0.0.1
   if (process.env.NODE_ENV === "development") {
     return "127.0.0.1";
   }
@@ -48,10 +60,23 @@ export function getClientIp(req: NextRequest): string {
 
 /**
  * Normalise l'adresse IP (IPv4/IPv6)
+ * En développement, normalise toutes les variantes de localhost vers 127.0.0.1
  */
 function normalizeIp(ip: string): string {
   // Supprimer les espaces et caractères indésirables
   const cleanIp = ip.trim().toLowerCase();
+
+  // En développement, normaliser toutes les variantes de localhost vers 127.0.0.1
+  if (process.env.NODE_ENV === "development") {
+    // Variantes de localhost IPv6
+    if (cleanIp === "::1" || cleanIp === "::ffff:127.0.0.1" || cleanIp === "0:0:0:0:0:0:0:1") {
+      return "127.0.0.1";
+    }
+    // Variantes de localhost IPv4
+    if (cleanIp === "localhost" || cleanIp === "127.0.0.1" || cleanIp === "0.0.0.0") {
+      return "127.0.0.1";
+    }
+  }
 
   // Si c'est une IPv6, on peut la garder telle quelle
   if (cleanIp.includes(":")) {

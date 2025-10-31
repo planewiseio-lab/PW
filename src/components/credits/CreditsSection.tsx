@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { usePathname } from "next/navigation";
+import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { CreditBalanceCard } from "./CreditBalanceCard";
 import { UsageHistoryTable } from "./UsageHistoryTable";
@@ -26,76 +27,76 @@ export function CreditsSection() {
   // Extract fetch logic to a reusable function with useCallback
   const fetchCreditsData = useCallback(async (showLoading = true) => {
     if (showLoading) {
-      setLoading(true);
-      setError(null);
+    setLoading(true);
+    setError(null);
     }
 
-    // Safety guard: force-resolve skeleton after 3s
-    let didTimeout = false;
-    const safetyTimer = setTimeout(() => {
-      didTimeout = true;
-      setLoading(false);
-    }, 3000);
-
-    const abortControllers: AbortController[] = [];
-    const withTimeout = (ms: number) => {
-      const ac = new AbortController();
-      abortControllers.push(ac);
-      const t = setTimeout(() => ac.abort(), ms);
-      return { signal: ac.signal, clear: () => clearTimeout(t) };
-    };
-
-    try {
-      const supabase = createClient();
-      const {
-        data: { user },
-        error: authError,
-      } = await supabase.auth.getUser();
-
-      if (authError || !user) {
-        setError("Please sign in to view your credits");
+      // Safety guard: force-resolve skeleton after 3s
+      let didTimeout = false;
+      const safetyTimer = setTimeout(() => {
+        didTimeout = true;
         setLoading(false);
-        return;
-      }
+      }, 3000);
 
-      // Fetch balance
-      let balance = 0;
-      try {
-        const tt = withTimeout(3000);
-        const balanceResponse = await fetch("/api/credits/balance", {
-          credentials: "include",
-          cache: "no-store",
-          signal: tt.signal,
-        });
-        tt.clear();
-        if (balanceResponse.ok) {
-          const data = await balanceResponse.json();
-          balance = data.credits || 0;
-        } else {
-          console.warn("Failed to fetch balance:", balanceResponse.status);
-        }
-      } catch (err) {
-        console.warn("Error fetching balance:", err);
-      }
+      const abortControllers: AbortController[] = [];
+      const withTimeout = (ms: number) => {
+        const ac = new AbortController();
+        abortControllers.push(ac);
+        const t = setTimeout(() => ac.abort(), ms);
+        return { signal: ac.signal, clear: () => clearTimeout(t) };
+      };
 
-      // Fetch history
-      let history = { items: [], nextCursor: null };
       try {
-        const tt = withTimeout(3000);
-        const historyResponse = await fetch("/api/credits/history?limit=10", {
-          credentials: "include",
-          cache: "no-store",
-          signal: tt.signal,
-        });
-        tt.clear();
-        if (historyResponse.ok) {
-          history = await historyResponse.json();
-        } else {
-          console.warn("Failed to fetch history:", historyResponse.status);
+        const supabase = createClient();
+        const {
+          data: { user },
+          error: authError,
+        } = await supabase.auth.getUser();
+
+        if (authError || !user) {
+          setError("Please sign in to view your credits");
+          setLoading(false);
+          return;
         }
-      } catch (err) {
-        console.warn("Error fetching history:", err);
-      }
+
+        // Fetch balance
+        let balance = 0;
+        try {
+          const tt = withTimeout(3000);
+          const balanceResponse = await fetch("/api/credits/balance", {
+            credentials: "include",
+            cache: "no-store",
+            signal: tt.signal,
+          });
+          tt.clear();
+          if (balanceResponse.ok) {
+            const data = await balanceResponse.json();
+            balance = data.credits || 0;
+          } else {
+            console.warn("Failed to fetch balance:", balanceResponse.status);
+          }
+        } catch (err) {
+          console.warn("Error fetching balance:", err);
+        }
+
+        // Fetch history
+        let history = { items: [], nextCursor: null };
+        try {
+          const tt = withTimeout(3000);
+          const historyResponse = await fetch("/api/credits/history?limit=10", {
+            credentials: "include",
+            cache: "no-store",
+            signal: tt.signal,
+          });
+          tt.clear();
+          if (historyResponse.ok) {
+            history = await historyResponse.json();
+          } else {
+            console.warn("Failed to fetch history:", historyResponse.status);
+          }
+        } catch (err) {
+          console.warn("Error fetching history:", err);
+        }
 
       // Fetch subscription info
       let subscription = null;
@@ -123,21 +124,21 @@ export function CreditsSection() {
         console.warn("Error fetching subscription:", err);
       }
 
-      setCreditsData({
-        balance,
-        history,
-        subscription,
-      });
-    } catch (err) {
-      console.error("Error in fetchCreditsData:", err);
-      setError(
-        err instanceof Error ? err.message : "Failed to load credits data"
-      );
-    } finally {
-      // Always clear skeleton unless safety timer already did
+        setCreditsData({
+          balance,
+          history,
+          subscription,
+        });
+      } catch (err) {
+        console.error("Error in fetchCreditsData:", err);
+        setError(
+          err instanceof Error ? err.message : "Failed to load credits data"
+        );
+      } finally {
+        // Always clear skeleton unless safety timer already did
       if (!didTimeout && showLoading) setLoading(false);
-      clearTimeout(safetyTimer);
-    }
+        clearTimeout(safetyTimer);
+      }
   }, []); // No dependencies - function is stable
 
   useEffect(() => {
@@ -249,10 +250,31 @@ export function CreditsSection() {
     );
   }
 
+  // Déterminer si on doit afficher le message d'upgrade
+  const shouldShowUpgradeMessage =
+    creditsData.balance < 10 && // Crédits bas (moins de 10)
+    creditsData.subscription?.plan !== "PRO" && // Pas déjà sur le plan PRO
+    creditsData.subscription?.plan !== "BUSINESS"; // Pas déjà sur le plan BUSINESS
+
   return (
     <div className="space-y-6">
       {/* Insufficient Credits Banner */}
       {creditsData.balance === 0 && <InsufficientCreditsBanner />}
+
+      {/* Message discret d'upgrade si crédits bas et pas PRO */}
+      {shouldShowUpgradeMessage && (
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-center">
+          <p className="text-sm text-gray-700">
+            Need more credits?{" "}
+            <Link
+              href="/account-settings?tab=subscription"
+              className="text-blue-600 hover:text-blue-700 font-medium underline"
+            >
+              Upgrade to Pro
+            </Link>
+          </p>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-stretch">
         {/* Credit Balance Card */}

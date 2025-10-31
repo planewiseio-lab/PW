@@ -74,7 +74,28 @@ export function useAircraftHistory(registration: string | undefined, days: numbe
 				});
 				clearTimeout(timeoutId);
 				if (!resp.ok) {
-					if (resp.status === 429) throw new Error("GUEST_QUOTA_EXCEEDED");
+					if (resp.status === 429) {
+						// Pour les erreurs 429, récupérer les détails du JSON
+						let errorData: any = null;
+						try {
+							errorData = await resp.json();
+						} catch {
+							// Si le body n'est pas du JSON, utiliser les valeurs par défaut
+						}
+
+						// Déclencher l'événement pour afficher le modal
+						const { triggerGuestQuotaExceeded } = await import("./useGuestQuotaExceeded");
+						triggerGuestQuotaExceeded({
+							message: errorData?.message || "Guest quota exceeded",
+							guestRemaining: errorData?.guestRemaining ?? errorData?.remaining ?? 0,
+							guestUsed: errorData?.guestUsed ?? errorData?.used ?? 4,
+							guestLimit: errorData?.guestLimit ?? errorData?.limit ?? 4,
+							status: 429,
+							code: "GUEST_QUOTA_EXCEEDED",
+						});
+
+						throw new Error("GUEST_QUOTA_EXCEEDED");
+					}
 					const errorText = await resp.text().catch(() => "Unknown error");
 					throw new Error(`Failed to fetch flight history: ${resp.status} ${errorText}`);
 				}

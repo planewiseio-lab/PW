@@ -37,14 +37,26 @@ export function withGuestQuota<T = any>(
       if (quotaExceeded) {
         console.log(`[Guest Quota] ❌ Quota exceeded for IP: ${clientIp}`);
 
+        // Récupérer les stats du quota pour inclure les détails dans la réponse
+        let stats: { used: number; remaining: number; limit: number } | null = null;
+        try {
+          const { getGuestQuotaStats } = await import("./guestQuota");
+          stats = await getGuestQuotaStats(clientIp);
+        } catch (error) {
+          console.error("[Guest Quota] Failed to get quota stats:", error);
+          // Utiliser les valeurs par défaut si getGuestQuotaStats échoue
+        }
+
         return NextResponse.json(
           {
             error: "GUEST_QUOTA_EXCEEDED",
-            code: 429,
+            code: "GUEST_QUOTA_EXCEEDED",
             message:
               `Vous avez atteint la limite de ${GUEST_QUOTA_LIMIT} requêtes anonymes sur 24h. Connectez-vous pour débloquer le plan gratuit (5/jour).`,
             remaining: 0,
             guestRemaining: 0,
+            guestUsed: stats?.used ?? GUEST_QUOTA_LIMIT,
+            guestLimit: GUEST_QUOTA_LIMIT,
             requiresAuth: true,
             upgradeUrl:
               "/login?redirect=" + encodeURIComponent(request.nextUrl.pathname),
@@ -148,14 +160,26 @@ export function withGuestQuotaCheck<T = any>(
       const quotaExceeded = await isGuestQuotaExceeded(clientIp);
 
       if (quotaExceeded) {
+        // Récupérer les stats du quota pour inclure les détails dans la réponse
+        let stats: { used: number; remaining: number; limit: number } | null = null;
+        try {
+          const { getGuestQuotaStats } = await import("./guestQuota");
+          stats = await getGuestQuotaStats(clientIp);
+        } catch (error) {
+          console.error("[Guest Quota] Failed to get quota stats:", error);
+          // Utiliser les valeurs par défaut si getGuestQuotaStats échoue
+        }
+
         return NextResponse.json(
           {
             error: "GUEST_QUOTA_EXCEEDED",
-            code: 429,
+            code: "GUEST_QUOTA_EXCEEDED",
             message:
               `Vous avez atteint la limite de ${GUEST_QUOTA_LIMIT} requêtes anonymes sur 24h. Connectez-vous pour débloquer le plan gratuit (5/jour).`,
             remaining: 0,
             guestRemaining: 0,
+            guestUsed: stats?.used ?? GUEST_QUOTA_LIMIT,
+            guestLimit: GUEST_QUOTA_LIMIT,
             requiresAuth: true,
             upgradeUrl:
               "/login?redirect=" + encodeURIComponent(request.nextUrl.pathname),

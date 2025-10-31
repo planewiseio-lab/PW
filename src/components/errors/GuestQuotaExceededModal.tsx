@@ -18,9 +18,11 @@ export function GuestQuotaExceededModal() {
 
   useEffect(() => {
     const handleGuestQuotaExceeded = (event: CustomEvent) => {
+      console.log("[GuestQuotaModal] ✅ Event received:", event.detail);
       setGuestRemaining(event.detail?.guestRemaining ?? 0);
       setGuestLimit(event.detail?.guestLimit ?? 4);
       setIsOpen(true);
+      console.log("[GuestQuotaModal] ✅ Modal opened, isOpen=true");
     };
 
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -44,7 +46,16 @@ export function GuestQuotaExceededModal() {
     };
   }, [isOpen]);
 
-  if (!isOpen) return null;
+  useEffect(() => {
+    console.log("[GuestQuotaModal] 🔍 Modal state changed - isOpen:", isOpen);
+  }, [isOpen]);
+
+  if (!isOpen) {
+    console.log("[GuestQuotaModal] ❌ Modal not open, returning null");
+    return null;
+  }
+
+  console.log("[GuestQuotaModal] ✅ Rendering modal");
 
   const handleClose = () => {
     setIsOpen(false);
@@ -58,7 +69,7 @@ export function GuestQuotaExceededModal() {
 
   return (
     <div
-      className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+      className="fixed inset-0 bg-black/50 flex items-center justify-center z-[9999] p-4"
       onClick={handleBackdropClick}
     >
       <div className="bg-white rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto relative">
@@ -80,8 +91,8 @@ export function GuestQuotaExceededModal() {
             Guest Limit Reached
           </h1>
           <p className="text-xl text-gray-600 max-w-2xl mx-auto">
-            You've used all your {guestLimit} anonymous requests in the last
-            24h. Log in to continue and get 5 requests per day (free plan)!
+            You've used all your 3 anonymous requests in the last 24h. Log in to
+            continue and get 5 requests per day (free plan)!
           </p>
         </div>
 
@@ -97,7 +108,7 @@ export function GuestQuotaExceededModal() {
                   Current: Guest Access
                 </h3>
                 <p className="text-gray-600">
-                  {guestLimit} requests per 24h • Anonymous browsing
+                  3 requests per 24h • Anonymous browsing
                 </p>
               </div>
             </div>
@@ -154,7 +165,7 @@ export function GuestQuotaExceededModal() {
               </div>
 
               <div className="text-center text-sm text-gray-500 mb-4">
-                {guestLimit} requests per day
+                3 requests per day
               </div>
 
               <div className="w-full bg-gray-300 text-gray-500 py-3 px-4 rounded-lg font-semibold flex items-center justify-center space-x-2 cursor-not-allowed">
@@ -203,9 +214,7 @@ export function GuestQuotaExceededModal() {
                 </div>
                 <div className="flex items-center space-x-3">
                   <CheckCircle className="w-4 h-4 text-green-500 flex-shrink-0" />
-                  <span className="text-sm text-gray-700">
-                    Community support
-                  </span>
+                  <span className="text-sm text-gray-700">User dashboard</span>
                 </div>
                 <div className="flex items-center space-x-3">
                   <CheckCircle className="w-4 h-4 text-green-500 flex-shrink-0" />
@@ -263,9 +272,7 @@ export function GuestQuotaExceededModal() {
                 </div>
                 <div className="flex items-center space-x-3">
                   <CheckCircle className="w-4 h-4 text-green-500 flex-shrink-0" />
-                  <span className="text-sm text-gray-700">
-                    Community support
-                  </span>
+                  <span className="text-sm text-gray-700">User dashboard</span>
                 </div>
                 <div className="flex items-center space-x-3">
                   <CheckCircle className="w-4 h-4 text-green-500 flex-shrink-0" />
@@ -320,9 +327,7 @@ export function GuestQuotaExceededModal() {
                 <h3 className="text-lg font-semibold mb-2">
                   Advanced Features
                 </h3>
-                <p className="text-blue-100">
-                  Access to all premium features and API
-                </p>
+                <p className="text-blue-100">Access to all premium features</p>
               </div>
 
               <div className="text-center">

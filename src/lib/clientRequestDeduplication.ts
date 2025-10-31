@@ -58,6 +58,30 @@ export async function deduplicatedFetch(
       clearTimeout(timeoutId);
 
       if (!response.ok) {
+        // Pour les erreurs, essayer de récupérer le body JSON pour plus de détails
+        let errorData: any = null;
+        try {
+          errorData = await response.json();
+        } catch {
+          // Si le body n'est pas du JSON, utiliser le status text
+        }
+
+        // Gérer les erreurs de quota invité (429)
+        if (response.status === 429 || errorData?.code === "GUEST_QUOTA_EXCEEDED") {
+          // Déclencher l'événement pour afficher le modal
+          const { triggerGuestQuotaExceeded } = await import("@/hooks/useGuestQuotaExceeded");
+          triggerGuestQuotaExceeded({
+            message: errorData?.message || "Guest quota exceeded",
+            guestRemaining: errorData?.guestRemaining ?? errorData?.remaining ?? 0,
+            guestUsed: errorData?.guestUsed ?? errorData?.used ?? 4,
+            guestLimit: errorData?.guestLimit ?? errorData?.limit ?? 4,
+            status: 429,
+            code: "GUEST_QUOTA_EXCEEDED",
+          });
+          // Lancer une erreur avec le code GUEST_QUOTA_EXCEEDED pour que useAircraftData puisse le détecter
+          throw new Error("GUEST_QUOTA_EXCEEDED");
+        }
+
         throw new Error(`HTTP ${response.status}: ${response.statusText}`);
       }
 
@@ -161,6 +185,30 @@ export async function fetchAircraftData(registration: string): Promise<any> {
       clearTimeout(timeoutId);
 
       if (!response.ok) {
+        // Pour les erreurs, essayer de récupérer le body JSON pour plus de détails
+        let errorData: any = null;
+        try {
+          errorData = await response.json();
+        } catch {
+          // Si le body n'est pas du JSON, utiliser le status text
+        }
+
+        // Gérer les erreurs de quota invité (429)
+        if (response.status === 429 || errorData?.code === "GUEST_QUOTA_EXCEEDED") {
+          // Déclencher l'événement pour afficher le modal
+          const { triggerGuestQuotaExceeded } = await import("@/hooks/useGuestQuotaExceeded");
+          triggerGuestQuotaExceeded({
+            message: errorData?.message || "Guest quota exceeded",
+            guestRemaining: errorData?.guestRemaining ?? errorData?.remaining ?? 0,
+            guestUsed: errorData?.guestUsed ?? errorData?.used ?? 4,
+            guestLimit: errorData?.guestLimit ?? errorData?.limit ?? 4,
+            status: 429,
+            code: "GUEST_QUOTA_EXCEEDED",
+          });
+          // Lancer une erreur avec le code GUEST_QUOTA_EXCEEDED pour que useAircraftData puisse le détecter
+          throw new Error("GUEST_QUOTA_EXCEEDED");
+        }
+
         throw new Error(`HTTP ${response.status}: ${response.statusText}`);
       }
 

@@ -23,13 +23,13 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ subscription: null });
     }
 
-    return NextResponse.json({
-      subscription: {
+  return NextResponse.json({
+    subscription: {
         plan: subscription.plan,
         status: subscription.status,
         renewsAt: subscription.renewsAt.toISOString(),
-      },
-    });
+    },
+  });
   } catch (error) {
     console.error("Error fetching subscription:", error);
     return NextResponse.json(

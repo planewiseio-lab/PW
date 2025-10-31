@@ -56,15 +56,36 @@ export async function fetchFlightData(
       });
 
       if (!response.ok) {
+        // Pour les erreurs, essayer de récupérer le body JSON pour plus de détails
+        let errorData: any = null;
+        try {
+          errorData = await response.json();
+        } catch {
+          // Si le body n'est pas du JSON, utiliser le status text
+        }
+
+        // Gérer les erreurs de quota invité (429)
+        if (response.status === 429 || errorData?.code === "GUEST_QUOTA_EXCEEDED") {
+          // Déclencher l'événement pour afficher le modal
+          const { triggerGuestQuotaExceeded } = await import("@/hooks/useGuestQuotaExceeded");
+          triggerGuestQuotaExceeded({
+            message: errorData?.message || "Guest quota exceeded",
+            guestRemaining: errorData?.guestRemaining ?? errorData?.remaining ?? 0,
+            guestUsed: errorData?.guestUsed ?? errorData?.used ?? 4,
+            guestLimit: errorData?.guestLimit ?? errorData?.limit ?? 4,
+            status: 429,
+            code: "GUEST_QUOTA_EXCEEDED",
+          });
+          // Lancer une erreur avec le code GUEST_QUOTA_EXCEEDED pour que la page puisse le détecter
+          throw new Error("GUEST_QUOTA_EXCEEDED");
+        }
+
         // Si c'est une erreur serveur, essayer de récupérer le message d'erreur
         let errorMessage = `HTTP ${response.status}: Failed to fetch flight data`;
-        try {
-          const errorData = await response.json();
-          if (errorData.error) {
-            errorMessage = errorData.error;
-          }
-        } catch {
-          // Si on ne peut pas parser l'erreur, utiliser le message par défaut
+        if (errorData?.error) {
+          errorMessage = errorData.error;
+        } else if (errorData?.message) {
+          errorMessage = errorData.message;
         }
         throw new Error(errorMessage);
       }

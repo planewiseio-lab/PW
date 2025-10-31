@@ -77,7 +77,7 @@ export function useUserStatus(): UserStatusData {
                   if (renewsAt && renewsAt > now) {
                     // Plan payant (PRO ou BUSINESS) avec période encore valide = pas de pubs
                     // même si status est CANCELED, car l'utilisateur a encore accès jusqu'à renewsAt
-                    setStatus("pro");
+                setStatus("pro");
                   } else {
                     // Plan payant mais période terminée = l'utilisateur devrait être sur FREE
                     // (normalement le webhook devrait avoir mis à jour, mais on affiche les pubs pour être sûr)
@@ -152,7 +152,7 @@ export function useUserStatus(): UserStatusData {
                   if (renewsAt && renewsAt > now) {
                     // Plan payant (PRO ou BUSINESS) avec période encore valide = pas de pubs
                     // même si status est CANCELED, car l'utilisateur a encore accès jusqu'à renewsAt
-                    setStatus("pro");
+                setStatus("pro");
                   } else {
                     // Plan payant mais période terminée = l'utilisateur devrait être sur FREE
                     // (normalement le webhook devrait avoir mis à jour, mais on affiche les pubs pour être sûr)

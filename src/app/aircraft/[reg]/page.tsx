@@ -105,8 +105,12 @@ export default function AircraftDetailPage() {
       setData(normalizeAircraft(rawData));
       setErr(null);
     } else if (error) {
-      setErr(error);
-      setData(null);
+      // Ne pas afficher l'erreur sur la page pour les erreurs de quota invité
+      // Le modal s'affichera automatiquement
+      if (!error.includes("GUEST_QUOTA_EXCEEDED") && !error.includes("Guest quota exceeded")) {
+        setErr(error);
+        setData(null);
+      }
     }
   }, [rawData, error]);
 
