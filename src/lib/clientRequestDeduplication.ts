@@ -66,8 +66,25 @@ export async function deduplicatedFetch(
           // Si le body n'est pas du JSON, utiliser le status text
         }
 
-        // Gérer les erreurs de quota invité (429)
-        if (response.status === 429 || errorData?.code === "GUEST_QUOTA_EXCEEDED") {
+        // Gérer les erreurs de quota utilisateur Free (429) - Vérifier en premier car plus spécifique
+        if (errorData?.code === "FREE_USER_QUOTA_EXCEEDED" || (response.status === 429 && errorData?.freeUserLimit !== undefined)) {
+          // Déclencher l'événement pour afficher le modal
+          const { triggerFreeCreditsExceeded } = await import("@/hooks/useFreeCreditsExceeded");
+          triggerFreeCreditsExceeded({
+            message: errorData?.message || "Free user quota exceeded",
+            freeUserRemaining: errorData?.freeUserRemaining ?? errorData?.remaining ?? 0,
+            freeUserUsed: errorData?.freeUserUsed ?? errorData?.used ?? 0,
+            freeUserLimit: errorData?.freeUserLimit ?? errorData?.limit ?? 5,
+            freeUserTtl: errorData?.freeUserTtl ?? errorData?.ttl ?? 0, // TTL en secondes
+            status: 429,
+            code: "FREE_USER_QUOTA_EXCEEDED",
+          });
+          // Lancer une erreur avec le code FREE_USER_QUOTA_EXCEEDED pour que useAircraftData puisse le détecter
+          throw new Error("FREE_USER_QUOTA_EXCEEDED");
+        }
+
+        // Gérer les erreurs de quota invité (429) - Vérifier après Free user
+        if (errorData?.code === "GUEST_QUOTA_EXCEEDED" || (response.status === 429 && errorData?.guestLimit !== undefined)) {
           // Déclencher l'événement pour afficher le modal
           const { triggerGuestQuotaExceeded } = await import("@/hooks/useGuestQuotaExceeded");
           triggerGuestQuotaExceeded({
@@ -75,6 +92,7 @@ export async function deduplicatedFetch(
             guestRemaining: errorData?.guestRemaining ?? errorData?.remaining ?? 0,
             guestUsed: errorData?.guestUsed ?? errorData?.used ?? 4,
             guestLimit: errorData?.guestLimit ?? errorData?.limit ?? 4,
+            guestTtl: errorData?.guestTtl ?? errorData?.ttl ?? 0, // TTL en secondes
             status: 429,
             code: "GUEST_QUOTA_EXCEEDED",
           });
@@ -83,6 +101,17 @@ export async function deduplicatedFetch(
         }
 
         throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+
+      // Si c'est un utilisateur Free, vérifier les headers et dispatcher l'événement de mise à jour
+      const freeUserRemaining = response.headers.get("X-Free-User-Remaining");
+      if (freeUserRemaining !== null) {
+        console.log(
+          `[Client] Free user quota updated, dispatching credits:updated event (remaining: ${freeUserRemaining})`
+        );
+        if (typeof window !== "undefined") {
+          window.dispatchEvent(new CustomEvent("credits:updated"));
+        }
       }
 
       // Retourner directement les données JSON
@@ -193,8 +222,25 @@ export async function fetchAircraftData(registration: string): Promise<any> {
           // Si le body n'est pas du JSON, utiliser le status text
         }
 
-        // Gérer les erreurs de quota invité (429)
-        if (response.status === 429 || errorData?.code === "GUEST_QUOTA_EXCEEDED") {
+        // Gérer les erreurs de quota utilisateur Free (429) - Vérifier en premier car plus spécifique
+        if (errorData?.code === "FREE_USER_QUOTA_EXCEEDED" || (response.status === 429 && errorData?.freeUserLimit !== undefined)) {
+          // Déclencher l'événement pour afficher le modal
+          const { triggerFreeCreditsExceeded } = await import("@/hooks/useFreeCreditsExceeded");
+          triggerFreeCreditsExceeded({
+            message: errorData?.message || "Free user quota exceeded",
+            freeUserRemaining: errorData?.freeUserRemaining ?? errorData?.remaining ?? 0,
+            freeUserUsed: errorData?.freeUserUsed ?? errorData?.used ?? 0,
+            freeUserLimit: errorData?.freeUserLimit ?? errorData?.limit ?? 5,
+            freeUserTtl: errorData?.freeUserTtl ?? errorData?.ttl ?? 0, // TTL en secondes
+            status: 429,
+            code: "FREE_USER_QUOTA_EXCEEDED",
+          });
+          // Lancer une erreur avec le code FREE_USER_QUOTA_EXCEEDED pour que useAircraftData puisse le détecter
+          throw new Error("FREE_USER_QUOTA_EXCEEDED");
+        }
+
+        // Gérer les erreurs de quota invité (429) - Vérifier après Free user
+        if (errorData?.code === "GUEST_QUOTA_EXCEEDED" || (response.status === 429 && errorData?.guestLimit !== undefined)) {
           // Déclencher l'événement pour afficher le modal
           const { triggerGuestQuotaExceeded } = await import("@/hooks/useGuestQuotaExceeded");
           triggerGuestQuotaExceeded({
@@ -202,6 +248,7 @@ export async function fetchAircraftData(registration: string): Promise<any> {
             guestRemaining: errorData?.guestRemaining ?? errorData?.remaining ?? 0,
             guestUsed: errorData?.guestUsed ?? errorData?.used ?? 4,
             guestLimit: errorData?.guestLimit ?? errorData?.limit ?? 4,
+            guestTtl: errorData?.guestTtl ?? errorData?.ttl ?? 0, // TTL en secondes
             status: 429,
             code: "GUEST_QUOTA_EXCEEDED",
           });
@@ -217,11 +264,20 @@ export async function fetchAircraftData(registration: string): Promise<any> {
       // Vérifier si un crédit a été débité (présence du header X-Credits-Charged)
       const creditsCharged = response.headers.get("X-Credits-Charged");
       const creditsRemaining = response.headers.get("X-Credits-Remaining");
+      
+      // Vérifier si c'est un utilisateur Free (présence du header X-Free-User-Remaining)
+      const freeUserRemaining = response.headers.get("X-Free-User-Remaining");
 
       if (creditsCharged === "1" || creditsRemaining) {
         // Émettre l'événement pour mettre à jour la page des crédits
         console.log(
           `[Aircraft] 💳 Credit charged, dispatching credits:updated event (remaining: ${creditsRemaining || "unknown"})`
+        );
+        window.dispatchEvent(new CustomEvent("credits:updated"));
+      } else if (freeUserRemaining !== null) {
+        // Si c'est un utilisateur Free, dispatcher l'événement pour mettre à jour les quotas
+        console.log(
+          `[Aircraft] Free user quota updated, dispatching credits:updated event (remaining: ${freeUserRemaining})`
         );
         window.dispatchEvent(new CustomEvent("credits:updated"));
       }

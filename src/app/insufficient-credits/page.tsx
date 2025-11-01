@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { motion } from "framer-motion";
 import { ArrowRight, CreditCard, Zap, Star, CheckCircle } from "lucide-react";
 
 export default function InsufficientCreditsPage() {
@@ -45,60 +46,14 @@ export default function InsufficientCreditsPage() {
 
           {/* Upgrade Options */}
           <div className="grid md:grid-cols-3 gap-8 mb-12">
-            {/* Guest Plan */}
-            <div className="bg-white rounded-2xl shadow-lg p-8 border border-gray-200 flex flex-col">
-              <div className="text-center mb-6">
-                <div className="inline-flex items-center justify-center w-16 h-16 bg-gray-100 rounded-full mb-4">
-                  <Zap className="w-8 h-8 text-gray-600" />
-                </div>
-                <h3 className="text-2xl font-bold text-gray-900 mb-2">Guest</h3>
-                <div className="text-4xl font-bold text-gray-600 mb-2">
-                  Free
-                </div>
-                <div className="text-gray-500"></div>
-              </div>
-
-              <div className="space-y-4 mb-8 flex-1">
-                <div className="flex items-center space-x-3">
-                  <CheckCircle className="w-5 h-5 text-green-500 flex-shrink-0" />
-                  <span className="text-gray-700">Aircraft lookup</span>
-                </div>
-                <div className="flex items-center space-x-3">
-                  <CheckCircle className="w-5 h-5 text-green-500 flex-shrink-0" />
-                  <span className="text-gray-700">Flight history</span>
-                </div>
-                <div className="flex items-center space-x-3">
-                  <CheckCircle className="w-5 h-5 text-green-500 flex-shrink-0" />
-                  <span className="text-gray-700">Airport information</span>
-                </div>
-                <div className="flex items-center space-x-3">
-                  <CheckCircle className="w-5 h-5 text-green-500 flex-shrink-0" />
-                  <span className="text-gray-700">Basic specs & photos</span>
-                </div>
-                <div className="flex items-center space-x-3">
-                  <CheckCircle className="w-5 h-5 text-green-500 flex-shrink-0" />
-                  <span className="text-gray-700">Ads</span>
-                </div>
-              </div>
-
-              <div className="text-center text-sm text-gray-500">
-                3 requests per day
-              </div>
-            </div>
-
             {/* Free Plan */}
             <div className="bg-white rounded-2xl shadow-lg p-8 border border-blue-200 hover:shadow-xl transition-shadow relative flex flex-col">
-              <div className="absolute -top-3 right-4">
-                <span className="rounded-full bg-blue-100 text-blue-800 text-xs font-semibold px-3 py-1 border border-blue-200">
-                  Popular
-                </span>
-              </div>
               <div className="text-center mb-6">
                 <div className="inline-flex items-center justify-center w-16 h-16 bg-blue-100 rounded-full mb-4">
                   <Star className="w-8 h-8 text-blue-600" />
                 </div>
                 <h3 className="text-2xl font-bold text-gray-900 mb-2">
-                  Subscribed
+                  Free
                 </h3>
                 <div className="text-4xl font-bold text-blue-600 mb-2">$0</div>
                 <div className="text-gray-600">/mo</div>
@@ -136,7 +91,7 @@ export default function InsufficientCreditsPage() {
               </div>
 
               <Link
-                href="/register"
+                href="/auth?mode=register"
                 className="w-full bg-blue-600 text-white py-3 px-6 rounded-xl font-semibold hover:bg-blue-700 transition-colors flex items-center justify-center space-x-2"
               >
                 <span>Get started</span>
@@ -144,15 +99,125 @@ export default function InsufficientCreditsPage() {
               </Link>
             </div>
 
-            {/* Pro Plan */}
+            {/* Basic Plan */}
             <div className="bg-white rounded-2xl shadow-lg p-8 border border-gray-200 hover:shadow-xl transition-shadow flex flex-col">
               <div className="text-center mb-6">
                 <div className="inline-flex items-center justify-center w-16 h-16 bg-gray-100 rounded-full mb-4">
                   <Star className="w-8 h-8 text-gray-600" />
                 </div>
-                <h3 className="text-2xl font-bold text-gray-900 mb-2">Pro</h3>
+                <h3 className="text-2xl font-bold text-gray-900 mb-2">Basic</h3>
                 <div className="text-4xl font-bold text-gray-900 mb-2">
-                  $9.99
+                  $5.99
+                </div>
+                <div className="text-gray-600">/mo</div>
+              </div>
+
+              <div className="space-y-4 mb-8 flex-1">
+                <div className="flex items-center space-x-3">
+                  <CheckCircle className="w-5 h-5 text-green-500 flex-shrink-0" />
+                  <span className="text-gray-700">Aircraft lookup</span>
+                </div>
+                <div className="flex items-center space-x-3">
+                  <CheckCircle className="w-5 h-5 text-green-500 flex-shrink-0" />
+                  <span className="text-gray-700">Flight history</span>
+                </div>
+                <div className="flex items-center space-x-3">
+                  <CheckCircle className="w-5 h-5 text-green-500 flex-shrink-0" />
+                  <span className="text-gray-700">Airport information</span>
+                </div>
+                <div className="flex items-center space-x-3">
+                  <CheckCircle className="w-5 h-5 text-green-500 flex-shrink-0" />
+                  <span className="text-gray-700">Basic specs & photos</span>
+                </div>
+                <div className="flex items-center space-x-3">
+                  <CheckCircle className="w-5 h-5 text-green-500 flex-shrink-0" />
+                  <span className="text-gray-700">Community support</span>
+                </div>
+                <div className="flex items-center space-x-3">
+                  <CheckCircle className="w-5 h-5 text-green-500 flex-shrink-0" />
+                  <span className="text-gray-700">Ads</span>
+                </div>
+              </div>
+
+              <div className="text-center text-sm text-gray-500 mb-4">
+                350 credits per month
+              </div>
+
+              <Link
+                href="/checkout?plan=basic"
+                className="w-full bg-gray-900 text-white py-3 px-6 rounded-xl font-semibold hover:bg-black transition-colors flex items-center justify-center space-x-2"
+              >
+                <span>Choose Basic</span>
+                <ArrowRight className="w-5 h-5" />
+              </Link>
+            </div>
+
+            {/* Pro Plan */}
+            <div className="bg-white rounded-2xl shadow-lg p-8 border border-blue-200 hover:shadow-xl transition-shadow relative flex flex-col">
+              <div className="absolute -top-3 right-4">
+                <span className="rounded-full bg-blue-100 text-blue-800 text-xs font-semibold px-3 py-1 border border-blue-200">
+                  Popular
+                </span>
+              </div>
+              <motion.div
+                initial={{ opacity: 0, scale: 0.8 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ duration: 0.5, delay: 0.2 }}
+                className="absolute -top-3 left-4 z-10"
+              >
+                <span className="inline-block px-3 py-1 bg-red-500 text-white text-sm font-bold rounded-full animate-pulse shadow-lg">
+                  SAVE 23%
+                </span>
+              </motion.div>
+              <div className="text-center mb-6">
+                <div className="inline-flex items-center justify-center w-16 h-16 bg-blue-100 rounded-full mb-4">
+                  <Star className="w-8 h-8 text-blue-600" />
+                </div>
+                <h3 className="text-2xl font-bold text-gray-900 mb-2">Pro</h3>
+                <div className="mb-2 relative">
+                  <motion.div
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ duration: 0.5, delay: 0.1 }}
+                    className="text-xl font-medium text-gray-400 line-through relative mb-2"
+                  >
+                    $12.99
+                    <motion.span
+                      animate={{
+                        scale: [1, 1.05, 1],
+                        opacity: [0.5, 0.8, 0.5],
+                      }}
+                      transition={{
+                        duration: 2,
+                        repeat: Infinity,
+                        ease: "easeInOut",
+                      }}
+                      className="absolute left-0 right-0 top-0 bottom-0 bg-gradient-to-r from-transparent via-red-200/30 to-transparent"
+                    />
+                  </motion.div>
+                  <motion.div
+                    initial={{ opacity: 0, y: -10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.5, delay: 0.2 }}
+                    className="text-4xl font-bold text-blue-600 mb-2 relative inline-block"
+                  >
+                    <motion.span
+                      animate={{
+                        boxShadow: [
+                          "0 0 0px rgba(37, 99, 235, 0)",
+                          "0 0 25px rgba(37, 99, 235, 0.5)",
+                          "0 0 0px rgba(37, 99, 235, 0)",
+                        ],
+                      }}
+                      transition={{
+                        duration: 2,
+                        repeat: Infinity,
+                        ease: "easeInOut",
+                      }}
+                      className="absolute inset-0 rounded-lg blur-sm"
+                    />
+                    <span className="relative z-10">$9.99</span>
+                  </motion.div>
                 </div>
                 <div className="text-gray-600">/mo</div>
               </div>
@@ -185,7 +250,7 @@ export default function InsufficientCreditsPage() {
               </div>
 
               <div className="text-center text-sm text-gray-500 mb-4">
-                500 requests per month
+                750 requests per month
               </div>
 
               <Link
@@ -216,7 +281,7 @@ export default function InsufficientCreditsPage() {
                 </div>
                 <h3 className="text-lg font-semibold mb-2">More Requests</h3>
                 <p className="text-blue-100">
-                  Up to 2500 requests per month to explore without limits
+                  Up to 750 requests per month to explore without limits
                 </p>
               </div>
 

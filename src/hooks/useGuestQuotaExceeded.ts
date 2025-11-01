@@ -6,6 +6,7 @@ export function triggerGuestQuotaExceeded(error: any) {
     guestRemaining: error.guestRemaining || 0,
     guestUsed: error.guestUsed || 4,
     guestLimit: error.guestLimit || 4,
+    guestTtl: error.guestTtl || error.ttl || 0,
   });
   
   const event = new CustomEvent("guestQuotaExceeded", {
@@ -14,6 +15,7 @@ export function triggerGuestQuotaExceeded(error: any) {
       guestRemaining: error.guestRemaining || 0,
       guestUsed: error.guestUsed || 4,
       guestLimit: error.guestLimit || 4,
+      guestTtl: error.guestTtl || error.ttl || 0, // TTL en secondes
     },
   });
 

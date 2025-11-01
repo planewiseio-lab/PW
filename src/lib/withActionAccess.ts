@@ -2,7 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { withCreditChargeABD } from "@/lib/withCreditChargeABD-simple";
 import { withGuestQuota } from "@/lib/withGuestQuota";
-import { ActionType } from "@prisma/client";
+import { withFreeUserQuota } from "@/lib/withFreeUserQuota";
+import { ActionType, Plan } from "@prisma/client";
+import { prisma } from "@/lib/prisma";
 
 /**
  * Wrapper combiné qui détecte si l'utilisateur est connecté
@@ -39,20 +41,57 @@ export function withActionAccess<T = any>(
       );
       console.log(`[Action Access] 🔍 Auth debug - URL:`, request.url);
 
-      // 2. Si l'utilisateur est connecté, utiliser le système de crédits
+      // 2. Si l'utilisateur est connecté, vérifier son plan
       if (user && !authError) {
         console.log(
-          `[Action Access] 👤 Authenticated user: ${user.id}, using credit system`
+          `[Action Access] 👤 Authenticated user: ${user.id}, checking plan`
         );
 
-        // Wrapper avec le système de crédits
-        const creditHandler = withCreditChargeABD(
-          actionType,
-          async (req, ...args) => {
-            return await handler(req, ...args);
+        // Vérifier le plan de l'utilisateur
+        try {
+          const subscription = await prisma.subscriptions.findUnique({
+            where: { userId: user.id },
+            select: { plan: true },
+          });
+
+          // Si l'utilisateur a le plan FREE, utiliser le système de quota
+          if (subscription?.plan === Plan.FREE) {
+            console.log(
+              `[Action Access] 🆓 Free user: ${user.id}, using free user quota`
+            );
+
+            // Wrapper avec le quota utilisateur Free
+            const freeUserHandler = withFreeUserQuota(user.id, handler);
+            return await freeUserHandler(request, ...args);
           }
-        );
-        return await creditHandler(request, ...args);
+
+          // Pour les autres plans (PRO, BUSINESS), utiliser le système de crédits
+          console.log(
+            `[Action Access] 💳 Paid user: ${user.id}, plan: ${subscription?.plan}, using credit system`
+          );
+
+          // Wrapper avec le système de crédits
+          const creditHandler = withCreditChargeABD(
+            actionType,
+            async (req, ...args) => {
+              return await handler(req, ...args);
+            }
+          );
+          return await creditHandler(request, ...args);
+        } catch (dbError) {
+          console.error(
+            "[Action Access] 💥 Error checking subscription:",
+            dbError
+          );
+          // En cas d'erreur DB, fallback vers crédits (ou guest selon contexte)
+          const creditHandler = withCreditChargeABD(
+            actionType,
+            async (req, ...args) => {
+              return await handler(req, ...args);
+            }
+          );
+          return await creditHandler(request, ...args);
+        }
       }
 
       // 3. Si l'utilisateur n'est pas connecté, utiliser le quota invité

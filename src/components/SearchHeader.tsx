@@ -26,6 +26,7 @@ export default function SearchHeader() {
   const isAuthPage =
     pathname === "/login" ||
     pathname === "/register" ||
+    pathname === "/auth" ||
     pathname === "/dashboard" ||
     pathname === "/reset-password" ||
     pathname === "/account-settings" ||

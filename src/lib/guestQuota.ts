@@ -7,8 +7,13 @@ import {
 } from "./redis";
 
 // Configuration du quota invité
-export const GUEST_QUOTA_LIMIT = 4;
+export const GUEST_QUOTA_LIMIT = 3; // Pour toutes les autres actions (sans compter les lookups d'avions)
+export const GUEST_AIRCRAFT_LOOKUP_LIMIT = 5; // Pour les lookups d'avions uniquement
 export const GUEST_QUOTA_TTL = 86400; // 24h en secondes
+
+// Configuration du quota utilisateur Free (connecté)
+export const FREE_USER_QUOTA_LIMIT = 5; // Pour toutes les autres actions (sans compter les lookups d'avions)
+export const FREE_USER_AIRCRAFT_LOOKUP_LIMIT = 10; // Pour les lookups d'avions uniquement
 
 // Interface pour l'usage invité
 export interface GuestUsage {
@@ -96,31 +101,47 @@ function normalizeIp(ip: string): string {
 /**
  * Génère la clé Redis pour un invité
  */
-function getGuestKey(ip: string): string {
+function getGuestKey(ip: string, isAircraftLookup: boolean = false): string {
+  if (isAircraftLookup) {
+    return `guest:ip:${ip}:aircraft`;
+  }
   return `guest:ip:${ip}`;
 }
 
 /**
  * Récupère l'usage actuel d'un invité
  */
-export async function getGuestUsage(ip: string): Promise<GuestUsage> {
-  const key = getGuestKey(ip);
+export async function getGuestUsage(ip: string, isAircraftLookup: boolean = false): Promise<GuestUsage> {
+  const key = getGuestKey(ip, isAircraftLookup);
+  const limit = isAircraftLookup ? GUEST_AIRCRAFT_LOOKUP_LIMIT : GUEST_QUOTA_LIMIT;
 
   try {
     const countStr = await getRedisValue(key);
     const count = countStr ? parseInt(countStr, 10) : 0;
-    const ttl = await getRedisTTL(key);
+    let ttl = await getRedisTTL(key);
+    
+    console.log(`[Guest Quota] 🔍 getGuestUsage for key: ${key}, TTL from Redis: ${ttl}, count: ${count}`);
+    
+    // getRedisTTL retourne:
+    // - nombre positif = TTL en secondes
+    // - -1 = erreur ou clé sans TTL
+    // - -2 = clé n'existe pas
+    // On transforme les valeurs négatives en 0, mais gardons les valeurs positives
+    if (ttl < 0) {
+      console.log(`[Guest Quota] ⚠️ TTL is negative (${ttl}), setting to 0`);
+      ttl = 0;
+    }
 
     return {
       count,
-      remaining: Math.max(0, GUEST_QUOTA_LIMIT - count),
-      ttl: ttl > 0 ? ttl : 0,
+      remaining: Math.max(0, limit - count),
+      ttl: ttl >= 0 ? ttl : 0, // Garder ttl si >= 0, sinon 0
     };
   } catch (error) {
     console.error("Error getting guest usage:", error);
     return {
       count: 0,
-      remaining: GUEST_QUOTA_LIMIT,
+      remaining: limit,
       ttl: 0,
     };
   }
@@ -129,8 +150,9 @@ export async function getGuestUsage(ip: string): Promise<GuestUsage> {
 /**
  * Incrémente l'usage d'un invité
  */
-export async function incrementGuestUsage(ip: string): Promise<GuestUsage> {
-  const key = getGuestKey(ip);
+export async function incrementGuestUsage(ip: string, isAircraftLookup: boolean = false): Promise<GuestUsage> {
+  const key = getGuestKey(ip, isAircraftLookup);
+  const limit = isAircraftLookup ? GUEST_AIRCRAFT_LOOKUP_LIMIT : GUEST_QUOTA_LIMIT;
 
   try {
     // Incrémenter le compteur
@@ -141,14 +163,14 @@ export async function incrementGuestUsage(ip: string): Promise<GuestUsage> {
 
     return {
       count,
-      remaining: Math.max(0, GUEST_QUOTA_LIMIT - count),
+      remaining: Math.max(0, limit - count),
       ttl: ttl > 0 ? ttl : 0,
     };
   } catch (error) {
     console.error("Error incrementing guest usage:", error);
     return {
       count: 1,
-      remaining: GUEST_QUOTA_LIMIT - 1,
+      remaining: limit - 1,
       ttl: GUEST_QUOTA_TTL,
     };
   }
@@ -157,14 +179,96 @@ export async function incrementGuestUsage(ip: string): Promise<GuestUsage> {
 /**
  * Vérifie si un invité a dépassé son quota
  */
-export async function isGuestQuotaExceeded(ip: string): Promise<boolean> {
-  console.log(`[Guest Quota] 🔍 Checking quota for IP: ${ip}`);
-  const usage = await getGuestUsage(ip);
+export async function isGuestQuotaExceeded(ip: string, isAircraftLookup: boolean = false): Promise<boolean> {
+  console.log(`[Guest Quota] 🔍 Checking quota for IP: ${ip}, isAircraftLookup: ${isAircraftLookup}`);
+  const usage = await getGuestUsage(ip, isAircraftLookup);
+  const limit = isAircraftLookup ? GUEST_AIRCRAFT_LOOKUP_LIMIT : GUEST_QUOTA_LIMIT;
   console.log(
-    `[Guest Quota] 📊 Current usage: ${usage.count}/${GUEST_QUOTA_LIMIT}, remaining: ${usage.remaining}`
+    `[Guest Quota] 📊 Current usage: ${usage.count}/${limit}, remaining: ${usage.remaining}`
   );
-  const exceeded = usage.count >= GUEST_QUOTA_LIMIT;
+  const exceeded = usage.count >= limit;
   console.log(`[Guest Quota] 🚫 Quota exceeded: ${exceeded}`);
+  return exceeded;
+}
+
+/**
+ * Génère la clé Redis pour un utilisateur Free (basé sur userId)
+ */
+function getFreeUserKey(userId: string, isAircraftLookup: boolean = false): string {
+  if (isAircraftLookup) {
+    return `free:user:${userId}:aircraft`;
+  }
+  return `free:user:${userId}`;
+}
+
+/**
+ * Récupère l'usage actuel d'un utilisateur Free
+ */
+export async function getFreeUserUsage(userId: string, isAircraftLookup: boolean = false): Promise<GuestUsage> {
+  const key = getFreeUserKey(userId, isAircraftLookup);
+  const limit = isAircraftLookup ? FREE_USER_AIRCRAFT_LOOKUP_LIMIT : FREE_USER_QUOTA_LIMIT;
+
+  try {
+    const countStr = await getRedisValue(key);
+    const count = countStr ? parseInt(countStr, 10) : 0;
+    const ttl = await getRedisTTL(key);
+
+    return {
+      count,
+      remaining: Math.max(0, limit - count),
+      ttl: ttl > 0 ? ttl : 0,
+    };
+  } catch (error) {
+    console.error("Error getting free user usage:", error);
+    return {
+      count: 0,
+      remaining: limit,
+      ttl: 0,
+    };
+  }
+}
+
+/**
+ * Incrémente l'usage d'un utilisateur Free
+ */
+export async function incrementFreeUserUsage(userId: string, isAircraftLookup: boolean = false): Promise<GuestUsage> {
+  const key = getFreeUserKey(userId, isAircraftLookup);
+  const limit = isAircraftLookup ? FREE_USER_AIRCRAFT_LOOKUP_LIMIT : FREE_USER_QUOTA_LIMIT;
+
+  try {
+    // Incrémenter le compteur
+    const count = await incrementRedisValue(key, GUEST_QUOTA_TTL);
+
+    // Récupérer le TTL actuel
+    const ttl = await getRedisTTL(key);
+
+    return {
+      count,
+      remaining: Math.max(0, limit - count),
+      ttl: ttl > 0 ? ttl : 0,
+    };
+  } catch (error) {
+    console.error("Error incrementing free user usage:", error);
+    return {
+      count: 1,
+      remaining: limit - 1,
+      ttl: GUEST_QUOTA_TTL,
+    };
+  }
+}
+
+/**
+ * Vérifie si un utilisateur Free a dépassé son quota
+ */
+export async function isFreeUserQuotaExceeded(userId: string, isAircraftLookup: boolean = false): Promise<boolean> {
+  console.log(`[Free User Quota] 🔍 Checking quota for userId: ${userId}, isAircraftLookup: ${isAircraftLookup}`);
+  const usage = await getFreeUserUsage(userId, isAircraftLookup);
+  const limit = isAircraftLookup ? FREE_USER_AIRCRAFT_LOOKUP_LIMIT : FREE_USER_QUOTA_LIMIT;
+  console.log(
+    `[Free User Quota] 📊 Current usage: ${usage.count}/${limit}, remaining: ${usage.remaining}`
+  );
+  const exceeded = usage.count >= limit;
+  console.log(`[Free User Quota] 🚫 Quota exceeded: ${exceeded}`);
   return exceeded;
 }
 
@@ -183,20 +287,21 @@ export async function resetGuestQuota(ip: string): Promise<void> {
 /**
  * Obtient les statistiques du quota invité
  */
-export async function getGuestQuotaStats(ip: string): Promise<{
+export async function getGuestQuotaStats(ip: string, isAircraftLookup: boolean = false): Promise<{
   limit: number;
   used: number;
   remaining: number;
   ttl: number;
   isExceeded: boolean;
 }> {
-  const usage = await getGuestUsage(ip);
+  const usage = await getGuestUsage(ip, isAircraftLookup);
+  const limit = isAircraftLookup ? GUEST_AIRCRAFT_LOOKUP_LIMIT : GUEST_QUOTA_LIMIT;
 
   return {
-    limit: GUEST_QUOTA_LIMIT,
+    limit,
     used: usage.count,
     remaining: usage.remaining,
     ttl: usage.ttl,
-    isExceeded: usage.count >= GUEST_QUOTA_LIMIT,
+    isExceeded: usage.count >= limit,
   };
 }

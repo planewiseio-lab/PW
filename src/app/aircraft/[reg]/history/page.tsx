@@ -171,7 +171,13 @@ export default function AircraftHistoryPage() {
   }, [rawData]);
 
   useEffect(() => {
-    setError(fetchError);
+    // Ne pas afficher l'erreur si c'est GUEST_QUOTA_EXCEEDED
+    // Le modal s'affichera automatiquement
+    if (fetchError && fetchError.includes("GUEST_QUOTA_EXCEEDED")) {
+      setError(null);
+    } else {
+      setError(fetchError);
+    }
   }, [fetchError]);
 
   const formatDateTime = (dateTime: string) => {

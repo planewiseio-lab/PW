@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { motion } from "framer-motion";
 import {
   ArrowRight,
   CreditCard,
@@ -11,13 +12,55 @@ import {
   X,
 } from "lucide-react";
 
-export function SubscribedCreditsExceededModal() {
+function formatTimeRemaining(seconds: number): string {
+  if (seconds <= 0) return "0s";
+
+  const hours = Math.floor(seconds / 3600);
+  const minutes = Math.floor((seconds % 3600) / 60);
+  const secs = seconds % 60;
+
+  if (hours > 0) {
+    return `${hours}h ${minutes}m ${secs}s`;
+  } else if (minutes > 0) {
+    return `${minutes}m ${secs}s`;
+  } else {
+    return `${secs}s`;
+  }
+}
+
+export function FreeCreditsExceededModal() {
   const [isOpen, setIsOpen] = useState(false);
   const [creditsRemaining, setCreditsRemaining] = useState(0);
+  const [freeUserTtl, setFreeUserTtl] = useState(0); // TTL en secondes
+  const [timeRemaining, setTimeRemaining] = useState(0); // Temps restant en secondes
 
   useEffect(() => {
     const handleCreditsExceeded = (event: CustomEvent) => {
-      setCreditsRemaining(event.detail?.creditsRemaining || 0);
+      console.log(
+        "[FreeCreditsExceededModal] Event received:",
+        event.detail
+      );
+      const ttl = event.detail?.freeUserTtl ?? event.detail?.ttl ?? 0;
+      console.log(
+        "[FreeCreditsExceededModal] TTL:",
+        ttl,
+        "Full event detail:",
+        event.detail
+      );
+      setCreditsRemaining(
+        event.detail?.creditsRemaining ?? event.detail?.freeUserRemaining ?? 0
+      );
+      setFreeUserTtl(ttl);
+      // Initialiser timeRemaining avec ttl immédiatement
+      if (ttl > 0) {
+        setTimeRemaining(ttl);
+      }
+      console.log(
+        "[FreeCreditsExceededModal] States set - freeUserTtl:",
+        ttl,
+        "timeRemaining:",
+        ttl
+      );
       setIsOpen(true);
     };
 
@@ -28,19 +71,44 @@ export function SubscribedCreditsExceededModal() {
     };
 
     window.addEventListener(
-      "subscribedCreditsExceeded",
+      "freeCreditsExceeded",
       handleCreditsExceeded as EventListener
     );
     window.addEventListener("keydown", handleKeyDown);
 
     return () => {
       window.removeEventListener(
-        "subscribedCreditsExceeded",
+        "freeCreditsExceeded",
         handleCreditsExceeded as EventListener
       );
       window.removeEventListener("keydown", handleKeyDown);
     };
   }, [isOpen]);
+
+  // Mettre à jour le countdown chaque seconde
+  useEffect(() => {
+    if (!isOpen) return;
+
+    // Initialiser timeRemaining avec freeUserTtl si nécessaire (au premier render ou si timeRemaining est 0)
+    if (timeRemaining <= 0 && freeUserTtl > 0) {
+      setTimeRemaining(freeUserTtl);
+    }
+
+    // Utiliser le temps actuel pour vérifier si on doit démarrer le countdown
+    const currentTime =
+      timeRemaining > 0 ? timeRemaining : freeUserTtl > 0 ? freeUserTtl : 0;
+    if (currentTime <= 0) return;
+
+    const countdownInterval = setInterval(() => {
+      setTimeRemaining((prev) => {
+        const current = prev > 0 ? prev : freeUserTtl > 0 ? freeUserTtl : 0;
+        if (current <= 0) return 0;
+        return current - 1;
+      });
+    }, 1000);
+
+    return () => clearInterval(countdownInterval);
+  }, [isOpen, freeUserTtl]);
 
   if (!isOpen) return null;
 
@@ -92,7 +160,7 @@ export function SubscribedCreditsExceededModal() {
               </div>
               <div>
                 <h3 className="text-lg font-semibold text-gray-900">
-                  Current Plan: Subscribed
+                  Current Plan: Free
                 </h3>
                 <p className="text-gray-600">
                   5 requests per day • Daily renewal
@@ -102,22 +170,43 @@ export function SubscribedCreditsExceededModal() {
             <div className="text-right">
               <div className="text-2xl font-bold text-red-600">0</div>
               <div className="text-sm text-gray-500">credits remaining</div>
+
+              {/* Countdown - juste sous "credits remaining" */}
+              {(timeRemaining > 0 || freeUserTtl > 0) && (
+                <div className="mt-2 pt-2 border-t border-gray-300">
+                  <div className="flex items-center justify-end space-x-2">
+                    <svg className="w-4 h-4 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <span className="text-xs text-gray-600">
+                      Quota resets in:
+                    </span>
+                    <span className="text-sm font-bold text-orange-600">
+                      {formatTimeRemaining(
+                        timeRemaining > 0
+                          ? timeRemaining
+                          : freeUserTtl > 0
+                          ? freeUserTtl
+                          : 0
+                      )}
+                    </span>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </div>
 
         {/* Upgrade Options */}
         <div className="p-8">
-          <div className="grid md:grid-cols-2 gap-8 mb-8">
-            {/* Subscribed Plan (Current) */}
+          <div className="grid md:grid-cols-3 gap-8 mb-8">
+            {/* Free Plan (Current) */}
             <div className="bg-white border-2 border-gray-200 rounded-xl p-6 flex flex-col">
               <div className="text-center mb-6">
                 <div className="inline-flex items-center justify-center w-12 h-12 bg-blue-100 rounded-full mb-3">
                   <Star className="w-6 h-6 text-blue-600" />
                 </div>
-                <h3 className="text-xl font-bold text-gray-900 mb-2">
-                  Subscribed
-                </h3>
+                <h3 className="text-xl font-bold text-gray-900 mb-2">Free</h3>
                 <div className="text-3xl font-bold text-blue-600 mb-1">$0</div>
                 <div className="text-gray-600 text-sm">/mo</div>
               </div>
@@ -164,6 +253,66 @@ export function SubscribedCreditsExceededModal() {
               </div>
             </div>
 
+            {/* Basic Plan */}
+            <div className="bg-white border-2 border-gray-200 rounded-xl p-6 hover:border-gray-300 transition-colors flex flex-col">
+              <div className="text-center mb-6">
+                <div className="inline-flex items-center justify-center w-12 h-12 bg-gray-100 rounded-full mb-3">
+                  <Star className="w-6 h-6 text-gray-600" />
+                </div>
+                <h3 className="text-xl font-bold text-gray-900 mb-2">Basic</h3>
+                <div className="text-3xl font-bold text-gray-900 mb-1">
+                  $5.99
+                </div>
+                <div className="text-gray-600 text-sm">/mo</div>
+              </div>
+
+              <div className="space-y-3 mb-6 flex-1">
+                <div className="flex items-center space-x-3">
+                  <CheckCircle className="w-4 h-4 text-green-500 flex-shrink-0" />
+                  <span className="text-sm text-gray-700">Aircraft lookup</span>
+                </div>
+                <div className="flex items-center space-x-3">
+                  <CheckCircle className="w-4 h-4 text-green-500 flex-shrink-0" />
+                  <span className="text-sm text-gray-700">Flight history</span>
+                </div>
+                <div className="flex items-center space-x-3">
+                  <CheckCircle className="w-4 h-4 text-green-500 flex-shrink-0" />
+                  <span className="text-sm text-gray-700">
+                    Airport information
+                  </span>
+                </div>
+                <div className="flex items-center space-x-3">
+                  <CheckCircle className="w-4 h-4 text-green-500 flex-shrink-0" />
+                  <span className="text-sm text-gray-700">
+                    Basic specs & photos
+                  </span>
+                </div>
+                <div className="flex items-center space-x-3">
+                  <CheckCircle className="w-4 h-4 text-green-500 flex-shrink-0" />
+                  <span className="text-sm text-gray-700">
+                    Community support
+                  </span>
+                </div>
+                <div className="flex items-center space-x-3">
+                  <CheckCircle className="w-4 h-4 text-green-500 flex-shrink-0" />
+                  <span className="text-sm text-gray-700">Ads</span>
+                </div>
+              </div>
+
+              <div className="text-center text-sm text-gray-500 mb-4">
+                350 credits per month
+              </div>
+
+              <Link
+                href="/checkout?plan=basic"
+                onClick={handleClose}
+                className="w-full bg-gray-900 text-white py-3 px-4 rounded-lg font-semibold hover:bg-black transition-colors flex items-center justify-center space-x-2"
+              >
+                <span>Choose Basic</span>
+                <ArrowRight className="w-4 h-4" />
+              </Link>
+            </div>
+
             {/* Pro Plan */}
             <div className="bg-white border-2 border-blue-200 rounded-xl p-6 hover:border-blue-300 transition-colors relative flex flex-col">
               <div className="absolute -top-3 right-4">
@@ -171,13 +320,65 @@ export function SubscribedCreditsExceededModal() {
                   Popular
                 </span>
               </div>
+              <motion.div
+                initial={{ opacity: 0, scale: 0.8 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ duration: 0.5, delay: 0.2 }}
+                className="absolute -top-3 left-4 z-10"
+              >
+                <span className="inline-block px-3 py-1 bg-red-500 text-white text-xs font-bold rounded-full animate-pulse shadow-lg">
+                  SAVE 23%
+                </span>
+              </motion.div>
               <div className="text-center mb-6">
                 <div className="inline-flex items-center justify-center w-12 h-12 bg-blue-100 rounded-full mb-3">
                   <Star className="w-6 h-6 text-blue-600" />
                 </div>
                 <h3 className="text-xl font-bold text-gray-900 mb-2">Pro</h3>
-                <div className="text-3xl font-bold text-blue-600 mb-1">
-                  $9.99
+                <div className="mb-1 relative">
+                  <motion.div
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ duration: 0.5, delay: 0.1 }}
+                    className="text-lg font-medium text-gray-400 line-through relative mb-1"
+                  >
+                    $12.99
+                    <motion.span
+                      animate={{
+                        scale: [1, 1.05, 1],
+                        opacity: [0.5, 0.8, 0.5],
+                      }}
+                      transition={{
+                        duration: 2,
+                        repeat: Infinity,
+                        ease: "easeInOut",
+                      }}
+                      className="absolute left-0 right-0 top-0 bottom-0 bg-gradient-to-r from-transparent via-red-200/30 to-transparent"
+                    />
+                  </motion.div>
+                  <motion.div
+                    initial={{ opacity: 0, y: -10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.5, delay: 0.2 }}
+                    className="text-3xl font-bold text-blue-600 mb-1 relative inline-block"
+                  >
+                    <motion.span
+                      animate={{
+                        boxShadow: [
+                          "0 0 0px rgba(37, 99, 235, 0)",
+                          "0 0 20px rgba(37, 99, 235, 0.5)",
+                          "0 0 0px rgba(37, 99, 235, 0)",
+                        ],
+                      }}
+                      transition={{
+                        duration: 2,
+                        repeat: Infinity,
+                        ease: "easeInOut",
+                      }}
+                      className="absolute inset-0 rounded-lg blur-sm"
+                    />
+                    <span className="relative z-10">$9.99</span>
+                  </motion.div>
                 </div>
                 <div className="text-gray-600 text-sm">/mo</div>
               </div>
@@ -218,7 +419,7 @@ export function SubscribedCreditsExceededModal() {
               </div>
 
               <div className="text-center text-sm text-gray-500 mb-4">
-                500 requests per month
+                750 requests per month
               </div>
 
               <Link
@@ -242,9 +443,9 @@ export function SubscribedCreditsExceededModal() {
                 <div className="inline-flex items-center justify-center w-12 h-12 bg-white/20 rounded-full mb-3">
                   <Zap className="w-6 h-6" />
                 </div>
-                <h4 className="font-semibold mb-2">100x More Credits</h4>
+                <h4 className="font-semibold mb-2">More Credits</h4>
                 <p className="text-sm opacity-90">
-                  From 5 daily to 500 monthly credits
+                  From 5 daily to 350 or 750 monthly credits
                 </p>
               </div>
               <div className="text-center">
@@ -262,7 +463,7 @@ export function SubscribedCreditsExceededModal() {
                 </div>
                 <h4 className="font-semibold mb-2">No Daily Limits</h4>
                 <p className="text-sm opacity-90">
-                  Use all 500 credits whenever you need
+                  Use all credits whenever you need
                 </p>
               </div>
             </div>
@@ -297,3 +498,4 @@ export function SubscribedCreditsExceededModal() {
     </div>
   );
 }
+

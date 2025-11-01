@@ -7,6 +7,7 @@ import { motion } from "framer-motion";
 interface Plan {
   name: string;
   price: string;
+  oldPrice?: string;
   description: string;
   features: string[];
   requests: string;
@@ -28,37 +29,41 @@ const plans: Plan[] = [
   },
   {
     name: "Basic",
-    price: "$9.99",
+    price: "$5.99",
     description: "For aviation enthusiasts",
     features: [
       "Everything in Free",
-      "7-day detailed flight history",
-      "Detailed airport flight board",
-      "500 requests per month",
-      "Email support",
+      "Aircraft lookup",
+      "Flight history",
+      "Airport information",
+      "Basic specs & photos",
+      "Community support",
+      "350 credits per month",
     ],
-    requests: "500 requests/month",
-    popular: true,
+    requests: "350 credits/month",
   },
   {
     name: "Pro",
-    price: "$19.99",
+    price: "$9.99",
+    oldPrice: "$12.99",
     description: "For professionals",
     features: [
       "Everything in Basic",
-      "30-day detailed flight history",
-      "Real-time flight tracking",
-      "Advanced analytics",
-      "2500 requests per month",
-      "Priority support",
-      "API access",
+      "Aircraft lookup",
+      "Flight history",
+      "Airport information",
+      "Basic specs & photos",
+      "Community support",
+      "Priority processing",
+      "750 requests per month",
     ],
-    requests: "2500 requests/month",
+    requests: "750 requests/month",
+    popular: true,
   },
 ];
 
 export default function SubscriptionCard() {
-  const [selectedPlan, setSelectedPlan] = useState<string>("Basic");
+  const [selectedPlan, setSelectedPlan] = useState<string>("Free");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
@@ -134,19 +139,77 @@ export default function SubscriptionCard() {
             onClick={() => setSelectedPlan(plan.name)}
           >
             {plan.popular && (
-              <div className="absolute -top-2 left-4">
+              <div className="absolute -top-2 right-4">
                 <span className="bg-[#178cf2] text-white text-xs font-semibold px-2 py-1 rounded-full">
                   Popular
                 </span>
               </div>
             )}
+            {plan.oldPrice && (
+              <motion.div
+                initial={{ opacity: 0, scale: 0.8 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ duration: 0.5, delay: 0.2 }}
+                className="absolute -top-2 left-4 z-10"
+              >
+                <span className="inline-block px-2 py-1 bg-red-500 text-white text-xs font-bold rounded-full animate-pulse shadow-lg">
+                  SAVE 23%
+                </span>
+              </motion.div>
+            )}
 
             <div className="flex items-center justify-between mb-2">
               <h4 className="font-semibold text-gray-900">{plan.name}</h4>
-              <div className="text-right">
-                <div className="text-2xl font-bold text-gray-900">
-                  {plan.price}
-                </div>
+              <div className="text-right relative">
+                {plan.oldPrice && (
+                  <motion.div
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ duration: 0.5, delay: 0.1 }}
+                    className="text-sm font-medium text-gray-400 line-through relative mb-1"
+                  >
+                    {plan.oldPrice}
+                    <motion.span
+                      animate={{
+                        scale: [1, 1.05, 1],
+                        opacity: [0.5, 0.8, 0.5],
+                      }}
+                      transition={{
+                        duration: 2,
+                        repeat: Infinity,
+                        ease: "easeInOut",
+                      }}
+                      className="absolute left-0 right-0 top-0 bottom-0 bg-gradient-to-r from-transparent via-red-200/30 to-transparent"
+                    />
+                  </motion.div>
+                )}
+                <motion.div
+                  initial={{ opacity: 0, y: -10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.5, delay: plan.oldPrice ? 0.2 : 0.1 }}
+                  className={`text-2xl font-bold ${
+                    plan.oldPrice ? "text-blue-600" : "text-gray-900"
+                  } relative inline-block`}
+                >
+                  {plan.oldPrice && (
+                    <motion.span
+                      animate={{
+                        boxShadow: [
+                          "0 0 0px rgba(37, 99, 235, 0)",
+                          "0 0 15px rgba(37, 99, 235, 0.5)",
+                          "0 0 0px rgba(37, 99, 235, 0)",
+                        ],
+                      }}
+                      transition={{
+                        duration: 2,
+                        repeat: Infinity,
+                        ease: "easeInOut",
+                      }}
+                      className="absolute inset-0 rounded-lg blur-sm"
+                    />
+                  )}
+                  <span className="relative z-10">{plan.price}</span>
+                </motion.div>
                 <div className="text-sm text-gray-500">/month</div>
               </div>
             </div>

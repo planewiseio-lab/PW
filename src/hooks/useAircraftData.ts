@@ -8,7 +8,7 @@ import { getAircraftData } from "@/lib/globalApiCache";
 import { fetchAircraftData } from "@/lib/clientRequestDeduplication";
 import { triggerInsufficientCredits } from "./useInsufficientCredits";
 import { triggerGuestQuotaExceeded } from "./useGuestQuotaExceeded";
-import { triggerSubscribedCreditsExceeded } from "./useSubscribedCreditsExceeded";
+import { triggerFreeCreditsExceeded } from "./useFreeCreditsExceeded";
 
 interface AircraftData {
   registration?: string;
@@ -87,7 +87,25 @@ export function useAircraftData(registration: string): UseAircraftDataReturn {
         let errorMessage = err.message || "Failed to load aircraft data";
 
         // Gérer les erreurs de crédits et quota invité spécifiquement
+        // Vérifier FREE_USER_QUOTA_EXCEEDED en premier car plus spécifique
         if (
+          err.message?.includes("FREE_USER_QUOTA_EXCEEDED")
+        ) {
+          // Ne pas définir l'erreur dans le hook pour les erreurs de quota utilisateur Free
+          // Le modal s'affichera automatiquement via triggerFreeCreditsExceeded
+          triggerFreeCreditsExceeded(err);
+          // Ne pas appeler setError pour éviter l'affichage sur la page
+          return;
+        } else if (
+          err.message?.includes("GUEST_QUOTA_EXCEEDED") ||
+          (err.message?.includes("HTTP 429") && !err.message?.includes("FREE_USER"))
+        ) {
+          // Ne pas définir l'erreur dans le hook pour les erreurs de quota invité
+          // Le modal s'affichera automatiquement via triggerGuestQuotaExceeded
+          triggerGuestQuotaExceeded(err);
+          // Ne pas appeler setError pour éviter l'affichage sur la page
+          return;
+        } else if (
           err.message?.includes("HTTP 402") ||
           err.message?.includes("Insufficient credits")
         ) {
@@ -95,16 +113,7 @@ export function useAircraftData(registration: string): UseAircraftDataReturn {
             "Insufficient credits. Please check your account balance.";
           // Déclencher la modal appropriée selon le type d'utilisateur
           // Pour l'instant, on utilise le nouveau modal pour les utilisateurs connectés
-          triggerSubscribedCreditsExceeded(err);
-        } else if (
-          err.message?.includes("HTTP 429") ||
-          err.message?.includes("GUEST_QUOTA_EXCEEDED")
-        ) {
-          // Ne pas définir l'erreur dans le hook pour les erreurs de quota invité
-          // Le modal s'affichera automatiquement via triggerGuestQuotaExceeded
-          triggerGuestQuotaExceeded(err);
-          // Ne pas appeler setError pour éviter l'affichage sur la page
-          return;
+          triggerFreeCreditsExceeded(err);
         } else if (err.message?.includes("HTTP 401")) {
           errorMessage = "Authentication required. Please log in.";
         }

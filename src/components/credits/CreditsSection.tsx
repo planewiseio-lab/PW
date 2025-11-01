@@ -61,6 +61,8 @@ export function CreditsSection() {
 
         // Fetch balance
         let balance = 0;
+        let isFreeUser = false;
+        let quotas: CreditsData["quotas"] = undefined;
         try {
           const tt = withTimeout(3000);
           const balanceResponse = await fetch("/api/credits/balance", {
@@ -72,6 +74,8 @@ export function CreditsSection() {
           if (balanceResponse.ok) {
             const data = await balanceResponse.json();
             balance = data.credits || 0;
+            isFreeUser = data.isFreeUser || false;
+            quotas = data.quotas;
           } else {
             console.warn("Failed to fetch balance:", balanceResponse.status);
           }
@@ -128,6 +132,8 @@ export function CreditsSection() {
           balance,
           history,
           subscription,
+          isFreeUser,
+          quotas,
         });
       } catch (err) {
         console.error("Error in fetchCreditsData:", err);
@@ -243,8 +249,8 @@ export function CreditsSection() {
 
   return (
     <div className="space-y-6">
-      {/* Insufficient Credits Banner */}
-      {creditsData.balance === 0 && <InsufficientCreditsBanner />}
+      {/* Insufficient Credits Banner - Only show for paid users, not Free users */}
+      {creditsData.balance === 0 && !creditsData.isFreeUser && <InsufficientCreditsBanner />}
 
       {/* Message discret d'upgrade si crédits bas et pas PRO */}
       {shouldShowUpgradeMessage && (
@@ -262,14 +268,18 @@ export function CreditsSection() {
       )}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-stretch">
-        {/* Credit Balance Card */}
+        {/* Subscription Info - Now on the left */}
         <div className="lg:col-span-1 flex">
-          <CreditBalanceCard balance={creditsData.balance} />
+          <SubscriptionInfo subscription={creditsData.subscription} />
         </div>
 
-        {/* Subscription Info */}
+        {/* Credit Balance Card / Daily Quotas - Now on the right with more space */}
         <div className="lg:col-span-2 flex">
-          <SubscriptionInfo subscription={creditsData.subscription} />
+          <CreditBalanceCard 
+            balance={creditsData.balance} 
+            isFreeUser={creditsData.isFreeUser}
+            quotas={creditsData.quotas}
+          />
         </div>
       </div>
 

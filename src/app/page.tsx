@@ -7,6 +7,22 @@ import { useRouter } from "next/navigation";
 import SectionDivider from "@/components/layout/SectionDivider";
 import { motion, AnimatePresence } from "framer-motion";
 
+// Fonction pour gérer le scroll vers la section pricing
+function useHashScroll() {
+  useEffect(() => {
+    // Vérifier si on a un hash dans l'URL
+    if (typeof window !== "undefined" && window.location.hash === "#pricing") {
+      // Attendre que le DOM soit prêt
+      setTimeout(() => {
+        const pricingSection = document.getElementById("pricing");
+        if (pricingSection) {
+          pricingSection.scrollIntoView({ behavior: "smooth", block: "start" });
+        }
+      }, 100);
+    }
+  }, []);
+}
+
 /* ==========================================================
    Types
    ---------------------------------------------------------- */
@@ -517,25 +533,7 @@ function PricingSection() {
         <div className="grid gap-6 md:grid-cols-3">
           {[
             {
-              name: "Guest",
-              price: "Free",
-              note: "",
-              perks: [
-                "Aircraft lookup",
-                "Flight history",
-                "Airport information",
-                "Basic specs & photos",
-                "Ads",
-              ],
-              cta: {
-                href: "/login",
-                text: "Get started",
-                className: "bg-gray-900 hover:bg-black",
-              },
-              wrapClass: "border-gray-200",
-            },
-            {
-              name: "Subscribed",
+              name: "Free",
               price: "$0",
               note: "/mo",
               perks: [
@@ -547,16 +545,35 @@ function PricingSection() {
                 "Ads",
               ],
               cta: {
-                href: "/register",
+                href: "/auth?mode=register",
                 text: "Get started",
-                className: "bg-brand-600 hover:bg-brand-700",
+                className: "bg-gray-900 hover:bg-black",
               },
-              wrapClass: "border-brand-200",
-              badge: "Popular",
-            },
+              wrapClass: "border-gray-200",
+            } as const,
+            {
+              name: "Basic",
+              price: "$5.99",
+              note: "/mo",
+              perks: [
+                "Aircraft lookup",
+                "Flight history",
+                "Airport information",
+                "Basic specs & photos",
+                "Community support",
+                "Ads",
+              ],
+              cta: {
+                href: "/checkout?plan=basic",
+                text: "Choose Basic",
+                className: "bg-gray-900 hover:bg-black",
+              },
+              wrapClass: "border-gray-200",
+            } as const,
             {
               name: "Pro",
               price: "$9.99",
+              oldPrice: "$12.99",
               note: "/mo",
               perks: [
                 "Aircraft lookup",
@@ -569,33 +586,83 @@ function PricingSection() {
               cta: {
                 href: "/checkout?plan=pro",
                 text: "Choose Pro",
-                className: "bg-gray-900 hover:bg-black",
+                className: "bg-blue-600 hover:bg-blue-700",
               },
               wrapClass: "border-gray-200",
-            },
+            } as const,
           ].map((p, i) => (
-            <article
+            <motion.article
               key={p.name}
-              className={`relative rounded-2xl border ${p.wrapClass} bg-white p-6 sm:p-8 shadow-sm hover:shadow-md transition flex flex-col`}
+              whileHover={{ scale: 0.98 }}
+              transition={{ duration: 0.2, ease: "easeOut" }}
+              className={`relative rounded-2xl border ${p.wrapClass} bg-white p-6 sm:p-8 shadow-sm hover:shadow-md transition-all flex flex-col cursor-pointer`}
             >
-              {p.badge && (
-                <div className="absolute -top-3 right-4">
-                  <span className="rounded-full bg-brand-100 text-brand-800 text-xs font-semibold px-3 py-1 border border-brand-200">
-                    {p.badge}
+              {p.oldPrice && (
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.8 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ duration: 0.5, delay: 0.2 }}
+                  className="absolute -top-3 left-4 z-10"
+                >
+                  <span className="inline-block px-3 py-1 bg-red-500 text-white text-xs font-bold rounded-full animate-pulse shadow-lg">
+                    SAVE 23%
                   </span>
-                </div>
+                </motion.div>
               )}
               <h3 className="text-xl font-semibold">{p.name}</h3>
-              <p className="mt-1 text-3xl font-extrabold">
-                {p.price}
-                <span className="text-base font-medium text-gray-500">
-                  {p.note}
-                </span>
-              </p>
+              <div className="mt-1 relative">
+                {p.oldPrice ? (
+                  <div className="flex items-baseline gap-3">
+                    <motion.p
+                      initial={{ opacity: 0, x: -20 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ duration: 0.5, delay: 0.1 }}
+                      className="text-lg font-medium text-gray-400 line-through relative"
+                    >
+                      {p.oldPrice}
+                      <motion.span
+                        animate={{
+                          scale: [1, 1.05, 1],
+                          opacity: [0.5, 0.8, 0.5],
+                        }}
+                        transition={{
+                          duration: 2,
+                          repeat: Infinity,
+                          ease: "easeInOut",
+                        }}
+                        className="absolute left-0 right-0 top-0 bottom-0 bg-gradient-to-r from-transparent via-red-200/30 to-transparent"
+                      />
+                    </motion.p>
+                    <motion.p
+                      initial={{ opacity: 0, y: -10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.5, delay: 0.2 }}
+                      className="text-3xl font-extrabold relative inline-block"
+                    >
+                      <span className="relative z-10">{p.price}</span>
+                      <span className="text-base font-medium text-gray-500">
+                        {p.note}
+                      </span>
+                    </motion.p>
+                  </div>
+                ) : (
+                  <motion.p
+                    initial={{ opacity: 0, y: -10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.5, delay: 0.1 }}
+                    className="text-3xl font-extrabold relative inline-block"
+                  >
+                    <span className="relative z-10">{p.price}</span>
+                    <span className="text-base font-medium text-gray-500">
+                      {p.note}
+                    </span>
+                  </motion.p>
+                )}
+              </div>
               <p className="mt-3 text-sm text-gray-600">
-                {i === 0 && "3 requests per day"}
-                {i === 1 && "5 requests per day"}
-                {i === 2 && "500 requests per month"}
+                {i === 0 && "5 requests per day"}
+                {i === 1 && "350 credits per month"}
+                {i === 2 && "750 requests per month"}
               </p>
               <ul className="mt-5 space-y-2 text-sm text-gray-700 flex-1">
                 {p.perks.map((perk) => (
@@ -608,7 +675,7 @@ function PricingSection() {
               >
                 {p.cta.text}
               </a>
-            </article>
+            </motion.article>
           ))}
         </div>
 
@@ -654,6 +721,9 @@ export default function HomePage() {
   const [q, setQ] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isPending, startTransition] = useTransition();
+
+  // Gérer le scroll vers la section pricing si on a le hash #pricing
+  useHashScroll();
 
   const placeholder = useMemo(() => {
     if (mode === "flight") return "Enter a flight like AC123 and a date.";

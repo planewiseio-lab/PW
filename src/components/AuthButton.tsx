@@ -318,19 +318,11 @@ export default function AuthButton() {
   }
 
   return (
-    <div className="flex items-center gap-3">
-      <Link
-        href="/login"
-        className="rounded-full bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-1.5 text-sm font-semibold transition"
-      >
-        Login
-      </Link>
-      <Link
-        href="/register"
-        className="rounded-full bg-[#178cf2] text-white px-4 py-1.5 text-sm font-semibold shadow hover:brightness-110 transition"
-      >
-        Register
-      </Link>
-    </div>
+    <Link
+      href="/auth"
+      className="inline-flex items-center justify-center rounded-lg bg-[#178cf2] hover:brightness-110 text-white px-6 py-2.5 text-sm font-semibold transition-all duration-200 shadow-sm hover:shadow-md"
+    >
+      Login / Register
+    </Link>
   );
 }

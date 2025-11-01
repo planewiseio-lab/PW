@@ -113,7 +113,7 @@ export default function ResetPasswordPage() {
             </h1>
             <p className="text-gray-600 mb-6">{message}</p>
             <Link
-              href="/login"
+              href="/auth?mode=login"
               className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-[#178cf2] hover:brightness-110 transition"
             >
               Back to Login
@@ -245,7 +245,7 @@ export default function ResetPasswordPage() {
               <p className="text-sm text-gray-600">
                 Remember your password?{" "}
                 <Link
-                  href="/login"
+                  href="/auth?mode=login"
                   className="font-medium text-[#178cf2] hover:text-blue-500 transition"
                 >
                   Sign in

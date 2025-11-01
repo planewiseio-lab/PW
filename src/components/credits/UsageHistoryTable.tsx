@@ -87,12 +87,21 @@ export function UsageHistoryTable({ history }: UsageHistoryTableProps) {
                 <td className="px-6 py-4 whitespace-nowrap text-sm">
                   <span
                     className={`font-medium ${
-                      item.delta > 0 ? "text-green-600" : "text-red-600"
+                      item.delta > 0 
+                        ? "text-green-600" 
+                        : item.delta < 0 
+                        ? "text-red-600" 
+                        : "text-gray-500"
                     }`}
                   >
                     {item.delta > 0 ? "+" : ""}
-                    {item.delta}
+                    {item.delta === 0 ? "0 (Quota Free)" : item.delta}
                   </span>
+                  {item.delta === 0 && item.metadata?.quotaType && (
+                    <div className="text-xs text-gray-400 mt-1">
+                      {item.metadata.quotaType === "aircraft" ? "Aircraft Lookup (Free)" : "General Request (Free)"}
+                    </div>
+                  )}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                   {reasonLabels[item.reason]}
@@ -104,6 +113,11 @@ export function UsageHistoryTable({ history }: UsageHistoryTableProps) {
                       {item.metadata?.actionSubType && (
                         <div className="text-xs text-gray-500">
                           ({item.metadata.actionSubType.replace('AIRCRAFT_', '').toLowerCase()})
+                        </div>
+                      )}
+                      {item.delta === 0 && item.metadata?.quotaType && (
+                        <div className="text-xs text-blue-500 mt-1">
+                          Quota: {item.metadata.quotaType === "aircraft" ? "Aircraft Lookup" : "General"}
                         </div>
                       )}
                     </div>

@@ -3,6 +3,8 @@
 import { useEffect, useState } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { motion } from "framer-motion";
+import { createClient } from "@/lib/supabase/client";
+import Link from "next/link";
 
 export default function CheckoutPage() {
   const searchParams = useSearchParams();
@@ -16,6 +18,28 @@ export default function CheckoutPage() {
       if (!planParam) {
         setError("No plan specified. Please select a plan.");
         setLoading(false);
+        return;
+      }
+
+      // Vérifier l'authentification d'abord
+      try {
+        const supabase = createClient();
+        const {
+          data: { user },
+          error: authError,
+        } = await supabase.auth.getUser();
+
+        if (authError || !user) {
+          // Rediriger automatiquement vers /auth avec le redirect
+          const redirectUrl = `/checkout?plan=${planParam}`;
+          router.replace(`/auth?redirect=${encodeURIComponent(redirectUrl)}`);
+          return;
+        }
+      } catch (authErr) {
+        // En cas d'erreur de vérification auth, rediriger vers auth quand même
+        console.warn("Auth check failed, redirecting to auth:", authErr);
+        const redirectUrl = `/checkout?plan=${planParam}`;
+        router.replace(`/auth?redirect=${encodeURIComponent(redirectUrl)}`);
         return;
       }
 
@@ -49,6 +73,14 @@ export default function CheckoutPage() {
 
         if (!response.ok) {
           const errorData = await response.json();
+          
+          // Vérifier si c'est une erreur d'authentification
+          if (response.status === 401 || errorData.error === "Authentication required") {
+            const redirectUrl = `/checkout?plan=${planParam}`;
+            router.replace(`/auth?redirect=${encodeURIComponent(redirectUrl)}`);
+            return;
+          }
+          
           throw new Error(errorData.error || "Failed to create checkout session");
         }
 
@@ -62,6 +94,14 @@ export default function CheckoutPage() {
         }
       } catch (err: any) {
         console.error("Error creating checkout session:", err);
+        
+        // Vérifier si c'est une erreur d'authentification
+        if (err.message === "Authentication required" || err.message?.includes("Authentication")) {
+          const redirectUrl = `/checkout?plan=${planParam}`;
+          router.replace(`/auth?redirect=${encodeURIComponent(redirectUrl)}`);
+          return;
+        }
+        
         setError(err.message || "Failed to create checkout session. Please try again.");
         setLoading(false);
       }
@@ -85,6 +125,7 @@ export default function CheckoutPage() {
       </div>
     );
   }
+
 
   if (error) {
     return (
@@ -132,5 +173,6 @@ export default function CheckoutPage() {
 
   return null;
 }
+
 
 

@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { motion } from "framer-motion";
 import {
   ArrowRight,
   CreditCard,
@@ -11,15 +13,56 @@ import {
   X,
 } from "lucide-react";
 
+// Fonction pour formater le temps restant
+// Note: Clock icon removed and replaced with inline SVG to avoid HMR issues
+function formatTimeRemaining(seconds: number): string {
+  if (seconds <= 0) return "0s";
+
+  const hours = Math.floor(seconds / 3600);
+  const minutes = Math.floor((seconds % 3600) / 60);
+  const secs = seconds % 60;
+
+  if (hours > 0) {
+    return `${hours}h ${minutes}m ${secs}s`;
+  } else if (minutes > 0) {
+    return `${minutes}m ${secs}s`;
+  } else {
+    return `${secs}s`;
+  }
+}
+
 export function GuestQuotaExceededModal() {
+  const router = useRouter();
   const [isOpen, setIsOpen] = useState(false);
   const [guestRemaining, setGuestRemaining] = useState(0);
-  const [guestLimit, setGuestLimit] = useState(4);
+  const [guestLimit, setGuestLimit] = useState(3); // Default à 3 pour les requêtes générales
+  const [guestTtl, setGuestTtl] = useState(0); // TTL en secondes
+  const [timeRemaining, setTimeRemaining] = useState(0); // Temps restant en secondes
 
   useEffect(() => {
     const handleGuestQuotaExceeded = (event: CustomEvent) => {
+      console.log("[GuestQuotaExceededModal] Event received:", event.detail);
+      const receivedLimit = event.detail?.guestLimit;
+      // Si limit reçu, l'utiliser, sinon default à 3 pour les requêtes générales
+      // Si c'est 4, corriger à 3 (probablement une erreur de backend)
+      const correctedLimit =
+        receivedLimit && receivedLimit !== 4 ? receivedLimit : 3;
       setGuestRemaining(event.detail?.guestRemaining ?? 0);
-      setGuestLimit(event.detail?.guestLimit ?? 4);
+      setGuestLimit(correctedLimit);
+      const ttl = event.detail?.guestTtl ?? event.detail?.ttl ?? 0;
+      console.log(
+        "[GuestQuotaExceededModal] TTL:",
+        ttl,
+        "Limit:",
+        correctedLimit,
+        "Full event detail:",
+        event.detail
+      );
+      setGuestTtl(ttl);
+      // Initialiser timeRemaining avec ttl immédiatement
+      if (ttl > 0) {
+        setTimeRemaining(ttl);
+      }
       setIsOpen(true);
     };
 
@@ -44,12 +87,76 @@ export function GuestQuotaExceededModal() {
     };
   }, [isOpen]);
 
+  // Mettre à jour le countdown chaque seconde
+  useEffect(() => {
+    if (!isOpen) return;
+
+    // Initialiser timeRemaining avec guestTtl si nécessaire (au premier render ou si timeRemaining est 0)
+    if (timeRemaining <= 0 && guestTtl > 0) {
+      setTimeRemaining(guestTtl);
+    }
+
+    // Utiliser le temps actuel pour vérifier si on doit démarrer le countdown
+    const currentTime =
+      timeRemaining > 0 ? timeRemaining : guestTtl > 0 ? guestTtl : 0;
+    if (currentTime <= 0) return;
+
+    const countdownInterval = setInterval(() => {
+      setTimeRemaining((prev) => {
+        const current = prev > 0 ? prev : guestTtl > 0 ? guestTtl : 0;
+        if (current <= 0) return 0;
+        return current - 1;
+      });
+    }, 1000);
+
+    return () => clearInterval(countdownInterval);
+  }, [isOpen, guestTtl]);
+
   if (!isOpen) {
     return null;
   }
 
   const handleClose = () => {
     setIsOpen(false);
+    // Rediriger vers la page d'accueil avec scroll vers la section pricing
+    if (typeof window !== "undefined") {
+      // Si on est déjà sur la page d'accueil, juste scroller
+      if (window.location.pathname === "/") {
+        setTimeout(() => {
+          const pricingSection = document.getElementById("pricing");
+          if (pricingSection) {
+            pricingSection.scrollIntoView({
+              behavior: "smooth",
+              block: "start",
+            });
+          }
+        }, 100);
+      } else {
+        // Sinon, rediriger vers la page d'accueil avec le hash
+        router.push("/#pricing");
+        // Attendre que la page charge et scroller
+        setTimeout(() => {
+          const pricingSection = document.getElementById("pricing");
+          if (pricingSection) {
+            pricingSection.scrollIntoView({
+              behavior: "smooth",
+              block: "start",
+            });
+          } else {
+            // Si pas trouvé, réessayer après un délai plus long
+            setTimeout(() => {
+              const pricingSection = document.getElementById("pricing");
+              if (pricingSection) {
+                pricingSection.scrollIntoView({
+                  behavior: "smooth",
+                  block: "start",
+                });
+              }
+            }, 500);
+          }
+        }, 100);
+      }
+    }
   };
 
   const handleBackdropClick = (e: React.MouseEvent) => {
@@ -82,8 +189,8 @@ export function GuestQuotaExceededModal() {
             Guest Limit Reached
           </h1>
           <p className="text-xl text-gray-600 max-w-2xl mx-auto">
-            You've used all your 3 anonymous requests in the last 24h. Log in to
-            continue and get 5 requests per day (free plan)!
+            You've used all your {guestLimit} anonymous requests in the last
+            24h. Log in to continue and get 5 requests per day (Free plan)!
           </p>
         </div>
 
@@ -99,7 +206,7 @@ export function GuestQuotaExceededModal() {
                   Current: Guest Access
                 </h3>
                 <p className="text-gray-600">
-                  3 requests per 24h • Anonymous browsing
+                  {guestLimit} requests per 24h • Anonymous browsing
                 </p>
               </div>
             </div>
@@ -108,6 +215,39 @@ export function GuestQuotaExceededModal() {
                 {guestRemaining}
               </div>
               <div className="text-sm text-gray-500">requests remaining</div>
+
+              {/* Countdown - juste sous "requests remaining" */}
+              {(timeRemaining > 0 || guestTtl > 0) && (
+                <div className="mt-2 pt-2 border-t border-gray-300">
+                  <div className="flex items-center justify-end space-x-2">
+                    <svg
+                      className="w-4 h-4 text-gray-500"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+                      />
+                    </svg>
+                    <span className="text-xs text-gray-600">
+                      Quota resets in:
+                    </span>
+                    <span className="text-sm font-bold text-orange-600">
+                      {formatTimeRemaining(
+                        timeRemaining > 0
+                          ? timeRemaining
+                          : guestTtl > 0
+                          ? guestTtl
+                          : 0
+                      )}
+                    </span>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -115,69 +255,13 @@ export function GuestQuotaExceededModal() {
         {/* Upgrade Options */}
         <div className="p-8">
           <div className="grid md:grid-cols-3 gap-8 mb-8">
-            {/* Guest Plan (Current) */}
-            <div className="bg-white border-2 border-gray-200 rounded-xl p-6 flex flex-col">
-              <div className="text-center mb-6">
-                <div className="inline-flex items-center justify-center w-12 h-12 bg-gray-100 rounded-full mb-3">
-                  <Zap className="w-6 h-6 text-gray-600" />
-                </div>
-                <h3 className="text-xl font-bold text-gray-900 mb-2">Guest</h3>
-                <div className="text-3xl font-bold text-gray-600 mb-1">
-                  Free
-                </div>
-                <div className="text-gray-500 text-sm"></div>
-              </div>
-
-              <div className="space-y-3 mb-6 flex-1">
-                <div className="flex items-center space-x-3">
-                  <CheckCircle className="w-4 h-4 text-green-500 flex-shrink-0" />
-                  <span className="text-sm text-gray-700">Aircraft lookup</span>
-                </div>
-                <div className="flex items-center space-x-3">
-                  <CheckCircle className="w-4 h-4 text-green-500 flex-shrink-0" />
-                  <span className="text-sm text-gray-700">Flight history</span>
-                </div>
-                <div className="flex items-center space-x-3">
-                  <CheckCircle className="w-4 h-4 text-green-500 flex-shrink-0" />
-                  <span className="text-sm text-gray-700">
-                    Airport information
-                  </span>
-                </div>
-                <div className="flex items-center space-x-3">
-                  <CheckCircle className="w-4 h-4 text-green-500 flex-shrink-0" />
-                  <span className="text-sm text-gray-700">
-                    Basic specs & photos
-                  </span>
-                </div>
-                <div className="flex items-center space-x-3">
-                  <CheckCircle className="w-4 h-4 text-green-500 flex-shrink-0" />
-                  <span className="text-sm text-gray-700">Ads</span>
-                </div>
-              </div>
-
-              <div className="text-center text-sm text-gray-500 mb-4">
-                3 requests per day
-              </div>
-
-              <div className="w-full bg-gray-300 text-gray-500 py-3 px-4 rounded-lg font-semibold flex items-center justify-center space-x-2 cursor-not-allowed">
-                <span>Current Plan</span>
-              </div>
-            </div>
-
             {/* Free Plan */}
             <div className="bg-white border-2 border-blue-200 rounded-xl p-6 hover:border-blue-300 transition-colors relative flex flex-col">
-              <div className="absolute -top-3 right-4">
-                <span className="rounded-full bg-blue-100 text-blue-800 text-xs font-semibold px-3 py-1 border border-blue-200">
-                  Popular
-                </span>
-              </div>
               <div className="text-center mb-6">
                 <div className="inline-flex items-center justify-center w-12 h-12 bg-blue-100 rounded-full mb-3">
                   <Star className="w-6 h-6 text-blue-600" />
                 </div>
-                <h3 className="text-xl font-bold text-gray-900 mb-2">
-                  Subscribed
-                </h3>
+                <h3 className="text-xl font-bold text-gray-900 mb-2">Free</h3>
                 <div className="text-3xl font-bold text-blue-600 mb-1">$0</div>
                 <div className="text-gray-600 text-sm">/mo</div>
               </div>
@@ -218,7 +302,7 @@ export function GuestQuotaExceededModal() {
               </div>
 
               <Link
-                href="/register"
+                href="/auth?mode=register"
                 onClick={handleClose}
                 className="w-full bg-blue-600 text-white py-3 px-4 rounded-lg font-semibold hover:bg-blue-700 transition-colors flex items-center justify-center space-x-2"
               >
@@ -227,15 +311,130 @@ export function GuestQuotaExceededModal() {
               </Link>
             </div>
 
-            {/* Pro Plan */}
+            {/* Basic Plan */}
             <div className="bg-white border-2 border-gray-200 rounded-xl p-6 hover:border-gray-300 transition-colors flex flex-col">
               <div className="text-center mb-6">
                 <div className="inline-flex items-center justify-center w-12 h-12 bg-gray-100 rounded-full mb-3">
                   <Star className="w-6 h-6 text-gray-600" />
                 </div>
-                <h3 className="text-xl font-bold text-gray-900 mb-2">Pro</h3>
+                <h3 className="text-xl font-bold text-gray-900 mb-2">Basic</h3>
                 <div className="text-3xl font-bold text-gray-900 mb-1">
-                  $9.99
+                  $5.99
+                </div>
+                <div className="text-gray-600 text-sm">/mo</div>
+              </div>
+
+              <div className="space-y-3 mb-6 flex-1">
+                <div className="flex items-center space-x-3">
+                  <CheckCircle className="w-4 h-4 text-green-500 flex-shrink-0" />
+                  <span className="text-sm text-gray-700">Aircraft lookup</span>
+                </div>
+                <div className="flex items-center space-x-3">
+                  <CheckCircle className="w-4 h-4 text-green-500 flex-shrink-0" />
+                  <span className="text-sm text-gray-700">Flight history</span>
+                </div>
+                <div className="flex items-center space-x-3">
+                  <CheckCircle className="w-4 h-4 text-green-500 flex-shrink-0" />
+                  <span className="text-sm text-gray-700">
+                    Airport information
+                  </span>
+                </div>
+                <div className="flex items-center space-x-3">
+                  <CheckCircle className="w-4 h-4 text-green-500 flex-shrink-0" />
+                  <span className="text-sm text-gray-700">
+                    Basic specs & photos
+                  </span>
+                </div>
+                <div className="flex items-center space-x-3">
+                  <CheckCircle className="w-4 h-4 text-green-500 flex-shrink-0" />
+                  <span className="text-sm text-gray-700">User dashboard</span>
+                </div>
+                <div className="flex items-center space-x-3">
+                  <CheckCircle className="w-4 h-4 text-green-500 flex-shrink-0" />
+                  <span className="text-sm text-gray-700">Ads</span>
+                </div>
+              </div>
+
+              <div className="text-center text-sm text-gray-500 mb-4">
+                350 credits per month
+              </div>
+
+              <Link
+                href="/checkout?plan=basic"
+                onClick={handleClose}
+                className="w-full bg-gray-900 text-white py-3 px-4 rounded-lg font-semibold hover:bg-black transition-colors flex items-center justify-center space-x-2"
+              >
+                <span>Choose Basic</span>
+                <ArrowRight className="w-4 h-4" />
+              </Link>
+            </div>
+
+            {/* Pro Plan */}
+            <div className="bg-white border-2 border-blue-200 rounded-xl p-6 hover:border-blue-300 transition-colors relative flex flex-col">
+              <div className="absolute -top-3 right-4">
+                <span className="rounded-full bg-blue-100 text-blue-800 text-xs font-semibold px-3 py-1 border border-blue-200">
+                  Popular
+                </span>
+              </div>
+              <motion.div
+                initial={{ opacity: 0, scale: 0.8 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ duration: 0.5, delay: 0.2 }}
+                className="absolute -top-3 left-4 z-10"
+              >
+                <span className="inline-block px-3 py-1 bg-red-500 text-white text-xs font-bold rounded-full animate-pulse shadow-lg">
+                  SAVE 23%
+                </span>
+              </motion.div>
+              <div className="text-center mb-6">
+                <div className="inline-flex items-center justify-center w-12 h-12 bg-blue-100 rounded-full mb-3">
+                  <Star className="w-6 h-6 text-blue-600" />
+                </div>
+                <h3 className="text-xl font-bold text-gray-900 mb-2">Pro</h3>
+                <div className="mb-1 relative">
+                  <motion.div
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ duration: 0.5, delay: 0.1 }}
+                    className="text-lg font-medium text-gray-400 line-through relative mb-1"
+                  >
+                    $12.99
+                    <motion.span
+                      animate={{
+                        scale: [1, 1.05, 1],
+                        opacity: [0.5, 0.8, 0.5],
+                      }}
+                      transition={{
+                        duration: 2,
+                        repeat: Infinity,
+                        ease: "easeInOut",
+                      }}
+                      className="absolute left-0 right-0 top-0 bottom-0 bg-gradient-to-r from-transparent via-red-200/30 to-transparent"
+                    />
+                  </motion.div>
+                  <motion.div
+                    initial={{ opacity: 0, y: -10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.5, delay: 0.2 }}
+                    className="text-3xl font-bold text-blue-600 mb-1 relative inline-block"
+                  >
+                    <motion.span
+                      animate={{
+                        boxShadow: [
+                          "0 0 0px rgba(37, 99, 235, 0)",
+                          "0 0 20px rgba(37, 99, 235, 0.5)",
+                          "0 0 0px rgba(37, 99, 235, 0)",
+                        ],
+                      }}
+                      transition={{
+                        duration: 2,
+                        repeat: Infinity,
+                        ease: "easeInOut",
+                      }}
+                      className="absolute inset-0 rounded-lg blur-sm"
+                    />
+                    <span className="relative z-10">$9.99</span>
+                  </motion.div>
                 </div>
                 <div className="text-gray-600 text-sm">/mo</div>
               </div>
@@ -274,11 +473,11 @@ export function GuestQuotaExceededModal() {
               </div>
 
               <div className="text-center text-sm text-gray-500 mb-4">
-                500 requests per month
+                750 requests per month
               </div>
 
               <Link
-                href="/login"
+                href="/checkout?plan=pro"
                 onClick={handleClose}
                 className="w-full bg-gray-900 text-white py-3 px-4 rounded-lg font-semibold hover:bg-black transition-colors flex items-center justify-center space-x-2"
               >
@@ -307,7 +506,7 @@ export function GuestQuotaExceededModal() {
                 </div>
                 <h3 className="text-lg font-semibold mb-2">More Requests</h3>
                 <p className="text-blue-100">
-                  Up to 500 requests per month for unlimited exploration
+                  Up to 750 requests per month for unlimited exploration
                 </p>
               </div>
 
@@ -348,7 +547,7 @@ export function GuestQuotaExceededModal() {
                 Continue as Guest
               </Link>
               <Link
-                href="/register"
+                href="/auth?mode=register"
                 onClick={handleClose}
                 className="px-6 py-3 bg-blue-600 text-white rounded-xl font-semibold hover:bg-blue-700 transition-colors flex items-center justify-center space-x-2"
               >

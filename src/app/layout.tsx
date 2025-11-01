@@ -16,7 +16,7 @@ import UserDeletedHandler from "@/components/UserDeletedHandler";
 import SupabaseErrorHandler from "@/components/SupabaseErrorHandler";
 import { GlobalInsufficientCreditsHandler } from "@/components/GlobalInsufficientCreditsHandler";
 import { GuestQuotaExceededModal } from "@/components/errors/GuestQuotaExceededModal";
-import { SubscribedCreditsExceededModal } from "@/components/errors/SubscribedCreditsExceededModal";
+import { FreeCreditsExceededModal } from "@/components/errors/FreeCreditsExceededModal";
 import { AdSection } from "@/components/ads/AdWrapper";
 import { Comfortaa } from "next/font/google";
 import Script from "next/script";
@@ -175,8 +175,8 @@ export default function RootLayout({
         <GlobalInsufficientCreditsHandler />
         {/* Modal de quota invité dépassé */}
         <GuestQuotaExceededModal />
-        {/* Modal de crédits épuisés pour utilisateurs Subscribed */}
-        <SubscribedCreditsExceededModal />
+        {/* Modal de crédits épuisés pour utilisateurs Free */}
+        <FreeCreditsExceededModal />
         {/* Google Analytics */}
         {process.env.NEXT_PUBLIC_GA_ID && (
           <>

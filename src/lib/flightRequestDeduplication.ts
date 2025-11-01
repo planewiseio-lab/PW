@@ -73,6 +73,7 @@ export async function fetchFlightData(
             guestRemaining: errorData?.guestRemaining ?? errorData?.remaining ?? 0,
             guestUsed: errorData?.guestUsed ?? errorData?.used ?? 4,
             guestLimit: errorData?.guestLimit ?? errorData?.limit ?? 4,
+            guestTtl: errorData?.guestTtl ?? errorData?.ttl ?? 0, // TTL en secondes
             status: 429,
             code: "GUEST_QUOTA_EXCEEDED",
           });

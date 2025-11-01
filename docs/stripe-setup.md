@@ -158,3 +158,4 @@ Voir la [documentation complète des cartes de test](https://stripe.com/docs/tes
 - [Stripe Checkout](https://stripe.com/docs/payments/checkout)
 - [Stripe Subscriptions](https://stripe.com/docs/billing/subscriptions/overview)
 
+

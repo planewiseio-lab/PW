@@ -906,7 +906,7 @@ export default function AccountSettingsPage() {
                       Available Plans
                     </h3>
 
-                    <div className="grid gap-6 md:grid-cols-2">
+                    <div className="grid gap-6 md:grid-cols-3">
                       {[
                         {
                           name: "Free",
@@ -927,12 +927,32 @@ export default function AccountSettingsPage() {
                             className: "bg-brand-600 hover:bg-brand-700",
                           },
                           wrapClass: "border-brand-200",
-                          badge: subscription?.plan === "FREE" ? undefined : "Popular",
+                        },
+                        {
+                          name: "Basic",
+                          planCode: "BASIC",
+                          price: "$5.99",
+                          note: "/mo",
+                          perks: [
+                            "Aircraft lookup",
+                            "Flight history",
+                            "Airport information",
+                            "Basic specs & photos",
+                            "Community support",
+                            "Ads",
+                          ],
+                          cta: {
+                            href: "/checkout?plan=basic",
+                            text: subscription?.plan === "BASIC" ? "Current Plan" : "Choose Basic",
+                            className: "bg-gray-900 hover:bg-black",
+                          },
+                          wrapClass: "border-gray-200",
                         },
                         {
                           name: "Pro",
                           planCode: "PRO",
                           price: "$9.99",
+                          oldPrice: "$12.99",
                           note: "/mo",
                           perks: [
                             "Aircraft lookup",
@@ -941,15 +961,14 @@ export default function AccountSettingsPage() {
                             "Basic specs & photos",
                             "Community support",
                             "Priority processing",
-                            "No ads",
-                            "500 credits/month",
                           ],
                           cta: {
                             href: "/checkout?plan=pro",
                             text: subscription?.plan === "PRO" ? "Current Plan" : "Choose Pro",
                             className: "bg-gray-900 hover:bg-black",
                           },
-                          wrapClass: "border-gray-200",
+                          wrapClass: "border-brand-200",
+                          badge: subscription?.plan === "PRO" ? undefined : "Popular",
                         },
                       ].map((p, i) => {
                         const isCurrent = subscription?.plan === p.planCode;
@@ -976,16 +995,77 @@ export default function AccountSettingsPage() {
                               </span>
                             </div>
                           )}
+                          {p.oldPrice && !isCurrent && (
+                            <motion.div
+                              initial={{ opacity: 0, scale: 0.8 }}
+                              animate={{ opacity: 1, scale: 1 }}
+                              transition={{ duration: 0.5, delay: 0.2 }}
+                              className="absolute -top-3 left-4 z-10"
+                            >
+                              <span className="inline-block px-3 py-1 bg-red-500 text-white text-xs font-bold rounded-full animate-pulse shadow-lg">
+                                SAVE 23%
+                              </span>
+                            </motion.div>
+                          )}
                           <h4 className="text-xl font-semibold">{p.name}</h4>
-                          <p className="mt-1 text-3xl font-extrabold">
-                            {p.price}
-                            <span className="text-base font-medium text-gray-500">
-                              {p.note}
-                            </span>
-                          </p>
+                          <div className="mt-1 relative">
+                            {p.oldPrice && (
+                              <motion.p
+                                initial={{ opacity: 0, x: -20 }}
+                                animate={{ opacity: 1, x: 0 }}
+                                transition={{ duration: 0.5, delay: 0.1 }}
+                                className="text-lg font-medium text-gray-400 line-through relative mb-1"
+                              >
+                                {p.oldPrice}
+                                <motion.span
+                                  animate={{
+                                    scale: [1, 1.05, 1],
+                                    opacity: [0.5, 0.8, 0.5],
+                                  }}
+                                  transition={{
+                                    duration: 2,
+                                    repeat: Infinity,
+                                    ease: "easeInOut",
+                                  }}
+                                  className="absolute left-0 right-0 top-0 bottom-0 bg-gradient-to-r from-transparent via-red-200/30 to-transparent"
+                                />
+                              </motion.p>
+                            )}
+                            <motion.p
+                              initial={{ opacity: 0, y: -10 }}
+                              animate={{ opacity: 1, y: 0 }}
+                              transition={{ duration: 0.5, delay: p.oldPrice ? 0.2 : 0.1 }}
+                              className={`text-3xl font-extrabold ${
+                                p.oldPrice ? "text-blue-600" : ""
+                              } relative inline-block`}
+                            >
+                              {p.oldPrice && (
+                                <motion.span
+                                  animate={{
+                                    boxShadow: [
+                                      "0 0 0px rgba(37, 99, 235, 0)",
+                                      "0 0 20px rgba(37, 99, 235, 0.5)",
+                                      "0 0 0px rgba(37, 99, 235, 0)",
+                                    ],
+                                  }}
+                                  transition={{
+                                    duration: 2,
+                                    repeat: Infinity,
+                                    ease: "easeInOut",
+                                  }}
+                                  className="absolute inset-0 rounded-lg blur-sm"
+                                />
+                              )}
+                              <span className="relative z-10">{p.price}</span>
+                              <span className="text-base font-medium text-gray-500">
+                                {p.note}
+                              </span>
+                            </motion.p>
+                          </div>
                           <p className="mt-3 text-sm text-gray-600">
-                            {i === 0 && "3 requests per day"}
-                            {i === 1 && "500 credits/month"}
+                            {i === 0 && "5 requests per day"}
+                            {i === 1 && "350 credits per month"}
+                            {i === 2 && "750 requests per month"}
                           </p>
                           <ul className="mt-5 space-y-2 text-sm text-gray-700 flex-1">
                             {p.perks.map((perk) => (
