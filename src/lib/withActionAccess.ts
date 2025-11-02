@@ -54,23 +54,12 @@ export function withActionAccess<T = any>(
             select: { plan: true },
           });
 
-          // Si l'utilisateur a le plan FREE, utiliser le système de quota
-          if (subscription?.plan === Plan.FREE) {
-            console.log(
-              `[Action Access] 🆓 Free user: ${user.id}, using free user quota`
-            );
-
-            // Wrapper avec le quota utilisateur Free
-            const freeUserHandler = withFreeUserQuota(user.id, handler);
-            return await freeUserHandler(request, ...args);
-          }
-
-          // Pour les autres plans (PRO, BUSINESS), utiliser le système de crédits
+          // Tous les plans (FREE, PRO, BUSINESS) utilisent maintenant le système de crédits par tiers
           console.log(
-            `[Action Access] 💳 Paid user: ${user.id}, plan: ${subscription?.plan}, using credit system`
+            `[Action Access] 💳 User: ${user.id}, plan: ${subscription?.plan}, using credit system with tier-based pricing`
           );
 
-          // Wrapper avec le système de crédits
+          // Wrapper avec le système de crédits (avec tiers : tier 1 = -1, tier 3 = -4, tier 2 = -2)
           const creditHandler = withCreditChargeABD(
             actionType,
             async (req, ...args) => {

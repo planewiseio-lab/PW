@@ -95,13 +95,8 @@ export function UsageHistoryTable({ history }: UsageHistoryTableProps) {
                     }`}
                   >
                     {item.delta > 0 ? "+" : ""}
-                    {item.delta === 0 ? "0 (Quota Free)" : item.delta}
+                    {item.delta === 0 ? "0" : item.delta}
                   </span>
-                  {item.delta === 0 && item.metadata?.quotaType && (
-                    <div className="text-xs text-gray-400 mt-1">
-                      {item.metadata.quotaType === "aircraft" ? "Aircraft Lookup (Free)" : "General Request (Free)"}
-                    </div>
-                  )}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                   {reasonLabels[item.reason]}

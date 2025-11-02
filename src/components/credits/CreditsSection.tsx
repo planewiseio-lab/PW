@@ -16,6 +16,9 @@ interface CreditsData {
     nextCursor: string | null;
   };
   subscription: any;
+  isFreeUser?: boolean;
+  quotas?: any;
+  renewsAt?: Date | string;
 }
 
 export function CreditsSection() {
@@ -63,6 +66,7 @@ export function CreditsSection() {
         let balance = 0;
         let isFreeUser = false;
         let quotas: CreditsData["quotas"] = undefined;
+        let renewsAt: CreditsData["renewsAt"] = undefined;
         try {
           const tt = withTimeout(3000);
           const balanceResponse = await fetch("/api/credits/balance", {
@@ -76,6 +80,7 @@ export function CreditsSection() {
             balance = data.credits || 0;
             isFreeUser = data.isFreeUser || false;
             quotas = data.quotas;
+            renewsAt = data.renewsAt;
           } else {
             console.warn("Failed to fetch balance:", balanceResponse.status);
           }
@@ -134,6 +139,7 @@ export function CreditsSection() {
           subscription,
           isFreeUser,
           quotas,
+          renewsAt,
         });
       } catch (err) {
         console.error("Error in fetchCreditsData:", err);
@@ -278,7 +284,7 @@ export function CreditsSection() {
           <CreditBalanceCard 
             balance={creditsData.balance} 
             isFreeUser={creditsData.isFreeUser}
-            quotas={creditsData.quotas}
+            renewsAt={creditsData.renewsAt || creditsData.subscription?.renewsAt}
           />
         </div>
       </div>

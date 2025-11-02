@@ -195,9 +195,11 @@ export async function POST(request: NextRequest) {
           subscription.status === "incomplete_expired" ||
           subscription.status === "unpaid"
         ) {
-          // Retourner au plan FREE avec renouvellement quotidien (5 crédits/jour)
+          // Retourner au plan FREE avec renouvellement mensuel (50 crédits/mois)
           finalPlan = Plan.FREE;
-          finalRenewsAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // Dans 24h pour renouvellement quotidien
+          const nextMonth = new Date();
+          nextMonth.setMonth(nextMonth.getMonth() + 1); // Dans 1 mois pour renouvellement mensuel
+          finalRenewsAt = nextMonth;
           console.log(
             `[Webhook] Subscription canceled for user ${userSubscription.userId}, reverting to FREE plan`
           );
@@ -305,13 +307,15 @@ export async function POST(request: NextRequest) {
         }
 
         if (userSubscription) {
-          // Retourner au plan FREE avec renouvellement quotidien (5 crédits/jour)
+          // Retourner au plan FREE avec renouvellement mensuel (50 crédits/mois)
+          const nextMonth = new Date();
+          nextMonth.setMonth(nextMonth.getMonth() + 1); // Dans 1 mois pour renouvellement mensuel
           await prisma.subscriptions.update({
             where: { userId: userSubscription.userId },
             data: {
               plan: Plan.FREE,
               status: SubscriptionStatus.CANCELED,
-              renewsAt: new Date(Date.now() + 24 * 60 * 60 * 1000), // Dans 24h pour renouvellement quotidien
+              renewsAt: nextMonth,
               stripeSubId: null, // Plus d'abonnement Stripe actif
             },
           });

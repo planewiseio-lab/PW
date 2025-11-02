@@ -4,6 +4,7 @@ import { motion } from "framer-motion";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { createClient } from "@/lib/supabase/client";
 import { correctFlightsStatus } from "@/lib/flightStatusRules";
 import { useAircraftHistory } from "@/hooks/useAircraftHistory";
 import { triggerGuestQuotaExceeded } from "@/hooks/useGuestQuotaExceeded";
@@ -89,7 +90,7 @@ export default function AircraftHistoryPage() {
     requiresAuth?: boolean;
     upgradeUrl?: string;
   }>(null);
-  const [days, setDays] = useState(3);
+  const [days, setDays] = useState(7);
   const autoTriedRef = useRef(false);
   const [isAutoExtending, setIsAutoExtending] = useState(false);
   const fallbackDays = [3, 7, 14, 30];
@@ -99,6 +100,35 @@ export default function AircraftHistoryPage() {
     countriesVisited: number;
     airportsVisited: number;
   } | null>(null);
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
+  const [authLoading, setAuthLoading] = useState(true);
+
+  // Check authentication on mount
+  useEffect(() => {
+    const checkAuth = async () => {
+      try {
+        const supabase = createClient();
+        const {
+          data: { user },
+          error,
+        } = await supabase.auth.getUser();
+
+        if (error || !user) {
+          setIsAuthenticated(false);
+          setAuthLoading(false);
+        } else {
+          setIsAuthenticated(true);
+          setAuthLoading(false);
+        }
+      } catch (err) {
+        console.error("[AircraftHistoryPage] Auth check error:", err);
+        setIsAuthenticated(false);
+        setAuthLoading(false);
+      }
+    };
+
+    checkAuth();
+  }, [router]);
 
   const {
     data: rawData,
@@ -238,6 +268,78 @@ export default function AircraftHistoryPage() {
     return `${hours}h ${minutes}m`;
   };
 
+  // Show loading or auth required message
+  if (authLoading) {
+    return (
+      <div className="min-h-screen bg-white py-8">
+        <div className="max-w-6xl mx-auto px-4">
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-8">
+            <div className="animate-pulse">
+              <div className="h-8 bg-gray-200 rounded w-1/3 mb-4"></div>
+              <div className="h-4 bg-gray-200 rounded w-1/2 mb-8"></div>
+              <div className="space-y-4">
+                {[...Array(5)].map((_, i) => (
+                  <div key={i} className="h-20 bg-gray-200 rounded"></div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Show auth required message for guests
+  if (!isAuthenticated) {
+    return (
+      <div className="min-h-screen bg-white py-8">
+        <div className="max-w-6xl mx-auto px-4">
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-8 text-center">
+            <div className="text-blue-500 mb-4">
+              <svg
+                className="w-16 h-16 mx-auto"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"
+                />
+              </svg>
+            </div>
+            <h2 className="text-2xl font-semibold text-gray-900 mb-2">
+              Authentication Required
+            </h2>
+            <p className="text-gray-600 mb-4">
+              Flight history is only available to authenticated users.
+            </p>
+            <p className="text-sm text-gray-500 mb-6">
+              Please log in to access the flight history for aircraft{" "}
+              <span className="font-semibold text-blue-600">{registration}</span>.
+            </p>
+            <div className="flex gap-4 justify-center">
+              <Link
+                href={`/login?redirect=${encodeURIComponent(`/aircraft/${registration}/history`)}`}
+                className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition font-medium"
+              >
+                Log In
+              </Link>
+              <Link
+                href={`/aircraft/${registration}`}
+                className="bg-gray-100 text-gray-700 px-6 py-2 rounded-lg hover:bg-gray-200 transition font-medium"
+              >
+                Back to Aircraft
+              </Link>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   // Show skeleton if loading OR auto-extending (and no data/error yet)
   if (isLoading || isAutoExtending) {
     if (!rawData && !error) {
@@ -364,7 +466,7 @@ export default function AircraftHistoryPage() {
           <div className="flex items-center gap-4">
             <span className="text-sm text-gray-600">Show last:</span>
             <div className="flex gap-2">
-              {[3, 7].map((day) => (
+              {[7].map((day) => (
                 <button
                   key={day}
                   onClick={() => setDays(day)}

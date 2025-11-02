@@ -660,9 +660,9 @@ function PricingSection() {
                 )}
               </div>
               <p className="mt-3 text-sm text-gray-600">
-                {i === 0 && "5 requests per day"}
+                {i === 0 && "50 credits per month"}
                 {i === 1 && "350 credits per month"}
-                {i === 2 && "750 requests per month"}
+                {i === 2 && "750 credits per month"}
               </p>
               <ul className="mt-5 space-y-2 text-sm text-gray-700 flex-1">
                 {p.perks.map((perk) => (

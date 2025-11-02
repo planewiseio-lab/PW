@@ -20,32 +20,17 @@ export async function GET(request: NextRequest) {
     // Vérifier le plan de l'utilisateur
     const subscription = await prisma.subscriptions.findUnique({
       where: { userId: user.id },
-      select: { plan: true },
+      select: { plan: true, renewsAt: true },
     });
 
-    // Si l'utilisateur est sur le plan FREE, retourner les quotas au lieu du balance
+    // Si l'utilisateur est sur le plan FREE, retourner les crédits réels (50) avec la date de renouvellement
     if (subscription?.plan === Plan.FREE) {
-      // Récupérer les quotas pour les requêtes générales et les lookups d'avions
-      const generalUsage = await getFreeUserUsage(user.id, false);
-      const aircraftLookupUsage = await getFreeUserUsage(user.id, true);
+      const credits = await getCreditBalance(user.id);
 
       return NextResponse.json({
-        credits: 0, // Les utilisateurs Free n'ont pas de crédits
+        credits, // Les crédits réels du compte (50 par mois)
         isFreeUser: true,
-        quotas: {
-          general: {
-            used: generalUsage.count,
-            remaining: generalUsage.remaining,
-            limit: FREE_USER_QUOTA_LIMIT,
-            ttl: generalUsage.ttl,
-          },
-          aircraftLookup: {
-            used: aircraftLookupUsage.count,
-            remaining: aircraftLookupUsage.remaining,
-            limit: FREE_USER_AIRCRAFT_LOOKUP_LIMIT,
-            ttl: aircraftLookupUsage.ttl,
-          },
-        },
+        renewsAt: subscription.renewsAt,
       });
     }
 

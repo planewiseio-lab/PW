@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { chargeOneCredit, chargeMultipleCredits, InsufficientCreditsError } from "@/lib/credits";
+import { chargeOneCredit, chargeMultipleCredits, InsufficientCreditsError, getCreditCost } from "@/lib/credits";
 import { ActionType } from "@prisma/client";
 
 /**
@@ -153,12 +153,15 @@ export function withAircraftLookupAndImagesSmart<T = any>(
     } catch (error) {
       if (error instanceof InsufficientCreditsError) {
         console.log(`[AIRCRAFT+IMAGES-SMART] ❌ Insufficient credits for user: ${userId}`);
+        const baseCost = getCreditCost(ActionType.AIRCRAFT_LOOKUP); // Tier 1 = 1 credit
+        const maxCost = baseCost * 2; // Max 2 credits if images are available
         return NextResponse.json(
           {
             error: "Insufficient credits",
             code: "INSUFFICIENT_CREDITS",
-            message: "You need at least 1 credit to lookup aircraft data",
-            required: 1,
+            message: `You need at least ${baseCost} credit${baseCost > 1 ? "s" : ""} (up to ${maxCost} credits if images are available) to lookup aircraft data`,
+            required: baseCost,
+            maxRequired: maxCost,
           },
           { status: 402 }
         );

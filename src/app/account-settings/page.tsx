@@ -768,14 +768,95 @@ export default function AccountSettingsPage() {
                               </h3>
                               <p className="text-sm text-gray-600">
                                 Your subscription has been canceled. You now have access to the{" "}
-                                <span className="font-semibold">Free plan</span> with 5 credits per day.
+                                <span className="font-semibold">Free plan</span> with 50 credits per month.
                               </p>
                             </div>
                           </div>
                         </div>
                       ) : null}
 
-                      {/* Message 3: Current Subscription Info (plan PRO, status ACTIVE) */}
+                      {/* Message 3: Current Subscription Info (plan FREE, status ACTIVE) */}
+                      {subscription.plan === "FREE" && subscription.status === "ACTIVE" && (
+                        <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-2xl border border-blue-200 p-6 shadow-sm">
+                          <div className="flex items-start justify-between">
+                            <div className="flex-1">
+                              <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                                Current Plan
+                              </h3>
+                              <div className="space-y-3">
+                                <div className="flex items-center gap-3">
+                                  <span className="font-semibold text-gray-900">
+                                    Plan: Free
+                                  </span>
+                                  <span className="px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                    Active
+                                  </span>
+                                </div>
+                                <div className="bg-white rounded-lg p-4 border border-blue-100">
+                                  <div className="space-y-2">
+                                    <div className="flex items-center gap-2">
+                                      <svg
+                                        className="w-5 h-5 text-blue-600"
+                                        fill="none"
+                                        stroke="currentColor"
+                                        viewBox="0 0 24 24"
+                                      >
+                                        <path
+                                          strokeLinecap="round"
+                                          strokeLinejoin="round"
+                                          strokeWidth={2}
+                                          d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                                        />
+                                      </svg>
+                                      <span className="text-sm font-medium text-gray-900">
+                                        50 credits per month
+                                      </span>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                      <svg
+                                        className="w-5 h-5 text-blue-600"
+                                        fill="none"
+                                        stroke="currentColor"
+                                        viewBox="0 0 24 24"
+                                      >
+                                        <path
+                                          strokeLinecap="round"
+                                          strokeLinejoin="round"
+                                          strokeWidth={2}
+                                          d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
+                                        />
+                                      </svg>
+                                      <span className="text-sm text-gray-600">
+                                        Credits renew on{" "}
+                                        <span className="font-semibold">
+                                          {new Date(subscription.renewsAt).toLocaleDateString(
+                                            "en-US",
+                                            {
+                                              year: "numeric",
+                                              month: "long",
+                                              day: "numeric",
+                                            }
+                                          )}
+                                        </span>
+                                      </span>
+                                    </div>
+                                  </div>
+                                </div>
+                                <div className="border-t border-blue-100 pt-3">
+                                  <p className="text-xs text-gray-600">
+                                    <strong>Included:</strong> Aircraft lookup, flight history, airport information, basic specs & photos
+                                  </p>
+                                  <p className="text-xs text-gray-500 mt-1">
+                                    Upgrade to Basic or Pro for more credits and additional features.
+                                  </p>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Message 4: Current Subscription Info (plan PRO/BASIC, status ACTIVE) */}
                       {subscription.plan !== "FREE" && subscription.status === "ACTIVE" && (
                     <div className="bg-gradient-to-r from-brand-50 to-blue-50 rounded-2xl border border-brand-200 p-6 shadow-sm">
                       <div className="flex items-start justify-between">
@@ -913,7 +994,9 @@ export default function AccountSettingsPage() {
                           planCode: "FREE",
                           price: "$0",
                           note: "/mo",
+                          credits: "50 credits/month",
                           perks: [
+                            "50 credits per month",
                             "Aircraft lookup",
                             "Flight history",
                             "Airport information",
@@ -922,9 +1005,9 @@ export default function AccountSettingsPage() {
                             "Ads",
                           ],
                           cta: {
-                            href: "/register",
-                            text: "Get started",
-                            className: "bg-brand-600 hover:bg-brand-700",
+                            href: subscription?.plan === "FREE" ? "#" : "/register",
+                            text: subscription?.plan === "FREE" ? "Current Plan" : "Get started",
+                            className: subscription?.plan === "FREE" ? "bg-gray-400 cursor-not-allowed" : "bg-brand-600 hover:bg-brand-700",
                           },
                           wrapClass: "border-brand-200",
                         },
@@ -1063,9 +1146,9 @@ export default function AccountSettingsPage() {
                             </motion.p>
                           </div>
                           <p className="mt-3 text-sm text-gray-600">
-                            {i === 0 && "5 requests per day"}
+                            {i === 0 && "50 credits per month"}
                             {i === 1 && "350 credits per month"}
-                            {i === 2 && "750 requests per month"}
+                            {i === 2 && "750 credits per month"}
                           </p>
                           <ul className="mt-5 space-y-2 text-sm text-gray-700 flex-1">
                             {p.perks.map((perk) => (

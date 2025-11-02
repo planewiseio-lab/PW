@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { chargeOneCredit, InsufficientCreditsError } from "@/lib/credits";
+import { chargeOneCredit, InsufficientCreditsError, getCreditCost } from "@/lib/credits";
 import { ActionType } from "@prisma/client";
 
 // Global cache for pending requests to prevent duplicate API calls and credit charges
@@ -121,12 +121,14 @@ export function withCreditChargeABD(
           console.warn(
             `[ABD] ❌ Insufficient credits for user: ${userId} on ${request.nextUrl.pathname}`
           );
+          const cost = getCreditCost(actionType);
           return NextResponse.json(
             {
               error: "Insufficient credits",
               code: "INSUFFICIENT_CREDITS",
-              message: "You need at least 1 credit to use this service",
+              message: `You need at least ${cost} credit${cost > 1 ? "s" : ""} to use this service`,
               credits: 0,
+              requiredCredits: cost,
             },
             { status: 402 }
           );
@@ -155,12 +157,14 @@ export function withCreditChargeABD(
         console.warn(
           `[ABD] ❌ Insufficient credits for user: ${error.userId} on ${request.nextUrl.pathname}`
         );
+        const cost = getCreditCost(actionType);
         return NextResponse.json(
           {
             error: "Insufficient credits",
             code: "INSUFFICIENT_CREDITS",
-            message: "You need at least 1 credit to use this service",
+            message: `You need at least ${cost} credit${cost > 1 ? "s" : ""} to use this service`,
             credits: 0,
+            requiredCredits: cost,
           },
           { status: 402 }
         );

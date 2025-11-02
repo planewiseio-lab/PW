@@ -13,8 +13,11 @@ import {
   X,
 } from "lucide-react";
 
-// Fonction pour formater le temps restant
-// Note: Clock icon removed and replaced with inline SVG to avoid HMR issues
+/**
+ * Format time remaining in seconds to human-readable string
+ * @param seconds - Time remaining in seconds
+ * @returns Formatted string (e.g., "2h 30m 15s")
+ */
 function formatTimeRemaining(seconds: number): string {
   if (seconds <= 0) return "0s";
 
@@ -190,7 +193,7 @@ export function GuestQuotaExceededModal() {
           </h1>
           <p className="text-xl text-gray-600 max-w-2xl mx-auto">
             You've used all your {guestLimit} anonymous requests in the last
-            24h. Log in to continue and get 5 requests per day (Free plan)!
+            24h. Log in to continue and get 50 credits per month (Free plan)!
           </p>
         </div>
 
@@ -298,7 +301,7 @@ export function GuestQuotaExceededModal() {
               </div>
 
               <div className="text-center text-sm text-gray-500 mb-4">
-                5 requests per day
+                50 credits per month
               </div>
 
               <Link

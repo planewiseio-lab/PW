@@ -22,6 +22,23 @@ export class AdminOnlyError extends Error {
   }
 }
 
+/**
+ * Get credit cost based on action type (tier-based pricing)
+ * tier 1 = AIRCRAFT_LOOKUP (-1 credit)
+ * tier 3 = VIEW_FLIGHT_HISTORY (-4 credits)
+ * tier 2 = everything else (-2 credits)
+ */
+export function getCreditCost(actionType: ActionType): number {
+  switch (actionType) {
+    case ActionType.AIRCRAFT_LOOKUP:
+      return 1; // tier 1
+    case ActionType.VIEW_FLIGHT_HISTORY:
+      return 4; // tier 3
+    default:
+      return 2; // tier 2 (BROWSE_FLIGHT, BROWSE_AIRPORT, UNKNOWN)
+  }
+}
+
 export interface UsageHistoryItem {
   id: string;
   delta: number;
@@ -186,8 +203,11 @@ export async function chargeOneCredit(opts: {
 
     const currentCredits = balance?.credits ?? 0;
 
+    // Get credit cost based on action type (tier-based)
+    const cost = getCreditCost(actionType);
+
     // Check if user has sufficient credits
-    if (currentCredits < 1) {
+    if (currentCredits < cost) {
       throw new InsufficientCreditsError();
     }
 
@@ -199,11 +219,11 @@ export async function chargeOneCredit(opts: {
         userId,
         actionType,
         idempotencyKey: key,
-        cost: 1,
+        cost,
       },
     });
     console.log(
-      `[Credits] ✅ Created usage event: ${usageEventId} for action ${actionType}`
+      `[Credits] ✅ Created usage event: ${usageEventId} for action ${actionType} (cost: ${cost} credits)`
     );
 
     // Create ledger entry
@@ -212,7 +232,7 @@ export async function chargeOneCredit(opts: {
       data: {
         id: ledgerId,
         userId,
-        delta: -1,
+        delta: -cost,
         reason: CreditReason.ACTION,
         actionType,
         refId,
@@ -220,20 +240,21 @@ export async function chargeOneCredit(opts: {
       },
     });
     console.log(
-      `[Credits] 📝 Created ledger entry: ${ledgerId} (delta: -1)`
+      `[Credits] 📝 Created ledger entry: ${ledgerId} (delta: -${cost})`
     );
 
     // Update balance
+    const newBalance = currentCredits - cost;
     await tx.credit_balances.upsert({
       where: { userId },
-      update: { credits: { decrement: 1 } },
-      create: { userId, credits: currentCredits - 1 },
+      update: { credits: { decrement: cost } },
+      create: { userId, credits: newBalance },
     });
     console.log(
-      `[Credits] 💰 Updated balance: ${currentCredits} -> ${currentCredits - 1} credits`
+      `[Credits] 💰 Updated balance: ${currentCredits} -> ${newBalance} credits`
     );
 
-    return { newBalance: currentCredits - 1 };
+    return { newBalance };
   });
 }
 
@@ -252,7 +273,14 @@ export async function chargeMultipleCredits(opts: {
   baseIdempotencyKey?: string;
 }): Promise<{ newBalance: number; chargedActions: ActionType[] }> {
   const { userId, actions, baseIdempotencyKey } = opts;
-  const totalCost = actions.length;
+  
+  // Calculate total cost based on tier-based pricing for each action
+  const totalCost = actions.reduce((sum, action) => {
+    if (!action.actionType) {
+      throw new Error(`Action type is required for action in multi-action charge`);
+    }
+    return sum + getCreditCost(action.actionType);
+  }, 0);
 
   // Generate base idempotency key if not provided
   const baseKey =
@@ -299,13 +327,16 @@ export async function chargeMultipleCredits(opts: {
         throw new Error(`Action type is required for action at index ${i}`);
       }
 
+      // Get credit cost for this action
+      const actionCost = getCreditCost(action.actionType);
+
       await tx.usage_events.create({
         data: {
           id: crypto.randomUUID(),
           userId,
           actionType: action.actionType,
           idempotencyKey: actionKey,
-          cost: 1,
+          cost: actionCost,
         },
       });
 
@@ -314,7 +345,7 @@ export async function chargeMultipleCredits(opts: {
         data: {
           id: crypto.randomUUID(),
           userId,
-          delta: -1,
+          delta: -actionCost,
           reason: CreditReason.ACTION,
           actionType: action.actionType,
           refId: action.refId,
@@ -329,14 +360,15 @@ export async function chargeMultipleCredits(opts: {
     }
 
     // Update balance
+    const newBalance = currentCredits - totalCost;
     await tx.credit_balances.upsert({
       where: { userId },
       update: { credits: { decrement: totalCost } },
-      create: { userId, credits: currentCredits - totalCost },
+      create: { userId, credits: newBalance },
     });
 
     return {
-      newBalance: currentCredits - totalCost,
+      newBalance,
       chargedActions: actions.map((a) => a.actionType),
     };
   });
@@ -365,7 +397,7 @@ export async function ensureMonthlyTopUp(userId: string): Promise<void> {
 
   // Calculate maximum credits by plan
   const maxCreditsByPlan = {
-    [Plan.FREE]: 5, // 5 crédits maximum par jour
+    [Plan.FREE]: 50, // 50 crédits par mois
     [Plan.PRO]: 500, // 500 crédits maximum par mois
     [Plan.BUSINESS]: 2500, // 2500 crédits maximum par mois
   };
@@ -405,13 +437,8 @@ export async function ensureMonthlyTopUp(userId: string): Promise<void> {
   // Update subscription renewal date based on plan
   const nextRenewal = new Date(now);
 
-  if (subscription.plan === Plan.FREE) {
-    // FREE plan: daily renewal
-    nextRenewal.setDate(nextRenewal.getDate() + 1);
-  } else {
-    // PRO/BUSINESS plans: monthly renewal
-    nextRenewal.setMonth(nextRenewal.getMonth() + 1);
-  }
+  // All plans now use monthly renewal
+  nextRenewal.setMonth(nextRenewal.getMonth() + 1);
 
   await prisma.subscriptions.update({
     where: { userId },

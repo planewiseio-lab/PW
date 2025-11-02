@@ -194,3 +194,4 @@ NEXT_PUBLIC_SITE_URL=http://localhost:3000 # ou https://votre-domaine.com en pro
 Une fois tous ces éléments cochés, votre intégration Stripe est prête ! 🎉
 
 
+

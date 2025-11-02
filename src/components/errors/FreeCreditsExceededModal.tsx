@@ -36,10 +36,7 @@ export function FreeCreditsExceededModal() {
 
   useEffect(() => {
     const handleCreditsExceeded = (event: CustomEvent) => {
-      console.log(
-        "[FreeCreditsExceededModal] Event received:",
-        event.detail
-      );
+      console.log("[FreeCreditsExceededModal] Event received:", event.detail);
       const ttl = event.detail?.freeUserTtl ?? event.detail?.ttl ?? 0;
       console.log(
         "[FreeCreditsExceededModal] TTL:",
@@ -143,10 +140,10 @@ export function FreeCreditsExceededModal() {
             <Zap className="w-10 h-10 text-orange-600" />
           </div>
           <h1 className="text-4xl font-bold text-gray-900 mb-4">
-            Daily Credits Exhausted
+            Monthly Credits Exhausted
           </h1>
           <p className="text-xl text-gray-600 max-w-2xl mx-auto">
-            You've used all your 5 daily credits. Upgrade to Pro plan for 500
+            You've used all your 50 monthly credits. Upgrade to Pro plan for 750
             monthly credits and unlimited access!
           </p>
         </div>
@@ -163,7 +160,7 @@ export function FreeCreditsExceededModal() {
                   Current Plan: Free
                 </h3>
                 <p className="text-gray-600">
-                  5 requests per day • Daily renewal
+                  50 credits per month • Monthly renewal
                 </p>
               </div>
             </div>
@@ -175,8 +172,18 @@ export function FreeCreditsExceededModal() {
               {(timeRemaining > 0 || freeUserTtl > 0) && (
                 <div className="mt-2 pt-2 border-t border-gray-300">
                   <div className="flex items-center justify-end space-x-2">
-                    <svg className="w-4 h-4 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    <svg
+                      className="w-4 h-4 text-gray-500"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+                      />
                     </svg>
                     <span className="text-xs text-gray-600">
                       Quota resets in:
@@ -245,7 +252,7 @@ export function FreeCreditsExceededModal() {
               </div>
 
               <div className="text-center text-sm text-gray-500 mb-4">
-                5 requests per day
+                50 credits per month
               </div>
 
               <div className="w-full bg-gray-300 text-gray-500 py-3 px-4 rounded-lg font-semibold flex items-center justify-center space-x-2 cursor-not-allowed">
@@ -445,7 +452,7 @@ export function FreeCreditsExceededModal() {
                 </div>
                 <h4 className="font-semibold mb-2">More Credits</h4>
                 <p className="text-sm opacity-90">
-                  From 5 daily to 350 or 750 monthly credits
+                  From 50 monthly to 350 or 750 monthly credits
                 </p>
               </div>
               <div className="text-center">
@@ -472,8 +479,7 @@ export function FreeCreditsExceededModal() {
           {/* Action Buttons */}
           <div className="text-center">
             <p className="text-gray-600 mb-6">
-              Your credits will reset tomorrow. Upgrade now for unlimited
-              access!
+              Your credits will reset next month. Upgrade now for more credits!
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <Link
@@ -481,7 +487,7 @@ export function FreeCreditsExceededModal() {
                 onClick={handleClose}
                 className="px-6 py-3 border border-gray-300 text-gray-700 rounded-xl font-semibold hover:bg-gray-50 transition-colors text-center"
               >
-                Wait for Tomorrow
+                Wait for Next Month
               </Link>
               <Link
                 href="/checkout?plan=pro"
@@ -498,4 +504,3 @@ export function FreeCreditsExceededModal() {
     </div>
   );
 }
-
