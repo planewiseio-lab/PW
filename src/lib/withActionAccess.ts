@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { withCreditChargeABD } from "@/lib/withCreditChargeABD-simple";
 import { withGuestQuota } from "@/lib/withGuestQuota";
-import { withFreeUserQuota } from "@/lib/withFreeUserQuota";
 import { ActionType, Plan } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 

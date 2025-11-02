@@ -245,9 +245,53 @@ export const GET = withAircraftAccess(
       }
     }
 
-    // 4️⃣ Erreur amont
-    return new NextResponse(
-      last?.text || JSON.stringify({ error: "Upstream error" }),
+    // 4️⃣ Erreur amont - Gérer différents types d'erreurs de l'API externe
+    let errorMessage = "Upstream error";
+    let errorCode = "UPSTREAM_ERROR";
+    
+    if (last?.status === 401) {
+      errorMessage = "API authentication failed. Please check your API subscription.";
+      errorCode = "API_AUTH_ERROR";
+    } else if (last?.status === 403) {
+      errorMessage = "API access forbidden. Your subscription may have expired or reached its limit.";
+      errorCode = "API_FORBIDDEN";
+    } else if (last?.status === 429) {
+      errorMessage = "API rate limit exceeded. Please try again later.";
+      errorCode = "API_RATE_LIMIT";
+    } else if (last?.status === 500 || last?.status === 502 || last?.status === 503) {
+      errorMessage = "External API service unavailable. Please try again later.";
+      errorCode = "API_SERVICE_UNAVAILABLE";
+    } else if (last?.status === 404) {
+      errorMessage = "Aircraft not found in the database.";
+      errorCode = "AIRCRAFT_NOT_FOUND";
+    } else if (last?.status) {
+      errorMessage = `External API error (status: ${last.status})`;
+      errorCode = "API_ERROR";
+    }
+    
+    // Essayer de parser le texte d'erreur de l'API pour plus de détails
+    let errorDetail = null;
+    if (last?.text) {
+      try {
+        const parsed = JSON.parse(last.text);
+        if (parsed.message || parsed.error) {
+          errorDetail = parsed.message || parsed.error;
+        }
+      } catch {
+        // Si le parsing échoue, utiliser le texte brut
+        if (last.text.length < 200) {
+          errorDetail = last.text;
+        }
+      }
+    }
+    
+    return NextResponse.json(
+      {
+        error: errorMessage,
+        code: errorCode,
+        detail: errorDetail,
+        status: last?.status || 502,
+      },
       {
         status: last?.status || 502,
         headers: { "Content-Type": "application/json", "X-Cache": "MISS" },

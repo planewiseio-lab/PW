@@ -12,8 +12,8 @@ type AuthMode = "login" | "register";
 export default function AuthPage() {
   const searchParams = useSearchParams();
   const router = useRouter();
-  
-  // Déterminer le mode initial depuis l'URL
+
+  // Determine initial mode from URL
   const initialMode = (() => {
     if (typeof window !== "undefined") {
       const params = new URLSearchParams(window.location.search);
@@ -22,23 +22,30 @@ export default function AuthPage() {
     }
     return "login" as AuthMode;
   })();
-  
+
   const [mode, setMode] = useState<AuthMode>(initialMode);
-  
-  // État pour le formulaire
+
+  // Form state
   const [email, setEmail] = useState("");
   const [fullName, setFullName] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
-  const [showPasswordRequirements, setShowPasswordRequirements] = useState(false);
+  const [showPasswordRequirements, setShowPasswordRequirements] =
+    useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
   const [showForgotPassword, setShowForgotPassword] = useState(false);
+  const [existingAccount, setExistingAccount] = useState<{
+    userId: string;
+    email: string;
+    createdAt: string;
+    canRecover: boolean;
+  } | null>(null);
 
   const supabase = createClient();
 
-  // Mettre à jour le mode si le paramètre change dans l'URL
+  // Update mode if URL parameter changes
   useEffect(() => {
     const modeParam = searchParams.get("mode");
     if (modeParam === "register") {
@@ -46,10 +53,10 @@ export default function AuthPage() {
     } else if (modeParam === "login") {
       setMode("login");
     }
-    // Si pas de paramètre mode, on garde le mode initial
+    // If no mode parameter, keep initial mode
   }, [searchParams]);
 
-  // Charger le script Google et initialiser le bouton
+  // Load Google script and initialize button
   useEffect(() => {
     const script = document.createElement("script");
     script.src = "https://accounts.google.com/gsi/client";
@@ -58,7 +65,9 @@ export default function AuthPage() {
     document.head.appendChild(script);
 
     script.onload = () => {
-      if (window.google) {
+      // Declare Google types to avoid TypeScript errors
+      const google = (window as any).google;
+      if (google?.accounts?.id) {
         const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
         if (!clientId) {
           console.warn(
@@ -67,20 +76,22 @@ export default function AuthPage() {
           return;
         }
 
-        // Réinitialiser les boutons Google selon le mode
+        // Reset Google buttons according to mode
         const loginButton = document.getElementById("google-signin-button");
-        const registerButton = document.getElementById("google-register-button");
+        const registerButton = document.getElementById(
+          "google-register-button"
+        );
 
-        // Nettoyer tous les boutons d'abord
+        // Clear all buttons first
         if (loginButton) loginButton.innerHTML = "";
         if (registerButton) registerButton.innerHTML = "";
 
         if (mode === "login" && loginButton) {
-          window.google.accounts.id.initialize({
+          google.accounts.id.initialize({
             client_id: clientId,
             callback: handleGoogleLogin,
           });
-          window.google.accounts.id.renderButton(loginButton, {
+          google.accounts.id.renderButton(loginButton, {
             theme: "outline",
             size: "large",
             text: "signin_with",
@@ -90,11 +101,11 @@ export default function AuthPage() {
         }
 
         if (mode === "register" && registerButton) {
-          window.google.accounts.id.initialize({
+          google.accounts.id.initialize({
             client_id: clientId,
             callback: handleGoogleRegister,
           });
-          window.google.accounts.id.renderButton(registerButton, {
+          google.accounts.id.renderButton(registerButton, {
             theme: "outline",
             size: "large",
             text: "signup_with",
@@ -128,7 +139,7 @@ export default function AuthPage() {
       setMessage("Login successful! Redirecting...");
       setShowSuccess(true);
 
-      // Rediriger vers le dashboard ou l'URL de redirect
+      // Redirect to dashboard or redirect URL
       const redirectUrl = searchParams.get("redirect") || "/dashboard";
       setTimeout(() => {
         router.push(redirectUrl);
@@ -173,24 +184,38 @@ export default function AuthPage() {
     }
 
     try {
-      const { data, error } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          data: {
-            full_name: fullName,
-          },
+      const response = await fetch("/api/auth/register", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
         },
+        body: JSON.stringify({
+          email,
+          password,
+          fullName,
+        }),
       });
 
-      if (error) throw error;
+      const data = await response.json();
+
+      if (!response.ok) {
+        // Check if existing account was detected
+        if (data.error === "EXISTING_ACCOUNT_FOUND" && data.existingAccount) {
+          setExistingAccount(data.existingAccount);
+          setMessage(
+            data.message || "An account already exists from this IP address."
+          );
+          return;
+        }
+        throw new Error(data.error || "An error occurred during signup");
+      }
 
       setMessage(
         "Account created successfully! Check your email for the confirmation link."
       );
       setShowSuccess(true);
 
-      // Rediriger vers login après 3 secondes
+      // Redirect to login after 3 seconds
       setTimeout(() => {
         setMode("login");
         setShowSuccess(false);
@@ -201,6 +226,61 @@ export default function AuthPage() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleRecoverAccount = async () => {
+    if (!existingAccount) return;
+
+    setLoading(true);
+    setMessage("");
+
+    try {
+      // Send password reset email
+      const { error } = await supabase.auth.resetPasswordForEmail(
+        existingAccount.email,
+        {
+          redirectTo: `${window.location.origin}/auth/reset-password`,
+        }
+      );
+
+      if (error) throw error;
+
+      setMessage(
+        `A password reset email has been sent to ${existingAccount.email}. Please check your inbox.`
+      );
+      setExistingAccount(null);
+    } catch (error: any) {
+      setMessage(
+        error.message || "An error occurred while sending recovery email"
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleContactUs = () => {
+    router.push("/contact");
+  };
+
+  // Function to mask email for privacy
+  const maskEmail = (email: string): string => {
+    const [localPart, domain] = email.split("@");
+    if (!localPart || !domain) return email;
+
+    // Mask local part: keep first 2 chars, mask the rest
+    const maskedLocal =
+      localPart.length <= 2 ? localPart : localPart.substring(0, 2) + "***";
+
+    // Mask domain: keep first 4 chars before the dot, mask the rest
+    const [domainName, extension] = domain.split(".");
+    if (!domainName || !extension) return email;
+
+    const maskedDomain =
+      domainName.length <= 4
+        ? domainName.substring(0, 2) + "***"
+        : domainName.substring(0, 4) + "***";
+
+    return `${maskedLocal}@${maskedDomain}.${extension}`;
   };
 
   const handleGoogleLogin = async (response: any) => {
@@ -262,7 +342,7 @@ export default function AuthPage() {
 
     try {
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `${window.location.origin}/reset-password`,
+        redirectTo: `${window.location.origin}/auth/reset-password`,
       });
 
       if (error) throw error;
@@ -311,7 +391,7 @@ export default function AuthPage() {
             <p className="mt-2 text-gray-600">
               Get started with PlaneWise today
             </p>
-            
+
             {/* Menu de navigation centré sous le texte de bienvenue */}
             <div className="inline-flex rounded-xl border border-gray-200 bg-gray-50 p-1 mt-6 mb-8">
               <button
@@ -351,209 +431,339 @@ export default function AuthPage() {
               {showSuccess ? (
                 <motion.div
                   key="success"
+                  initial={{ opacity: 0, scale: 0.9 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.9 }}
+                  transition={{ duration: 0.3 }}
+                  className="absolute inset-0 flex items-center justify-center"
+                >
+                  <div className="w-full max-w-sm mx-auto text-center space-y-6">
+                    <motion.div
+                      initial={{ scale: 0 }}
+                      animate={{ scale: 1 }}
+                      transition={{
+                        delay: 0.1,
+                        type: "spring",
+                        stiffness: 200,
+                        damping: 15,
+                      }}
+                      className="flex justify-center"
+                    >
+                      <div className="relative">
+                        <div className="w-20 h-20 bg-gradient-to-br from-green-400 to-green-600 rounded-full flex items-center justify-center shadow-lg">
+                          <svg
+                            className="w-10 h-10 text-white"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={3}
+                              d="M5 13l4 4L19 7"
+                            />
+                          </svg>
+                        </div>
+                        <motion.div
+                          initial={{ scale: 0 }}
+                          animate={{ scale: 1.2 }}
+                          transition={{
+                            delay: 0.3,
+                            duration: 0.4,
+                          }}
+                          className="absolute inset-0 bg-green-400 rounded-full opacity-20 animate-ping"
+                        />
+                      </div>
+                    </motion.div>
+
+                    <motion.div
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: 0.2 }}
+                      className="space-y-2"
+                    >
+                      <h3 className="text-2xl font-bold text-gray-900">
+                        {mode === "login"
+                          ? "Welcome back!"
+                          : "Account created!"}
+                      </h3>
+                      <p className="text-gray-600 text-base leading-relaxed">
+                        {message.includes("Redirecting")
+                          ? "Login successful! You'll be redirected shortly..."
+                          : message.includes("Account created") ||
+                            message.includes("Check your email")
+                          ? "Please check your email to confirm your account. You'll be redirected to login shortly."
+                          : message}
+                      </p>
+                    </motion.div>
+
+                    <motion.div
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      transition={{ delay: 0.4 }}
+                      className="flex justify-center items-center gap-2 pt-4"
+                    >
+                      <div className="animate-spin rounded-full h-5 w-5 border-2 border-green-500 border-t-transparent"></div>
+                      <span className="text-sm text-gray-500">
+                        {message.includes("Redirecting")
+                          ? "Redirecting..."
+                          : message.includes("Account created") ||
+                            message.includes("Check your email")
+                          ? "Redirecting to login..."
+                          : "Please wait..."}
+                      </span>
+                    </motion.div>
+                  </div>
+                </motion.div>
+              ) : (
+                <motion.form
+                  key={mode}
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -10 }}
                   transition={{ duration: 0.3 }}
-                  className="absolute inset-0 flex items-center justify-center"
+                  onSubmit={mode === "login" ? handleLogin : handleRegister}
+                  className="space-y-6 flex flex-col"
                 >
-                <motion.div
-                  initial={{ scale: 0 }}
-                  animate={{ scale: 1 }}
-                  transition={{
-                    delay: 0.2,
-                    type: "spring",
-                    stiffness: 200,
-                  }}
-                  className="w-16 h-16 bg-green-500 rounded-full flex items-center justify-center mx-auto mb-4"
-                >
-                  <svg
-                    className="w-8 h-8 text-white"
-                    fill="currentColor"
-                    viewBox="0 0 20 20"
-                  >
-                    <path
-                      fillRule="evenodd"
-                      d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
-                      clipRule="evenodd"
-                    />
-                  </svg>
-                </motion.div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                  Success!
-                </h3>
-                <p className="text-gray-600 mb-4">{message}</p>
-                <div className="flex justify-center">
-                  <div className="animate-spin rounded-full h-6 w-6 border-2 border-green-500 border-t-transparent"></div>
-                </div>
-              </motion.div>
-            ) : (
-              <motion.form
-                key={mode}
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -10 }}
-                transition={{ duration: 0.3 }}
-                onSubmit={mode === "login" ? handleLogin : handleRegister}
-                className="space-y-6 flex flex-col"
-              >
-                <div className="space-y-4">
-                  {mode === "register" && (
+                  <div className="space-y-4">
+                    {mode === "register" && (
+                      <div>
+                        <label
+                          htmlFor="fullName"
+                          className="block text-sm font-medium text-gray-700"
+                        >
+                          Full Name
+                        </label>
+                        <input
+                          id="fullName"
+                          name="fullName"
+                          type="text"
+                          autoComplete="name"
+                          required
+                          value={fullName}
+                          onChange={(e) => setFullName(e.target.value)}
+                          className="mt-1 appearance-none relative block w-full px-3 py-3 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent focus:z-10 sm:text-sm"
+                          placeholder="Enter your full name"
+                        />
+                      </div>
+                    )}
+
                     <div>
                       <label
-                        htmlFor="fullName"
+                        htmlFor="email"
                         className="block text-sm font-medium text-gray-700"
                       >
-                        Full Name
+                        Email address
                       </label>
                       <input
-                        id="fullName"
-                        name="fullName"
-                        type="text"
-                        autoComplete="name"
+                        id="email"
+                        name="email"
+                        type="email"
+                        autoComplete="email"
                         required
-                        value={fullName}
-                        onChange={(e) => setFullName(e.target.value)}
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
                         className="mt-1 appearance-none relative block w-full px-3 py-3 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent focus:z-10 sm:text-sm"
-                        placeholder="Enter your full name"
+                        placeholder="Enter your email"
                       />
                     </div>
-                  )}
 
-                  <div>
-                    <label
-                      htmlFor="email"
-                      className="block text-sm font-medium text-gray-700"
-                    >
-                      Email address
-                    </label>
-                    <input
-                      id="email"
-                      name="email"
-                      type="email"
-                      autoComplete="email"
-                      required
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      className="mt-1 appearance-none relative block w-full px-3 py-3 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent focus:z-10 sm:text-sm"
-                      placeholder="Enter your email"
-                    />
-                  </div>
-
-                  <div className="relative">
-                    <div className="flex items-center justify-between mb-1">
-                      <label
-                        htmlFor="password"
-                        className="block text-sm font-medium text-gray-700"
-                      >
-                        Password
-                      </label>
-                      {mode === "login" && (
-                        <button
-                          type="button"
-                          onClick={() => setShowForgotPassword(true)}
-                          className="text-sm text-[#178cf2] hover:text-blue-500 transition"
+                    <div className="relative">
+                      <div className="flex items-center justify-between mb-1">
+                        <label
+                          htmlFor="password"
+                          className="block text-sm font-medium text-gray-700"
                         >
-                          Forgot password?
-                        </button>
+                          Password
+                        </label>
+                        {mode === "login" && (
+                          <button
+                            type="button"
+                            onClick={() => setShowForgotPassword(true)}
+                            className="text-sm text-[#178cf2] hover:text-blue-500 transition"
+                          >
+                            Forgot password?
+                          </button>
+                        )}
+                      </div>
+                      <input
+                        id="password"
+                        name="password"
+                        type="password"
+                        autoComplete={
+                          mode === "login" ? "current-password" : "new-password"
+                        }
+                        required
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        onFocus={() =>
+                          mode === "register" &&
+                          setShowPasswordRequirements(true)
+                        }
+                        onBlur={() =>
+                          mode === "register" &&
+                          setShowPasswordRequirements(false)
+                        }
+                        className="mt-1 appearance-none relative block w-full px-3 py-3 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent focus:z-10 sm:text-sm"
+                        placeholder={
+                          mode === "login"
+                            ? "Enter your password"
+                            : "Create a password"
+                        }
+                      />
+                      {mode === "register" && (
+                        <PasswordRequirements
+                          password={password}
+                          show={showPasswordRequirements}
+                        />
                       )}
                     </div>
-                    <input
-                      id="password"
-                      name="password"
-                      type="password"
-                      autoComplete={mode === "login" ? "current-password" : "new-password"}
-                      required
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      onFocus={() => mode === "register" && setShowPasswordRequirements(true)}
-                      onBlur={() => mode === "register" && setShowPasswordRequirements(false)}
-                      className="mt-1 appearance-none relative block w-full px-3 py-3 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent focus:z-10 sm:text-sm"
-                      placeholder={
-                        mode === "login"
-                          ? "Enter your password"
-                          : "Create a password"
-                      }
-                    />
+
                     {mode === "register" && (
-                      <PasswordRequirements
-                        password={password}
-                        show={showPasswordRequirements}
-                      />
+                      <div>
+                        <label
+                          htmlFor="confirmPassword"
+                          className="block text-sm font-medium text-gray-700"
+                        >
+                          Confirm Password
+                        </label>
+                        <input
+                          id="confirmPassword"
+                          name="confirmPassword"
+                          type="password"
+                          autoComplete="new-password"
+                          required
+                          value={confirmPassword}
+                          onChange={(e) => setConfirmPassword(e.target.value)}
+                          className="mt-1 appearance-none relative block w-full px-3 py-3 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent focus:z-10 sm:text-sm"
+                          placeholder="Confirm your password"
+                        />
+                      </div>
                     )}
                   </div>
 
-                  {mode === "register" && (
-                    <div>
-                      <label
-                        htmlFor="confirmPassword"
-                        className="block text-sm font-medium text-gray-700"
-                      >
-                        Confirm Password
-                      </label>
-                      <input
-                        id="confirmPassword"
-                        name="confirmPassword"
-                        type="password"
-                        autoComplete="new-password"
-                        required
-                        value={confirmPassword}
-                        onChange={(e) => setConfirmPassword(e.target.value)}
-                        className="mt-1 appearance-none relative block w-full px-3 py-3 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent focus:z-10 sm:text-sm"
-                        placeholder="Confirm your password"
-                      />
+                  {existingAccount && (
+                    <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 space-y-3">
+                      <div className="flex items-start">
+                        <div className="flex-shrink-0">
+                          <svg
+                            className="h-5 w-5 text-yellow-600"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+                            />
+                          </svg>
+                        </div>
+                        <div className="ml-3 flex-1">
+                          <h3 className="text-sm font-medium text-yellow-800">
+                            Existing Account Detected
+                          </h3>
+                          <div className="mt-2 text-sm text-yellow-700">
+                            <p>
+                              An account was created from this IP address on{" "}
+                              {new Date(
+                                existingAccount.createdAt
+                              ).toLocaleDateString("en-US", {
+                                year: "numeric",
+                                month: "long",
+                                day: "numeric",
+                              })}
+                              .
+                            </p>
+                            <p className="mt-1">
+                              Account email:{" "}
+                              <span className="font-semibold">
+                                {maskEmail(existingAccount.email)}
+                              </span>
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="flex gap-2 mt-4">
+                        <button
+                          type="button"
+                          onClick={handleRecoverAccount}
+                          disabled={loading}
+                          className="flex-1 px-4 py-2 bg-yellow-600 text-white text-sm font-medium rounded-lg hover:bg-yellow-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          Recover My Account
+                        </button>
+                        <button
+                          type="button"
+                          onClick={handleContactUs}
+                          disabled={loading}
+                          className="flex-1 px-4 py-2 bg-gray-100 text-gray-700 text-sm font-medium rounded-lg hover:bg-gray-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          Contact Us
+                        </button>
+                      </div>
                     </div>
                   )}
-                </div>
 
-                {message && (
-                  <motion.div
-                    initial={{ opacity: 0, scale: 0.95 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    className={`text-sm p-3 rounded-lg ${
-                      message.includes("Check your email") ||
-                      message.includes("successful")
-                        ? "bg-green-50 text-green-700 border border-green-200"
-                        : "bg-red-50 text-red-700 border border-red-200"
-                    }`}
-                  >
-                    {message}
-                  </motion.div>
-                )}
+                  {message && !existingAccount && (
+                    <motion.div
+                      initial={{ opacity: 0, scale: 0.95 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      className={`text-sm p-3 rounded-lg ${
+                        message.includes("Check your email") ||
+                        message.includes("successful") ||
+                        message.includes("envoyé")
+                          ? "bg-green-50 text-green-700 border border-green-200"
+                          : "bg-red-50 text-red-700 border border-red-200"
+                      }`}
+                    >
+                      {message}
+                    </motion.div>
+                  )}
 
-                <div className="space-y-3">
-                  <button
-                    type="submit"
-                    disabled={loading}
-                    className="group relative w-full flex justify-center py-3 px-4 border border-transparent text-sm font-medium rounded-lg text-white bg-[#178cf2] hover:brightness-110 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition"
-                  >
-                    {loading ? (
-                      <div className="flex items-center">
-                        <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent mr-2"></div>
-                        {mode === "login" ? "Signing in..." : "Creating account..."}
+                  <div className="space-y-3">
+                    <button
+                      type="submit"
+                      disabled={loading}
+                      className="group relative w-full flex justify-center py-3 px-4 border border-transparent text-sm font-medium rounded-lg text-white bg-[#178cf2] hover:brightness-110 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition"
+                    >
+                      {loading ? (
+                        <div className="flex items-center">
+                          <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent mr-2"></div>
+                          {mode === "login"
+                            ? "Signing in..."
+                            : "Creating account..."}
+                        </div>
+                      ) : mode === "login" ? (
+                        "Sign in"
+                      ) : (
+                        "Create account"
+                      )}
+                    </button>
+
+                    <div className="relative">
+                      <div className="absolute inset-0 flex items-center">
+                        <div className="w-full border-t border-gray-300" />
                       </div>
-                    ) : (
-                      mode === "login" ? "Sign in" : "Create account"
-                    )}
-                  </button>
+                      <div className="relative flex justify-center text-sm">
+                        <span className="px-2 bg-white text-gray-500">
+                          Or continue with
+                        </span>
+                      </div>
+                    </div>
 
-                  <div className="relative">
-                    <div className="absolute inset-0 flex items-center">
-                      <div className="w-full border-t border-gray-300" />
-                    </div>
-                    <div className="relative flex justify-center text-sm">
-                      <span className="px-2 bg-white text-gray-500">
-                        Or continue with
-                      </span>
-                    </div>
+                    <div
+                      id={
+                        mode === "login"
+                          ? "google-signin-button"
+                          : "google-register-button"
+                      }
+                      className="w-full flex justify-center"
+                    ></div>
                   </div>
-
-                  <div
-                    id={mode === "login" ? "google-signin-button" : "google-register-button"}
-                    className="w-full flex justify-center"
-                  ></div>
-                </div>
-              </motion.form>
+                </motion.form>
               )}
             </AnimatePresence>
           </div>
@@ -645,4 +855,3 @@ export default function AuthPage() {
     </div>
   );
 }
-

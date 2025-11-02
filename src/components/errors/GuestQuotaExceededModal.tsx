@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
+import { createClient } from "@/lib/supabase/client";
 import {
   ArrowRight,
   CreditCard,
@@ -41,10 +42,58 @@ export function GuestQuotaExceededModal() {
   const [guestLimit, setGuestLimit] = useState(3); // Default à 3 pour les requêtes générales
   const [guestTtl, setGuestTtl] = useState(0); // TTL en secondes
   const [timeRemaining, setTimeRemaining] = useState(0); // Temps restant en secondes
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+
+  // Vérifier l'authentification au montage et quand l'état change
+  useEffect(() => {
+    const checkAuth = async () => {
+      try {
+        const { createClient } = await import("@/lib/supabase/client");
+        const supabase = createClient();
+        const { data: { session } } = await supabase.auth.getSession();
+        setIsAuthenticated(!!session?.user);
+      } catch (error) {
+        console.error("[GuestQuotaExceededModal] Error checking auth:", error);
+        setIsAuthenticated(false);
+      }
+    };
+
+    checkAuth();
+
+    // Écouter les changements d'authentification
+    const supabase = createClient();
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      const authenticated = !!session?.user;
+      setIsAuthenticated(authenticated);
+      // Si l'utilisateur se connecte, fermer le modal s'il est ouvert
+      if (authenticated) {
+        setIsOpen(false);
+      }
+    });
+
+    return () => {
+      subscription?.unsubscribe();
+    };
+  }, []);
 
   useEffect(() => {
-    const handleGuestQuotaExceeded = (event: CustomEvent) => {
+    const handleGuestQuotaExceeded = async (event: CustomEvent) => {
       console.log("[GuestQuotaExceededModal] Event received:", event.detail);
+      
+      // Vérifier si l'utilisateur est authentifié avant d'afficher le modal
+      try {
+        const supabase = createClient();
+        const { data: { session } } = await supabase.auth.getSession();
+        
+        if (session?.user) {
+          console.log("[GuestQuotaExceededModal] User is authenticated, ignoring guest quota exceeded event");
+          return; // Ne pas afficher le modal pour les utilisateurs authentifiés
+        }
+      } catch (error) {
+        console.error("[GuestQuotaExceededModal] Error checking auth:", error);
+        // En cas d'erreur, continuer (mieux vaut afficher le modal que rien)
+      }
+
       const receivedLimit = event.detail?.guestLimit;
       // Si limit reçu, l'utiliser, sinon default à 3 pour les requêtes générales
       // Si c'est 4, corriger à 3 (probablement une erreur de backend)
@@ -88,7 +137,14 @@ export function GuestQuotaExceededModal() {
       );
       window.removeEventListener("keydown", handleKeyDown);
     };
-  }, [isOpen]);
+  }, [isOpen, isAuthenticated]);
+
+  // Fermer le modal si l'utilisateur se connecte
+  useEffect(() => {
+    if (isAuthenticated && isOpen) {
+      setIsOpen(false);
+    }
+  }, [isAuthenticated, isOpen]);
 
   // Mettre à jour le countdown chaque seconde
   useEffect(() => {
@@ -115,7 +171,8 @@ export function GuestQuotaExceededModal() {
     return () => clearInterval(countdownInterval);
   }, [isOpen, guestTtl]);
 
-  if (!isOpen) {
+  // Ne pas afficher le modal si l'utilisateur est authentifié
+  if (!isOpen || isAuthenticated) {
     return null;
   }
 

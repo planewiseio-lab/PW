@@ -108,6 +108,7 @@ export default function AircraftDetailPage() {
       // Ne pas afficher l'erreur sur la page pour les erreurs de quota invité
       // Le modal s'affichera automatiquement
       if (!error.includes("GUEST_QUOTA_EXCEEDED") && !error.includes("Guest quota exceeded")) {
+        // Afficher toutes les autres erreurs, y compris les timeouts
         setErr(error);
         setData(null);
       }

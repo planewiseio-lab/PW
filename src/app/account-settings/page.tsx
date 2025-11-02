@@ -252,7 +252,7 @@ export default function AccountSettingsPage() {
       const { error } = await supabase.auth.resetPasswordForEmail(
         user?.email || "",
         {
-          redirectTo: `${window.location.origin}/reset-password`,
+          redirectTo: `${window.location.origin}/auth/reset-password`,
         }
       );
 
@@ -1005,9 +1005,9 @@ export default function AccountSettingsPage() {
                             "Ads",
                           ],
                           cta: {
-                            href: subscription?.plan === "FREE" ? "#" : "/register",
-                            text: subscription?.plan === "FREE" ? "Current Plan" : "Get started",
-                            className: subscription?.plan === "FREE" ? "bg-gray-400 cursor-not-allowed" : "bg-brand-600 hover:bg-brand-700",
+                            href: (subscription?.plan?.toUpperCase?.() || subscription?.plan || "") === "FREE" ? "#" : "/register",
+                            text: (subscription?.plan?.toUpperCase?.() || subscription?.plan || "") === "FREE" ? "Current Plan" : "Get started",
+                            className: (subscription?.plan?.toUpperCase?.() || subscription?.plan || "") === "FREE" ? "bg-gray-400 cursor-not-allowed" : "bg-brand-600 hover:bg-brand-700",
                           },
                           wrapClass: "border-brand-200",
                         },
@@ -1026,7 +1026,7 @@ export default function AccountSettingsPage() {
                           ],
                           cta: {
                             href: "/checkout?plan=basic",
-                            text: subscription?.plan === "BASIC" ? "Current Plan" : "Choose Basic",
+                            text: (subscription?.plan?.toUpperCase?.() || subscription?.plan || "") === "BASIC" ? "Current Plan" : "Choose Basic",
                             className: "bg-gray-900 hover:bg-black",
                           },
                           wrapClass: "border-gray-200",
@@ -1047,24 +1047,28 @@ export default function AccountSettingsPage() {
                           ],
                           cta: {
                             href: "/checkout?plan=pro",
-                            text: subscription?.plan === "PRO" ? "Current Plan" : "Choose Pro",
+                            text: (subscription?.plan?.toUpperCase?.() || subscription?.plan || "") === "PRO" ? "Current Plan" : "Choose Pro",
                             className: "bg-gray-900 hover:bg-black",
                           },
                           wrapClass: "border-brand-200",
-                          badge: subscription?.plan === "PRO" ? undefined : "Popular",
+                          badge: (subscription?.plan?.toUpperCase?.() || subscription?.plan || "") === "PRO" ? undefined : "Popular",
                         },
                       ].map((p, i) => {
-                        const isCurrent = subscription?.plan === p.planCode;
+                        // Normalize plan comparison (handle both string and enum types)
+                        const currentPlan = subscription?.plan?.toUpperCase?.() || subscription?.plan || "";
+                        const planCode = p.planCode?.toUpperCase?.() || p.planCode || "";
+                        const isCurrent = currentPlan === planCode;
+                        
                         return (
                         <div
                           key={p.name}
                           className={`relative rounded-2xl border ${
                             p.wrapClass
                           } bg-white p-6 shadow-sm hover:shadow-md transition flex flex-col ${
-                            isCurrent ? "ring-2 ring-blue-500" : ""
+                            isCurrent ? "ring-2 ring-blue-500 ring-offset-2" : ""
                           }`}
                         >
-                          {p.badge && (
+                          {p.badge && !isCurrent && (
                             <div className="absolute -top-3 right-4">
                               <span className="rounded-full bg-brand-100 text-brand-800 text-xs font-semibold px-3 py-1 border border-brand-200">
                                 {p.badge}
@@ -1072,8 +1076,8 @@ export default function AccountSettingsPage() {
                             </div>
                           )}
                           {isCurrent && (
-                            <div className="absolute -top-3 left-4">
-                              <span className="rounded-full bg-green-100 text-green-800 text-xs font-semibold px-3 py-1 border border-green-200">
+                            <div className="absolute -top-3 left-4 z-10">
+                              <span className="rounded-full bg-green-100 text-green-800 text-xs font-semibold px-3 py-1 border border-green-200 shadow-sm">
                                 Current Plan
                               </span>
                             </div>

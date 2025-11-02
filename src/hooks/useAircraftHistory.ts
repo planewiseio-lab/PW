@@ -83,20 +83,8 @@ export function useAircraftHistory(registration: string | undefined, days: numbe
 							// Si le body n'est pas du JSON, utiliser les valeurs par défaut
 						}
 
-						// Vérifier FREE_USER_QUOTA_EXCEEDED en premier car plus spécifique
-						if (errorData?.code === "FREE_USER_QUOTA_EXCEEDED" || errorData?.freeUserLimit !== undefined) {
-							const { triggerFreeCreditsExceeded } = await import("./useFreeCreditsExceeded");
-							triggerFreeCreditsExceeded({
-								message: errorData?.message || "Free user quota exceeded",
-								freeUserRemaining: errorData?.freeUserRemaining ?? errorData?.remaining ?? 0,
-								freeUserUsed: errorData?.freeUserUsed ?? errorData?.used ?? 0,
-								freeUserLimit: errorData?.freeUserLimit ?? errorData?.limit ?? 5,
-								freeUserTtl: errorData?.freeUserTtl ?? errorData?.ttl ?? 0, // TTL en secondes
-								status: 429,
-								code: "FREE_USER_QUOTA_EXCEEDED",
-							});
-							throw new Error("FREE_USER_QUOTA_EXCEEDED");
-						} else {
+						// Gérer les erreurs de quota invité (429)
+						if (response.status === 429 && errorData?.code === "GUEST_QUOTA_EXCEEDED") {
 							// Déclencher l'événement pour afficher le modal Guest
 							const { triggerGuestQuotaExceeded } = await import("./useGuestQuotaExceeded");
 							triggerGuestQuotaExceeded({

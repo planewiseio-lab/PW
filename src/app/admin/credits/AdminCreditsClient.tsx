@@ -3,7 +3,7 @@
 import { useState, Suspense } from "react";
 import { AdminUserSearch } from "@/components/admin/AdminUserSearch";
 import { AdminCreditManagement } from "@/components/admin/AdminCreditManagement";
-import { ProCancelledUsersSection } from "@/components/admin/ProCancelledUsersSection";
+import { AllUsersSection } from "@/components/admin/AllUsersSection";
 
 export function AdminCreditsClient() {
   const [selectedUserId, setSelectedUserId] = useState<string>("");
@@ -44,8 +44,8 @@ export function AdminCreditsClient() {
         </div>
       </div>
 
-      {/* PRO/CANCELED Users Section */}
-      <ProCancelledUsersSection />
+      {/* All Users Section with Filters */}
+      <AllUsersSection />
     </div>
   );
 }

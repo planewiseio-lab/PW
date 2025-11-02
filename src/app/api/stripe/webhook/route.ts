@@ -243,8 +243,8 @@ export async function POST(request: NextRequest) {
         // Respecter le maximum : si l'utilisateur a déjà des crédits, ne pas dépasser le max
         if (event.type === "customer.subscription.created" && plan !== Plan.FREE) {
           const maxCreditsByPlan = {
-            [Plan.PRO]: 500,
-            [Plan.BUSINESS]: 2500,
+            [Plan.PRO]: 750, // 750 crédits maximum par mois (PRO)
+            [Plan.BUSINESS]: 350, // 350 crédits maximum par mois (BASIC - mappé sur BUSINESS)
           };
 
           const maxCredits = maxCreditsByPlan[plan];

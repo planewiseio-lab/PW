@@ -3,7 +3,6 @@ import { createClient } from "@/lib/supabase/server";
 import { getCreditBalance } from "@/lib/credits";
 import { prisma } from "@/lib/prisma";
 import { Plan } from "@prisma/client";
-import { getFreeUserUsage, FREE_USER_QUOTA_LIMIT, FREE_USER_AIRCRAFT_LOOKUP_LIMIT } from "@/lib/guestQuota";
 
 export async function GET(request: NextRequest) {
   try {

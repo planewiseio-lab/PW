@@ -11,10 +11,6 @@ export const GUEST_QUOTA_LIMIT = 3; // Pour toutes les autres actions (sans comp
 export const GUEST_AIRCRAFT_LOOKUP_LIMIT = 5; // Pour les lookups d'avions uniquement
 export const GUEST_QUOTA_TTL = 86400; // 24h en secondes
 
-// Configuration du quota utilisateur Free (connecté)
-export const FREE_USER_QUOTA_LIMIT = 5; // Pour toutes les autres actions (sans compter les lookups d'avions)
-export const FREE_USER_AIRCRAFT_LOOKUP_LIMIT = 10; // Pour les lookups d'avions uniquement
-
 // Interface pour l'usage invité
 export interface GuestUsage {
   count: number;
@@ -188,87 +184,6 @@ export async function isGuestQuotaExceeded(ip: string, isAircraftLookup: boolean
   );
   const exceeded = usage.count >= limit;
   console.log(`[Guest Quota] 🚫 Quota exceeded: ${exceeded}`);
-  return exceeded;
-}
-
-/**
- * Génère la clé Redis pour un utilisateur Free (basé sur userId)
- */
-function getFreeUserKey(userId: string, isAircraftLookup: boolean = false): string {
-  if (isAircraftLookup) {
-    return `free:user:${userId}:aircraft`;
-  }
-  return `free:user:${userId}`;
-}
-
-/**
- * Récupère l'usage actuel d'un utilisateur Free
- */
-export async function getFreeUserUsage(userId: string, isAircraftLookup: boolean = false): Promise<GuestUsage> {
-  const key = getFreeUserKey(userId, isAircraftLookup);
-  const limit = isAircraftLookup ? FREE_USER_AIRCRAFT_LOOKUP_LIMIT : FREE_USER_QUOTA_LIMIT;
-
-  try {
-    const countStr = await getRedisValue(key);
-    const count = countStr ? parseInt(countStr, 10) : 0;
-    const ttl = await getRedisTTL(key);
-
-    return {
-      count,
-      remaining: Math.max(0, limit - count),
-      ttl: ttl > 0 ? ttl : 0,
-    };
-  } catch (error) {
-    console.error("Error getting free user usage:", error);
-    return {
-      count: 0,
-      remaining: limit,
-      ttl: 0,
-    };
-  }
-}
-
-/**
- * Incrémente l'usage d'un utilisateur Free
- */
-export async function incrementFreeUserUsage(userId: string, isAircraftLookup: boolean = false): Promise<GuestUsage> {
-  const key = getFreeUserKey(userId, isAircraftLookup);
-  const limit = isAircraftLookup ? FREE_USER_AIRCRAFT_LOOKUP_LIMIT : FREE_USER_QUOTA_LIMIT;
-
-  try {
-    // Incrémenter le compteur
-    const count = await incrementRedisValue(key, GUEST_QUOTA_TTL);
-
-    // Récupérer le TTL actuel
-    const ttl = await getRedisTTL(key);
-
-    return {
-      count,
-      remaining: Math.max(0, limit - count),
-      ttl: ttl > 0 ? ttl : 0,
-    };
-  } catch (error) {
-    console.error("Error incrementing free user usage:", error);
-    return {
-      count: 1,
-      remaining: limit - 1,
-      ttl: GUEST_QUOTA_TTL,
-    };
-  }
-}
-
-/**
- * Vérifie si un utilisateur Free a dépassé son quota
- */
-export async function isFreeUserQuotaExceeded(userId: string, isAircraftLookup: boolean = false): Promise<boolean> {
-  console.log(`[Free User Quota] 🔍 Checking quota for userId: ${userId}, isAircraftLookup: ${isAircraftLookup}`);
-  const usage = await getFreeUserUsage(userId, isAircraftLookup);
-  const limit = isAircraftLookup ? FREE_USER_AIRCRAFT_LOOKUP_LIMIT : FREE_USER_QUOTA_LIMIT;
-  console.log(
-    `[Free User Quota] 📊 Current usage: ${usage.count}/${limit}, remaining: ${usage.remaining}`
-  );
-  const exceeded = usage.count >= limit;
-  console.log(`[Free User Quota] 🚫 Quota exceeded: ${exceeded}`);
   return exceeded;
 }
 

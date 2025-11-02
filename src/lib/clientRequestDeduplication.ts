@@ -66,48 +66,50 @@ export async function deduplicatedFetch(
           // Si le body n'est pas du JSON, utiliser le status text
         }
 
-        // Gérer les erreurs de quota utilisateur Free (429) - Vérifier en premier car plus spécifique
-        if (errorData?.code === "FREE_USER_QUOTA_EXCEEDED" || (response.status === 429 && errorData?.freeUserLimit !== undefined)) {
-          // Déclencher l'événement pour afficher le modal
-          const { triggerFreeCreditsExceeded } = await import("@/hooks/useFreeCreditsExceeded");
-          triggerFreeCreditsExceeded({
-            message: errorData?.message || "Free user quota exceeded",
-            freeUserRemaining: errorData?.freeUserRemaining ?? errorData?.remaining ?? 0,
-            freeUserUsed: errorData?.freeUserUsed ?? errorData?.used ?? 0,
-            freeUserLimit: errorData?.freeUserLimit ?? errorData?.limit ?? 5,
-            freeUserTtl: errorData?.freeUserTtl ?? errorData?.ttl ?? 0, // TTL en secondes
-            status: 429,
-            code: "FREE_USER_QUOTA_EXCEEDED",
-          });
-          // Lancer une erreur avec le code FREE_USER_QUOTA_EXCEEDED pour que useAircraftData puisse le détecter
-          throw new Error("FREE_USER_QUOTA_EXCEEDED");
-        }
-
-        // Gérer les erreurs de quota invité (429) - Vérifier après Free user
+        // Gérer les erreurs de quota invité (429) - seulement pour les utilisateurs non authentifiés
         if (errorData?.code === "GUEST_QUOTA_EXCEEDED" || (response.status === 429 && errorData?.guestLimit !== undefined)) {
-          // Déclencher l'événement pour afficher le modal
-          const { triggerGuestQuotaExceeded } = await import("@/hooks/useGuestQuotaExceeded");
-          triggerGuestQuotaExceeded({
-            message: errorData?.message || "Guest quota exceeded",
-            guestRemaining: errorData?.guestRemaining ?? errorData?.remaining ?? 0,
-            guestUsed: errorData?.guestUsed ?? errorData?.used ?? 4,
-            guestLimit: errorData?.guestLimit ?? errorData?.limit ?? 4,
-            guestTtl: errorData?.guestTtl ?? errorData?.ttl ?? 0, // TTL en secondes
-            status: 429,
-            code: "GUEST_QUOTA_EXCEEDED",
-          });
-          // Lancer une erreur avec le code GUEST_QUOTA_EXCEEDED pour que useAircraftData puisse le détecter
-          throw new Error("GUEST_QUOTA_EXCEEDED");
+          // Vérifier si l'utilisateur est authentifié avant d'afficher le modal
+          try {
+            const { createClient } = await import("@/lib/supabase/client");
+            const supabase = createClient();
+            const { data: { session } } = await supabase.auth.getSession();
+            
+            // Ne pas afficher le modal pour les utilisateurs authentifiés
+            if (session?.user) {
+              console.log("[ClientRequestDeduplication] User is authenticated, ignoring GUEST_QUOTA_EXCEEDED error");
+              throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+            
+            // Déclencher l'événement pour afficher le modal (seulement pour les invités)
+            const { triggerGuestQuotaExceeded } = await import("@/hooks/useGuestQuotaExceeded");
+            triggerGuestQuotaExceeded({
+              message: errorData?.message || "Guest quota exceeded",
+              guestRemaining: errorData?.guestRemaining ?? errorData?.remaining ?? 0,
+              guestUsed: errorData?.guestUsed ?? errorData?.used ?? 4,
+              guestLimit: errorData?.guestLimit ?? errorData?.limit ?? 4,
+              guestTtl: errorData?.guestTtl ?? errorData?.ttl ?? 0, // TTL en secondes
+              status: 429,
+              code: "GUEST_QUOTA_EXCEEDED",
+            });
+            // Lancer une erreur avec le code GUEST_QUOTA_EXCEEDED pour que useAircraftData puisse le détecter
+            throw new Error("GUEST_QUOTA_EXCEEDED");
+          } catch (checkError: any) {
+            // Si la vérification échoue, vérifier si c'est déjà une erreur non-GUEST_QUOTA
+            if (checkError.message !== "GUEST_QUOTA_EXCEEDED" && !checkError.message.includes("HTTP")) {
+              console.error("[ClientRequestDeduplication] Error checking auth:", checkError);
+            }
+            throw checkError;
+          }
         }
 
         throw new Error(`HTTP ${response.status}: ${response.statusText}`);
       }
 
-      // Si c'est un utilisateur Free, vérifier les headers et dispatcher l'événement de mise à jour
-      const freeUserRemaining = response.headers.get("X-Free-User-Remaining");
-      if (freeUserRemaining !== null) {
+      // Vérifier les headers de crédits et dispatcher l'événement de mise à jour
+      const creditsRemaining = response.headers.get("X-Credits-Remaining");
+      if (creditsRemaining !== null) {
         console.log(
-          `[Client] Free user quota updated, dispatching credits:updated event (remaining: ${freeUserRemaining})`
+          `[Client] Credits updated, dispatching credits:updated event (remaining: ${creditsRemaining})`
         );
         if (typeof window !== "undefined") {
           window.dispatchEvent(new CustomEvent("credits:updated"));
@@ -199,9 +201,9 @@ export async function fetchAircraftData(registration: string): Promise<any> {
     return pending.promise;
   }
 
-  // Créer une nouvelle requête avec timeout
+  // Créer une nouvelle requête avec timeout (augmenté à 15s pour les requêtes aircraft qui peuvent être plus longues)
   const abortController = new AbortController();
-  const timeoutId = setTimeout(() => abortController.abort(), 8000);
+  const timeoutId = setTimeout(() => abortController.abort(), 15000);
 
   const requestPromise = (async (): Promise<any> => {
     try {
@@ -216,47 +218,58 @@ export async function fetchAircraftData(registration: string): Promise<any> {
       if (!response.ok) {
         // Pour les erreurs, essayer de récupérer le body JSON pour plus de détails
         let errorData: any = null;
+        let errorMessage = `HTTP ${response.status}: ${response.statusText}`;
+        
         try {
-          errorData = await response.json();
+          const responseText = await response.clone().text();
+          errorData = JSON.parse(responseText);
+          
+          // Utiliser le message d'erreur de l'API si disponible
+          if (errorData?.error || errorData?.message) {
+            errorMessage = errorData.error || errorData.message || errorMessage;
+          }
         } catch {
           // Si le body n'est pas du JSON, utiliser le status text
         }
 
-        // Gérer les erreurs de quota utilisateur Free (429) - Vérifier en premier car plus spécifique
-        if (errorData?.code === "FREE_USER_QUOTA_EXCEEDED" || (response.status === 429 && errorData?.freeUserLimit !== undefined)) {
-          // Déclencher l'événement pour afficher le modal
-          const { triggerFreeCreditsExceeded } = await import("@/hooks/useFreeCreditsExceeded");
-          triggerFreeCreditsExceeded({
-            message: errorData?.message || "Free user quota exceeded",
-            freeUserRemaining: errorData?.freeUserRemaining ?? errorData?.remaining ?? 0,
-            freeUserUsed: errorData?.freeUserUsed ?? errorData?.used ?? 0,
-            freeUserLimit: errorData?.freeUserLimit ?? errorData?.limit ?? 5,
-            freeUserTtl: errorData?.freeUserTtl ?? errorData?.ttl ?? 0, // TTL en secondes
-            status: 429,
-            code: "FREE_USER_QUOTA_EXCEEDED",
-          });
-          // Lancer une erreur avec le code FREE_USER_QUOTA_EXCEEDED pour que useAircraftData puisse le détecter
-          throw new Error("FREE_USER_QUOTA_EXCEEDED");
-        }
-
-        // Gérer les erreurs de quota invité (429) - Vérifier après Free user
+        // Gérer les erreurs de quota invité (429) - seulement pour les utilisateurs non authentifiés
         if (errorData?.code === "GUEST_QUOTA_EXCEEDED" || (response.status === 429 && errorData?.guestLimit !== undefined)) {
-          // Déclencher l'événement pour afficher le modal
-          const { triggerGuestQuotaExceeded } = await import("@/hooks/useGuestQuotaExceeded");
-          triggerGuestQuotaExceeded({
-            message: errorData?.message || "Guest quota exceeded",
-            guestRemaining: errorData?.guestRemaining ?? errorData?.remaining ?? 0,
-            guestUsed: errorData?.guestUsed ?? errorData?.used ?? 4,
-            guestLimit: errorData?.guestLimit ?? errorData?.limit ?? 4,
-            guestTtl: errorData?.guestTtl ?? errorData?.ttl ?? 0, // TTL en secondes
-            status: 429,
-            code: "GUEST_QUOTA_EXCEEDED",
-          });
-          // Lancer une erreur avec le code GUEST_QUOTA_EXCEEDED pour que useAircraftData puisse le détecter
-          throw new Error("GUEST_QUOTA_EXCEEDED");
+          // Vérifier si l'utilisateur est authentifié avant d'afficher le modal
+          try {
+            const { createClient } = await import("@/lib/supabase/client");
+            const supabase = createClient();
+            const { data: { session } } = await supabase.auth.getSession();
+            
+            // Ne pas afficher le modal pour les utilisateurs authentifiés
+            if (session?.user) {
+              console.log("[ClientRequestDeduplication] User is authenticated, ignoring GUEST_QUOTA_EXCEEDED error");
+              throw new Error(errorMessage);
+            }
+            
+            // Déclencher l'événement pour afficher le modal (seulement pour les invités)
+            const { triggerGuestQuotaExceeded } = await import("@/hooks/useGuestQuotaExceeded");
+            triggerGuestQuotaExceeded({
+              message: errorData?.message || "Guest quota exceeded",
+              guestRemaining: errorData?.guestRemaining ?? errorData?.remaining ?? 0,
+              guestUsed: errorData?.guestUsed ?? errorData?.used ?? 4,
+              guestLimit: errorData?.guestLimit ?? errorData?.limit ?? 4,
+              guestTtl: errorData?.guestTtl ?? errorData?.ttl ?? 0, // TTL en secondes
+              status: 429,
+              code: "GUEST_QUOTA_EXCEEDED",
+            });
+            // Lancer une erreur avec le code GUEST_QUOTA_EXCEEDED pour que useAircraftData puisse le détecter
+            throw new Error("GUEST_QUOTA_EXCEEDED");
+          } catch (checkError: any) {
+            // Si la vérification échoue, vérifier si c'est déjà une erreur non-GUEST_QUOTA
+            if (checkError.message !== "GUEST_QUOTA_EXCEEDED" && !checkError.message.includes("HTTP")) {
+              console.error("[ClientRequestDeduplication] Error checking auth:", checkError);
+            }
+            throw checkError;
+          }
         }
 
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        // Propager l'erreur avec le message détaillé de l'API
+        throw new Error(errorMessage);
       }
 
       const data = await response.json();
@@ -264,20 +277,11 @@ export async function fetchAircraftData(registration: string): Promise<any> {
       // Vérifier si un crédit a été débité (présence du header X-Credits-Charged)
       const creditsCharged = response.headers.get("X-Credits-Charged");
       const creditsRemaining = response.headers.get("X-Credits-Remaining");
-      
-      // Vérifier si c'est un utilisateur Free (présence du header X-Free-User-Remaining)
-      const freeUserRemaining = response.headers.get("X-Free-User-Remaining");
 
       if (creditsCharged === "1" || creditsRemaining) {
         // Émettre l'événement pour mettre à jour la page des crédits
         console.log(
           `[Aircraft] 💳 Credit charged, dispatching credits:updated event (remaining: ${creditsRemaining || "unknown"})`
-        );
-        window.dispatchEvent(new CustomEvent("credits:updated"));
-      } else if (freeUserRemaining !== null) {
-        // Si c'est un utilisateur Free, dispatcher l'événement pour mettre à jour les quotas
-        console.log(
-          `[Aircraft] Free user quota updated, dispatching credits:updated event (remaining: ${freeUserRemaining})`
         );
         window.dispatchEvent(new CustomEvent("credits:updated"));
       }
@@ -286,7 +290,7 @@ export async function fetchAircraftData(registration: string): Promise<any> {
     } catch (error: any) {
       clearTimeout(timeoutId);
       if (error.name === "AbortError") {
-        throw new Error(`Request timeout after 8000ms for ${url}`);
+        throw new Error(`Request timeout after 15000ms for ${url}`);
       }
       throw error;
     } finally {

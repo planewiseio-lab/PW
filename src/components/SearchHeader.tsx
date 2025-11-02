@@ -33,6 +33,9 @@ export default function SearchHeader() {
     pathname === "/credits";
   const isAdminPage = pathname.startsWith("/admin");
   const isCheckoutPage = pathname.startsWith("/checkout");
+  const isContactPage = pathname === "/contact";
+  const isResetPasswordPage = pathname === "/auth/reset-password";
+  const isAuthCallbackPage = pathname === "/auth/callback";
 
   // Éviter les différences d'hydration
   useEffect(() => {
@@ -65,8 +68,8 @@ export default function SearchHeader() {
     });
   };
 
-  // Pas de SearchHeader sur la home, les pages d'auth, les pages admin, et les pages checkout
-  if (isHome || isAuthPage || isAdminPage || isCheckoutPage) return null;
+  // Pas de SearchHeader sur la home, les pages d'auth, les pages admin, les pages checkout, la page contact, la page reset password, et la page auth callback
+  if (isHome || isAuthPage || isAdminPage || isCheckoutPage || isContactPage || isResetPasswordPage || isAuthCallbackPage) return null;
 
   // Éviter les différences d'hydration - rendu initial avec transition
   if (!isMounted) {

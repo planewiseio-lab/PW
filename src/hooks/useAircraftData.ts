@@ -86,12 +86,12 @@ export function useAircraftData(registration: string): UseAircraftDataReturn {
       if (!abortControllerRef.current.signal.aborted) {
         let errorMessage = err.message || "Failed to load aircraft data";
 
-        // Gérer les erreurs de crédits et quota invité spécifiquement
-        // Vérifier FREE_USER_QUOTA_EXCEEDED en premier car plus spécifique
+        // Gérer les erreurs de crédits insuffisants
         if (
-          err.message?.includes("FREE_USER_QUOTA_EXCEEDED")
+          err.message?.includes("INSUFFICIENT_CREDITS") ||
+          err.message?.includes("Insufficient credits")
         ) {
-          // Ne pas définir l'erreur dans le hook pour les erreurs de quota utilisateur Free
+          // Ne pas définir l'erreur dans le hook pour les erreurs de crédits insuffisants
           // Le modal s'affichera automatiquement via triggerFreeCreditsExceeded
           triggerFreeCreditsExceeded(err);
           // Ne pas appeler setError pour éviter l'affichage sur la page
@@ -116,6 +116,25 @@ export function useAircraftData(registration: string): UseAircraftDataReturn {
           triggerFreeCreditsExceeded(err);
         } else if (err.message?.includes("HTTP 401")) {
           errorMessage = "Authentication required. Please log in.";
+        } else if (err.message?.includes("timeout") || err.message?.includes("Request timeout")) {
+          errorMessage = "Request timed out. The server is taking too long to respond. Please try again.";
+        } else if (err.message?.includes("API authentication failed") || err.message?.includes("API_AUTH_ERROR")) {
+          errorMessage = "API authentication failed. Please check your API subscription.";
+        } else if (err.message?.includes("API access forbidden") || err.message?.includes("API_FORBIDDEN")) {
+          errorMessage = "API access forbidden. Your subscription may have expired or reached its limit.";
+        } else if (err.message?.includes("API rate limit") || err.message?.includes("API_RATE_LIMIT")) {
+          errorMessage = "API rate limit exceeded. Please try again later.";
+        } else if (err.message?.includes("API service unavailable") || err.message?.includes("API_SERVICE_UNAVAILABLE")) {
+          errorMessage = "External API service unavailable. Please try again later.";
+        } else if (err.message?.includes("HTTP 401")) {
+          errorMessage = "API authentication failed. Please check your API subscription.";
+        } else if (err.message?.includes("HTTP 403")) {
+          errorMessage = "API access forbidden. Your subscription may have expired or reached its limit.";
+        } else if (err.message?.includes("HTTP 502") || err.message?.includes("HTTP 503") || err.message?.includes("HTTP 500")) {
+          errorMessage = "External API service unavailable. Please try again later.";
+        } else if (err.message?.includes("AbortError") || err.name === "AbortError") {
+          // Ignorer les erreurs d'annulation
+          return;
         }
 
         setError(errorMessage);

@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
-import { ActionType, CreditReason, Plan } from "@prisma/client";
+import { ActionType, CreditReason, Plan, SubscriptionStatus } from "@prisma/client";
+import Stripe from "stripe";
 
 export class InsufficientCreditsError extends Error {
   constructor(message = "Insufficient credits") {
@@ -376,6 +377,7 @@ export async function chargeMultipleCredits(opts: {
 
 /**
  * Ensure top-up is applied based on subscription plan and timing
+ * For paid plans, checks Stripe subscription status and downgrades to FREE if expired
  */
 export async function ensureMonthlyTopUp(userId: string): Promise<void> {
   const subscription = await prisma.subscriptions.findUnique({
@@ -395,14 +397,64 @@ export async function ensureMonthlyTopUp(userId: string): Promise<void> {
     return; // Not time for renewal yet
   }
 
+  let finalPlan = subscription.plan;
+  let finalStatus = subscription.status;
+
+  // For paid plans (PRO/BUSINESS), verify Stripe subscription status
+  if (subscription.plan !== Plan.FREE && subscription.stripeSubId) {
+    try {
+      const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
+        apiVersion: "2024-12-18.acacia",
+      });
+
+      const stripeSubscription = await stripe.subscriptions.retrieve(
+        subscription.stripeSubId
+      );
+
+      // Check if subscription is expired/canceled/unpaid/past_due
+      if (
+        stripeSubscription.status === "canceled" ||
+        stripeSubscription.status === "unpaid" ||
+        stripeSubscription.status === "incomplete_expired" ||
+        stripeSubscription.status === "past_due"
+      ) {
+        // Subscription expired/canceled - downgrade to FREE
+        console.log(
+          `[Top-up] Stripe subscription ${subscription.stripeSubId} is ${stripeSubscription.status}, downgrading user ${userId} to FREE plan`
+        );
+        finalPlan = Plan.FREE;
+        finalStatus = SubscriptionStatus.CANCELED;
+      } else if (stripeSubscription.status === "active") {
+        // Subscription is active, keep the plan
+        finalPlan = subscription.plan;
+        finalStatus = SubscriptionStatus.ACTIVE;
+      }
+    } catch (error: any) {
+      // If subscription not found in Stripe, consider it expired
+      if (error?.code === "resource_missing") {
+        console.log(
+          `[Top-up] Stripe subscription ${subscription.stripeSubId} not found, downgrading user ${userId} to FREE plan`
+        );
+        finalPlan = Plan.FREE;
+        finalStatus = SubscriptionStatus.CANCELED;
+      } else {
+        console.error(
+          `[Top-up] Error checking Stripe subscription for user ${userId}:`,
+          error
+        );
+        // On error, keep current plan but log warning
+      }
+    }
+  }
+
   // Calculate maximum credits by plan
   const maxCreditsByPlan = {
     [Plan.FREE]: 50, // 50 crédits par mois
-    [Plan.PRO]: 500, // 500 crédits maximum par mois
-    [Plan.BUSINESS]: 2500, // 2500 crédits maximum par mois
+    [Plan.PRO]: 750, // 750 crédits maximum par mois (PRO)
+    [Plan.BUSINESS]: 350, // 350 crédits maximum par mois (BASIC - mappé sur BUSINESS dans Prisma)
   };
 
-  const maxCredits = maxCreditsByPlan[subscription.plan];
+  const maxCredits = maxCreditsByPlan[finalPlan];
 
   // Get current credit balance
   const currentBalance = await prisma.credit_balances.findUnique({
@@ -412,38 +464,95 @@ export async function ensureMonthlyTopUp(userId: string): Promise<void> {
 
   const currentCredits = currentBalance?.credits ?? 0;
 
+  // If downgrading to FREE and user has more than 50 credits, reduce to 50
+  if (finalPlan === Plan.FREE && currentCredits > 50) {
+    const creditsToRemove = currentCredits - 50;
+    console.log(
+      `[Top-up] User ${userId} downgraded to FREE, removing ${creditsToRemove} credits (from ${currentCredits} to 50)`
+    );
+
+    // Use a transaction to update balance and create ledger entry
+    await prisma.$transaction(async (tx) => {
+      // Update balance to 50
+      await tx.credit_balances.upsert({
+        where: { userId },
+        update: { credits: 50 },
+        create: { userId, credits: 50 },
+      });
+
+      // Create ledger entry for the reduction
+      await tx.credit_ledger.create({
+        data: {
+          id: crypto.randomUUID(),
+          userId,
+          delta: -creditsToRemove,
+          reason: CreditReason.ADMIN_FIX,
+          actionType: null,
+          refId: null,
+          metadata: {
+            reason: "downgrade_to_free",
+            previousPlan: subscription.plan,
+            previousCredits: currentCredits,
+            newCredits: 50,
+          },
+        },
+      });
+    });
+  }
+
+  // Get updated balance after potential reduction
+  const updatedBalance = await prisma.credit_balances.findUnique({
+    where: { userId },
+    select: { credits: true },
+  });
+
+  const updatedCredits = updatedBalance?.credits ?? 0;
+
   // Calculate how many credits to add (only up to the maximum)
-  const creditsToAdd = Math.max(0, maxCredits - currentCredits);
+  const creditsToAdd = Math.max(0, maxCredits - updatedCredits);
 
   if (creditsToAdd === 0) {
-    // User already has maximum credits, just update renewal date
+    // User already has maximum credits, just update renewal date and plan
     console.log(
-      `[Top-up] User ${userId} already has ${currentCredits}/${maxCredits} credits (${subscription.plan}), no top-up needed`
+      `[Top-up] User ${userId} already has ${updatedCredits}/${maxCredits} credits (${finalPlan}), no top-up needed`
     );
   } else {
     // Grant only the difference to reach the maximum
     console.log(
-      `[Top-up] User ${userId} has ${currentCredits}/${maxCredits} credits (${subscription.plan}), adding ${creditsToAdd} to reach maximum`
+      `[Top-up] User ${userId} has ${updatedCredits}/${maxCredits} credits (${finalPlan}), adding ${creditsToAdd} to reach maximum`
     );
     await grantCredits(userId, creditsToAdd, "MONTHLY_TOPUP", {
-      plan: subscription.plan,
+      plan: finalPlan,
+      previousPlan: subscription.plan,
       previousRenewsAt: subscription.renewsAt,
-      currentCredits,
+      currentCredits: updatedCredits,
       maxCredits,
       creditsAdded: creditsToAdd,
     });
   }
 
-  // Update subscription renewal date based on plan
+  // Update subscription renewal date and plan/status if changed
   const nextRenewal = new Date(now);
-
-  // All plans now use monthly renewal
   nextRenewal.setMonth(nextRenewal.getMonth() + 1);
 
   await prisma.subscriptions.update({
     where: { userId },
-    data: { renewsAt: nextRenewal },
+    data: {
+      plan: finalPlan,
+      status: finalStatus,
+      renewsAt: nextRenewal,
+      // If downgraded to FREE, clear Stripe subscription ID
+      ...(finalPlan === Plan.FREE && subscription.plan !== Plan.FREE
+        ? { stripeSubId: null }
+        : {}),
+    },
   });
+
+  if (finalPlan === Plan.FREE && subscription.plan !== Plan.FREE) {
+    console.log(
+      `[Top-up] ✅ User ${userId} downgraded from ${subscription.plan} to FREE plan`
+    );
+  }
 }
 
 /**
