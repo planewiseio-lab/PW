@@ -7,7 +7,7 @@ import { Plan, SubscriptionStatus } from "@prisma/client";
  *
  * FREE: Monthly top-up (50 credits)
  * PRO: Monthly top-up (750 credits)
- * BASIC: Monthly top-up (350 credits - mapped to BUSINESS in Prisma)
+ * BASIC: Monthly top-up (350 credits)
  */
 export async function runCreditTopUpCron() {
   console.log("[CRON] Starting credit top-up process...");
@@ -38,7 +38,7 @@ export async function runCreditTopUpCron() {
       byPlan: {
         [Plan.FREE]: 0,
         [Plan.PRO]: 0,
-        [Plan.BUSINESS]: 0,
+        [Plan.BASIC]: 0,
       },
     };
 

@@ -27,7 +27,7 @@ export async function GET(request: NextRequest) {
 
     // Récupérer les paramètres de requête pour les filtres et pagination
     const { searchParams } = new URL(request.url);
-    const planFilter = searchParams.get("plan"); // FREE, BASIC (BUSINESS), PRO
+    const planFilter = searchParams.get("plan"); // FREE, BASIC, PRO
     const minCredits = searchParams.get("minCredits")
       ? parseInt(searchParams.get("minCredits")!, 10)
       : null;
@@ -47,7 +47,7 @@ export async function GET(request: NextRequest) {
       if (planFilter === "FREE") {
         where.plan = Plan.FREE;
       } else if (planFilter === "BASIC") {
-        where.plan = Plan.BUSINESS; // BASIC est mappé sur BUSINESS dans Prisma
+        where.plan = Plan.BASIC; // BASIC plan
       } else if (planFilter === "PRO") {
         where.plan = Plan.PRO;
       }

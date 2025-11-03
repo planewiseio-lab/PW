@@ -520,7 +520,7 @@ model usage_events {
 enum Plan {
   FREE
   PRO
-  BUSINESS
+  BASIC
 
   @@schema("public")
 }

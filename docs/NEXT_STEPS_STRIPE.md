@@ -18,7 +18,7 @@ Assurez-vous d'avoir créé vos produits dans le [Stripe Dashboard](https://dash
    ```bash
    STRIPE_PRICE_ID_BASIC=price_xxxxxxxxxxxxx
    STRIPE_PRICE_ID_PRO=price_xxxxxxxxxxxxx
-   STRIPE_PRICE_ID_BUSINESS=price_xxxxxxxxxxxxx
+   STRIPE_PRICE_ID_BASIC=price_xxxxxxxxxxxxx
    ```
 
 > ⚠️ **Important** : Si vous n'avez pas encore créé les produits, suivez les étapes 1-2 dans `docs/stripe-setup.md`
@@ -133,7 +133,7 @@ NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=pk_test_... # optionnel mais recommandé
 # Price IDs des produits (obligatoires)
 STRIPE_PRICE_ID_BASIC=price_...
 STRIPE_PRICE_ID_PRO=price_...
-STRIPE_PRICE_ID_BUSINESS=price_... # si nécessaire
+STRIPE_PRICE_ID_BASIC=price_... # si nécessaire
 
 # URL du site (obligatoire)
 NEXT_PUBLIC_SITE_URL=http://localhost:3000 # ou https://votre-domaine.com en production

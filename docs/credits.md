@@ -16,7 +16,7 @@ User (Supabase Auth)
 Subscription
 ├── id (uuid, pk)
 ├── userId (fk to User.id)
-├── plan (FREE|PRO|BUSINESS)
+├── plan (FREE|PRO|BASIC)
 ├── status (ACTIVE|PAST_DUE|CANCELED)
 ├── renewsAt (timestamptz)
 ├── stripeCustomerId (string|null)
@@ -61,9 +61,9 @@ UsageEvent (for idempotency)
 
 1. **Cron Job**: Daily check for subscriptions where `renewsAt <= now()`
 2. **Credit Grant**: Grant credits based on plan:
-   - FREE: 30 credits
-   - PRO: 500 credits
-   - BUSINESS: 3000 credits
+   - FREE: 50 credits
+   - BASIC: 350 credits
+   - PRO: 750 credits
 3. **Ledger Entry**: Create `CreditLedger` entry with `reason: MONTHLY_TOPUP`
 4. **Update Balance**: Increment `CreditBalance.credits`
 5. **Renewal Date**: Update `Subscription.renewsAt` to next month

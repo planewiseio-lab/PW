@@ -53,7 +53,7 @@ export function withActionAccess<T = any>(
             select: { plan: true },
           });
 
-          // Tous les plans (FREE, PRO, BUSINESS) utilisent maintenant le système de crédits par tiers
+          // Tous les plans (FREE, PRO, BASIC) utilisent maintenant le système de crédits par tiers
           console.log(
             `[Action Access] 💳 User: ${user.id}, plan: ${subscription?.plan}, using credit system with tier-based pricing`
           );

@@ -66,9 +66,9 @@ export function useUserStatus(): UserStatusData {
             if (subscriptionResponse.ok) {
               const data = await subscriptionResponse.json();
               if (data.subscription) {
-                // Différencier entre PRO/BUSINESS (plans payants) et FREE (plan gratuit)
+                // Différencier entre PRO/BASIC (plans payants) et FREE (plan gratuit)
                 // IMPORTANT: Vérifier le PLAN réel ET la date de fin de période (renewsAt)
-                // Si le plan est PRO/BUSINESS (même avec status CANCELED) ET que renewsAt est dans le futur,
+                // Si le plan est PRO/BASIC (même avec status CANCELED) ET que renewsAt est dans le futur,
                 // l'utilisateur a encore accès jusqu'à sa date de fin individuelle, donc pas de pubs
                 const plan = data.subscription.plan;
                 const renewsAt = data.subscription.renewsAt
@@ -76,11 +76,11 @@ export function useUserStatus(): UserStatusData {
                   : null;
                 const now = new Date();
 
-                if (plan === "PRO" || plan === "BUSINESS") {
+                if (plan === "PRO" || plan === "BASIC") {
                   // Vérifier si la période est encore valide (renewsAt dans le futur)
                   // Chaque utilisateur a sa propre date de fin de période
                   if (renewsAt && renewsAt > now) {
-                    // Plan payant (PRO ou BUSINESS) avec période encore valide = pas de pubs
+                    // Plan payant (PRO ou BASIC) avec période encore valide = pas de pubs
                     // même si status est CANCELED, car l'utilisateur a encore accès jusqu'à renewsAt
                 setStatus("pro");
                   } else {
@@ -147,9 +147,9 @@ export function useUserStatus(): UserStatusData {
             if (subscriptionResponse.ok) {
               const data = await subscriptionResponse.json();
               if (data.subscription) {
-                // Différencier entre PRO/BUSINESS (plans payants) et FREE (plan gratuit)
+                // Différencier entre PRO/BASIC (plans payants) et FREE (plan gratuit)
                 // IMPORTANT: Vérifier le PLAN réel ET la date de fin de période (renewsAt)
-                // Si le plan est PRO/BUSINESS (même avec status CANCELED) ET que renewsAt est dans le futur,
+                // Si le plan est PRO/BASIC (même avec status CANCELED) ET que renewsAt est dans le futur,
                 // l'utilisateur a encore accès jusqu'à sa date de fin individuelle, donc pas de pubs
                 const plan = data.subscription.plan;
                 const renewsAt = data.subscription.renewsAt
@@ -157,11 +157,11 @@ export function useUserStatus(): UserStatusData {
                   : null;
                 const now = new Date();
 
-                if (plan === "PRO" || plan === "BUSINESS") {
+                if (plan === "PRO" || plan === "BASIC") {
                   // Vérifier si la période est encore valide (renewsAt dans le futur)
                   // Chaque utilisateur a sa propre date de fin de période
                   if (renewsAt && renewsAt > now) {
-                    // Plan payant (PRO ou BUSINESS) avec période encore valide = pas de pubs
+                    // Plan payant (PRO ou BASIC) avec période encore valide = pas de pubs
                     // même si status est CANCELED, car l'utilisateur a encore accès jusqu'à renewsAt
                 setStatus("pro");
                   } else {

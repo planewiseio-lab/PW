@@ -82,7 +82,7 @@ export function AdminUserSearch({ onUserSelect }: AdminUserSearchProps) {
                               ? "bg-gray-100 text-gray-800"
                               : user.plan === "pro"
                               ? "bg-green-100 text-green-800"
-                              : user.plan === "business"
+                              : user.plan === "basic"
                               ? "bg-purple-100 text-purple-800"
                               : "bg-yellow-100 text-yellow-800"
                           }`}

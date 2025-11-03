@@ -7,12 +7,12 @@ describe("Credit System (Mock Tests)", () => {
       const creditsByPlan = {
         FREE: 5, // 5 crédits par jour
         PRO: 500, // 500 crédits par mois
-        BUSINESS: 2500, // 2500 crédits par mois
+        BASIC: 350, // 350 crédits par mois
       };
 
       expect(creditsByPlan.FREE).toBe(5);
       expect(creditsByPlan.PRO).toBe(500);
-      expect(creditsByPlan.BUSINESS).toBe(2500);
+      expect(creditsByPlan.BASIC).toBe(350);
     });
   });
 
@@ -21,12 +21,12 @@ describe("Credit System (Mock Tests)", () => {
       const renewalIntervals = {
         FREE: "daily", // FREE plan: daily renewal
         PRO: "monthly", // PRO plan: monthly renewal
-        BUSINESS: "monthly", // BUSINESS plan: monthly renewal
+        BASIC: "monthly", // BASIC plan: monthly renewal
       };
 
       expect(renewalIntervals.FREE).toBe("daily");
       expect(renewalIntervals.PRO).toBe("monthly");
-      expect(renewalIntervals.BUSINESS).toBe("monthly");
+      expect(renewalIntervals.BASIC).toBe("monthly");
     });
   });
 
@@ -98,7 +98,7 @@ describe("Credit System (Mock Tests)", () => {
       expect(monthlyCredits).toBe(500);
     });
 
-    it("should calculate monthly credits for BUSINESS plan", () => {
+    it("should calculate monthly credits for BASIC plan", () => {
       const monthlyCredits = 2500;
       expect(monthlyCredits).toBe(2500);
     });

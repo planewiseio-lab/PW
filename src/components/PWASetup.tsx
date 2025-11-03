@@ -18,7 +18,3 @@ export default function PWASetup() {
   return null; // Ce composant ne rend rien visuellement
 }
 
-
-
-
-

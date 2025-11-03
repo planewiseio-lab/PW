@@ -26,6 +26,14 @@ export default function AccountSettingsPage() {
   const searchParams = useSearchParams();
   const fetchingRef = useRef(false); // Empêche les appels multiples simultanés
 
+  // Mapping des plans vers leurs labels lisibles
+  const planLabels: Record<string, string> = {
+    FREE: "Free",
+    PRO: "Pro",
+    BASIC: "Basic",
+    BUSINESS: "Basic", // Pour compatibilité avec les anciennes données
+  };
+
   // Fonction réutilisable pour récupérer les données d'abonnement
   const fetchSubscriptionData = async () => {
     if (fetchingRef.current) return;
@@ -723,7 +731,7 @@ export default function AccountSettingsPage() {
                                     }
                                   )}
                                 </span>
-                                . You will continue to have access to the <span className="font-semibold">{subscription.plan}</span> plan until then, then you'll be switched to the{" "}
+                                . You will continue to have access to the <span className="font-semibold">{planLabels[subscription.plan] || subscription.plan}</span> plan until then, then you'll be switched to the{" "}
                                 <span className="font-semibold">Free plan</span>.
                               </p>
                             </div>
@@ -851,7 +859,7 @@ export default function AccountSettingsPage() {
                           <div className="space-y-2">
                             <div className="flex items-center gap-3">
                               <span className="font-semibold text-gray-900">
-                                Plan: {subscription.plan}
+                                Plan: {planLabels[subscription.plan] || subscription.plan}
                               </span>
                               <span
                                 className={`px-2 py-1 rounded-full text-xs font-medium ${

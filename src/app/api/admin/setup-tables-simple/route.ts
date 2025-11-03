@@ -44,7 +44,7 @@ export async function GET(request: NextRequest) {
       if (planError || !planError) {
         const { error } = await supabaseAdmin.rpc("create_enum", {
           enum_name: "Plan",
-          enum_values: ["FREE", "PRO", "BUSINESS"],
+          enum_values: ["FREE", "PRO", "BASIC"],
         });
         if (error) console.log("Plan enum might already exist:", error.message);
       }

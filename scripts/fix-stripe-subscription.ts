@@ -115,12 +115,11 @@ async function fixStripeSubscription(options: {
         
         const basicPriceId = process.env.STRIPE_PRICE_ID_BASIC;
         const proPriceId = process.env.STRIPE_PRICE_ID_PRO;
-        const businessPriceId = process.env.STRIPE_PRICE_ID_BUSINESS;
 
-        if (priceId === basicPriceId || priceId === proPriceId) {
+        if (priceId === basicPriceId) {
+          plan = Plan.BASIC;
+        } else if (priceId === proPriceId) {
           plan = Plan.PRO;
-        } else if (priceId === businessPriceId) {
-          plan = Plan.BUSINESS;
         }
         console.log(`📦 Plan détecté depuis Stripe: ${plan}`);
       } catch (error) {
@@ -164,7 +163,7 @@ async function fixStripeSubscription(options: {
     if (plan !== Plan.FREE) {
       const creditsByPlan = {
         [Plan.PRO]: 500,
-        [Plan.BUSINESS]: 2500,
+        [Plan.BASIC]: 350,
       };
 
       const creditsToGrant = creditsByPlan[plan];

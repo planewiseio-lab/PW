@@ -107,7 +107,8 @@ function ShowcaseSection() {
       .finally(() => setLoadingData((prev) => ({ ...prev, airport: false })));
   }, []);
 
-  const slides = [
+  const slides = useMemo(() => {
+    return [
     {
       id: "aircraft",
       title: "Aircraft Information",
@@ -136,16 +137,16 @@ function ShowcaseSection() {
         year: "2018",
         seats: "294",
       },
-      preview: loadingData.aircraft ? (
+      preview: (
         <div className="bg-white rounded-2xl border border-gray-200 shadow-sm flex-1 flex flex-col overflow-hidden">
-          <div className="h-full flex items-center justify-center">
-            <div className="animate-spin rounded-full h-8 w-8 border-2 border-gray-300 border-t-blue-600"></div>
-          </div>
-        </div>
-      ) : (
-        <div className="bg-white rounded-2xl border border-gray-200 shadow-sm flex-1 flex flex-col overflow-hidden">
+          {loadingData.aircraft ? (
+            <div className="h-full flex items-center justify-center">
+              <div className="animate-spin rounded-full h-8 w-8 border-2 border-gray-300 border-t-blue-600"></div>
+            </div>
+          ) : (
+            <>
           {/* Header avec registration et badge */}
-          <div className="px-4 pt-6 pb-4 flex items-center justify-between border-b border-gray-200">
+          <div className="px-4 pt-6 pb-4 flex items-center justify-between">
             <div className="flex items-center gap-3">
               <h4 className="text-xl font-bold text-gray-900">C-FRSR</h4>
               <span className="px-2.5 py-1 bg-green-100 text-green-800 text-xs rounded-full font-medium">
@@ -158,7 +159,7 @@ function ShowcaseSection() {
           </div>
 
           {/* Spécifications en deux colonnes */}
-          <div className="px-4 py-6 grid grid-cols-2 gap-x-8 gap-y-3 text-sm border-b border-gray-200">
+          <div className="px-4 py-6 grid grid-cols-2 gap-x-8 gap-y-3 text-sm pb-4">
             {/* Colonne gauche */}
             <div className="space-y-1.5">
               <div className="flex justify-between">
@@ -216,16 +217,52 @@ function ShowcaseSection() {
           </div>
 
           {/* Grande image de l'avion */}
-          <div className="relative w-full bg-gray-100 overflow-hidden" style={{ aspectRatio: '21/9', minHeight: '180px' }}>
-            <img
-              src="/Assets/frsr.jpg"
-              alt="C-FRSR"
-              className="w-full h-full object-cover"
-            />
-            <div className="absolute bottom-2 right-2 bg-black/50 text-white text-[10px] px-2 py-1 rounded backdrop-blur-sm">
-              © Helmy oved via Wikimedia Commons
+          <div className="px-4 pt-6 pb-2">
+            <div className="relative w-full bg-gray-100 overflow-hidden rounded-lg" style={{ aspectRatio: "21/9", minHeight: "180px" }}>
+              <img
+                src="/Assets/frsr.jpg"
+                alt="C-FRSR"
+                className="w-full h-full object-cover"
+              />
+              <div className="absolute bottom-2 right-2 bg-black/50 text-white text-[10px] px-2 py-1 rounded backdrop-blur-sm">
+                © Helmy oved via Wikimedia Commons
+              </div>
             </div>
           </div>
+
+          {/* Miniatures galerie */}
+          <div className="px-4 py-4 border-b border-gray-200 grid grid-cols-4 gap-2">
+            <div className="relative w-full aspect-video bg-gray-100 rounded overflow-hidden cursor-pointer hover:opacity-80 transition">
+              <img
+                src="/Assets/frsr2.jpg"
+                alt="C-FRSR 2"
+                className="w-full h-full object-cover"
+              />
+            </div>
+            <div className="relative w-full aspect-video bg-gray-100 rounded overflow-hidden cursor-pointer hover:opacity-80 transition">
+              <img
+                src="/Assets/frsr3.jpg"
+                alt="C-FRSR 3"
+                className="w-full h-full object-cover"
+              />
+            </div>
+            <div className="relative w-full aspect-video bg-gray-100 rounded overflow-hidden cursor-pointer hover:opacity-80 transition">
+              <img
+                src="/Assets/frsr4.jpg"
+                alt="C-FRSR 4"
+                className="w-full h-full object-cover"
+              />
+            </div>
+            <div className="relative w-full aspect-video bg-gray-100 rounded overflow-hidden cursor-pointer hover:opacity-80 transition">
+              <img
+                src="/Assets/frsr5.jpg"
+                alt="C-FRSR 5"
+                className="w-full h-full object-cover"
+              />
+            </div>
+          </div>
+        </>
+          )}
         </div>
       ),
     },
@@ -397,7 +434,7 @@ function ShowcaseSection() {
       ) : (
         <div className="bg-white rounded-2xl border border-gray-200 shadow-sm flex-1 flex flex-col overflow-hidden">
           {/* Header */}
-          <div className="px-4 pt-6 pb-4 flex items-center justify-between border-b border-gray-200">
+          <div className="bg-gradient-to-r from-blue-50 to-indigo-50 px-4 pt-6 pb-4 border-b border-gray-200 flex items-center justify-between">
             <div>
               <div className="flex items-center gap-2 mb-1">
                 <div className="w-8 h-8 bg-blue-600 rounded flex items-center justify-center flex-shrink-0">
@@ -409,12 +446,14 @@ function ShowcaseSection() {
                     <path d="M10.894 2.553a1 1 0 00-1.788 0l-7 14a1 1 0 001.169 1.409l5-1.429A1 1 0 009 15.571V11a1 1 0 112 0v4.571a1 1 0 00.725.962l5 1.428a1 1 0 001.17-1.408l-7-14z" />
                   </svg>
                 </div>
-                <h4 className="text-xl font-bold text-blue-600">Air Canada AC 6</h4>
+                <h4 className="text-xl font-bold text-blue-600">
+                  Air Canada AC 6
+                </h4>
               </div>
               <p className="text-sm text-gray-600 ml-10">Boeing 777 • C-FJZS</p>
             </div>
-            <div className="text-right">
-              <span className="px-3 py-1.5 bg-gray-100 text-gray-700 text-xs rounded-full font-medium">
+            <div className="text-right flex flex-col items-end justify-end">
+              <span className="px-3 py-1.5 bg-blue-100 text-blue-800 border border-blue-200 text-xs rounded-full font-medium">
                 EnRoute
               </span>
               <p className="text-xs text-gray-500 mt-1">Last updated 05:20 AM EST</p>
@@ -422,7 +461,7 @@ function ShowcaseSection() {
           </div>
 
           {/* Progress Bar Section */}
-          <div className="px-4 py-6 border-b border-gray-200">
+          <div className="px-4 py-6">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2 flex-shrink-0">
                 <div className="w-8 h-8 bg-blue-600 rounded flex items-center justify-center flex-shrink-0">
@@ -476,7 +515,7 @@ function ShowcaseSection() {
           </div>
 
           {/* General Information */}
-          <div className="px-4 py-6 border-b border-gray-200 space-y-2 text-sm">
+          <div className="px-4 py-6 space-y-2 text-sm">
             <div className="flex justify-between">
               <span className="text-gray-500">Aircraft:</span>
               <span className="font-medium text-gray-900">Boeing 777</span>
@@ -702,6 +741,7 @@ function ShowcaseSection() {
       ),
     },
   ];
+  }, [loadingData.aircraft, loadingData.flight, loadingData.airport]);
 
   // Auto-rotate slides
   useEffect(() => {

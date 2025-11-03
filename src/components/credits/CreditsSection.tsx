@@ -259,7 +259,7 @@ export function CreditsSection() {
   const shouldShowUpgradeMessage =
     creditsData.balance < 10 && // Crédits bas (moins de 10)
     creditsData.subscription?.plan !== "PRO" && // Pas déjà sur le plan PRO
-    creditsData.subscription?.plan !== "BUSINESS"; // Pas déjà sur le plan BUSINESS
+    creditsData.subscription?.plan !== "BASIC"; // Pas déjà sur le plan BASIC
 
   return (
     <div className="space-y-6">

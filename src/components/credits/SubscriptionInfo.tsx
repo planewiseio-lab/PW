@@ -25,7 +25,7 @@ export function SubscriptionInfo({ subscription }: SubscriptionInfoProps) {
   const planLabels = {
     FREE: "Free",
     PRO: "Pro",
-    BUSINESS: "Business",
+    BASIC: "Basic",
   };
 
   const statusLabels = {

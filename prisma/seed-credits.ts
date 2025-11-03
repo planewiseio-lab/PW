@@ -20,8 +20,8 @@ async function seedCreditsSystem() {
       renewsAt: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000), // 30 days ago (needs renewal)
     },
     {
-      userId: "business-user-789",
-      plan: Plan.BUSINESS,
+      userId: "basic-user-789",
+      plan: Plan.BASIC,
       credits: 2500,
       renewsAt: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000), // 30 days ago (needs renewal)
     },
@@ -105,7 +105,7 @@ async function seedCreditsSystem() {
   console.log("• FREE user: free-user-123 (5 credits, needs daily renewal)");
   console.log("• PRO user: pro-user-456 (500 credits, needs monthly renewal)");
   console.log(
-    "• BUSINESS user: business-user-789 (2500 credits, needs monthly renewal)"
+    "• BASIC user: basic-user-789 (350 credits, needs monthly renewal)"
   );
   console.log("• ADMIN user: admin-user-000 (1000 credits, no renewal needed)");
 

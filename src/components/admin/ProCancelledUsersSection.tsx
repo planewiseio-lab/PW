@@ -60,7 +60,7 @@ export function ProCancelledUsersSection() {
     if (status === "CANCELED") {
       return "bg-yellow-100 text-yellow-800 border-yellow-200";
     }
-    if (plan === "PRO" || plan === "BUSINESS") {
+    if (plan === "PRO" || plan === "BASIC") {
       return "bg-green-100 text-green-800 border-green-200";
     }
     return "bg-gray-100 text-gray-800 border-gray-200";
@@ -70,7 +70,7 @@ export function ProCancelledUsersSection() {
     if (plan === "PRO") {
       return "bg-blue-100 text-blue-800 border-blue-200";
     }
-    if (plan === "BUSINESS") {
+    if (plan === "BASIC") {
       return "bg-purple-100 text-purple-800 border-purple-200";
     }
     return "bg-gray-100 text-gray-800 border-gray-200";
@@ -111,7 +111,7 @@ export function ProCancelledUsersSection() {
           PRO & CANCELED Users
         </h2>
         <p className="text-sm text-gray-600 mt-1">
-          Users with PRO/BUSINESS plans or CANCELED subscriptions
+          Users with PRO/BASIC plans or CANCELED subscriptions
         </p>
       </div>
 

@@ -11,7 +11,7 @@ import { randomUUID } from "crypto";
 async function fixSubscriptionCredits(userId: string, planName: string) {
   try {
     // Valider le plan
-    const validPlans = ["FREE", "PRO", "BUSINESS"];
+    const validPlans = ["FREE", "PRO", "BASIC"];
     if (!validPlans.includes(planName.toUpperCase())) {
       console.error(`Invalid plan: ${planName}. Valid plans: ${validPlans.join(", ")}`);
       process.exit(1);
@@ -55,7 +55,7 @@ async function fixSubscriptionCredits(userId: string, planName: string) {
     if (plan !== Plan.FREE) {
       const creditsByPlan = {
         [Plan.PRO]: 500,
-        [Plan.BUSINESS]: 2500,
+        [Plan.BASIC]: 350,
       };
 
       const creditsToGrant = creditsByPlan[plan];

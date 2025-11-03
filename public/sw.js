@@ -74,6 +74,16 @@ self.addEventListener("fetch", (event) => {
     return; // Laisser passer sans interception
   }
 
+  // Ignorer les requêtes Stripe - laisser passer directement pour éviter les problèmes de CSP
+  if (
+    url.hostname.includes("stripe.com") ||
+    url.hostname.includes("js.stripe.com") ||
+    url.hostname.includes("api.stripe.com") ||
+    url.hostname.includes("hooks.stripe.com")
+  ) {
+    return; // Laisser passer sans interception
+  }
+
   // Stratégie Cache First pour les assets statiques
   if (STATIC_ASSETS.some((asset) => url.pathname === asset)) {
     event.respondWith(

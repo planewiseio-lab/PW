@@ -31,7 +31,7 @@ export async function POST(request: NextRequest) {
     // Create enums
     const createEnums = async () => {
       const enums = [
-        `CREATE TYPE IF NOT EXISTS "Plan" AS ENUM ('FREE', 'PRO', 'BUSINESS');`,
+        `CREATE TYPE IF NOT EXISTS "Plan" AS ENUM ('FREE', 'PRO', 'BASIC');`,
         `CREATE TYPE IF NOT EXISTS "SubscriptionStatus" AS ENUM ('ACTIVE', 'PAST_DUE', 'CANCELED');`,
         `CREATE TYPE IF NOT EXISTS "CreditReason" AS ENUM ('ACTION', 'MONTHLY_TOPUP', 'MANUAL_ADJUST', 'PURCHASE', 'REFUND', 'ADMIN_FIX');`,
         `CREATE TYPE IF NOT EXISTS "ActionType" AS ENUM ('AIRCRAFT_LOOKUP', 'VIEW_FLIGHT_HISTORY', 'BROWSE_FLIGHT', 'BROWSE_AIRPORT', 'UNKNOWN');`,

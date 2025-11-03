@@ -5,6 +5,50 @@ import { useSearchParams, useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { createClient } from "@/lib/supabase/client";
 import Link from "next/link";
+import { Elements } from "@stripe/react-stripe-js";
+import { loadStripe, Stripe } from "@stripe/stripe-js";
+import PaymentForm from "@/components/checkout/PaymentForm";
+
+// Mapping des plans pour l'affichage
+const PLAN_DETAILS: Record<
+  string,
+  { name: string; price: string; credits: string; features: string[] }
+> = {
+  BASIC: {
+    name: "Basic",
+    price: "$5.99",
+    credits: "350 credits/month",
+    features: [
+      "Aircraft lookup",
+      "Flight history",
+      "Airport information",
+      "Basic specs & photos",
+      "Community support",
+    ],
+  },
+  PRO: {
+    name: "Pro",
+    price: "$9.99",
+    credits: "750 credits/month",
+    features: [
+      "Everything in Basic",
+      "Priority processing",
+      "Advanced features",
+      "Community support",
+    ],
+  },
+  BASIC: {
+    name: "Basic",
+    price: "$19.99",
+    credits: "2000 credits/month",
+    features: [
+      "Everything in Pro",
+      "Priority support",
+      "Custom integrations",
+      "Dedicated account manager",
+    ],
+  },
+};
 
 export default function CheckoutPage() {
   const searchParams = useSearchParams();
@@ -12,9 +56,56 @@ export default function CheckoutPage() {
   const planParam = searchParams.get("plan");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [clientSecret, setClientSecret] = useState<string | null>(null);
+  const [plan, setPlan] = useState<string | null>(null);
+  const [priceId, setPriceId] = useState<string | null>(null);
+  const [customerId, setCustomerId] = useState<string | null>(null);
+  const [success, setSuccess] = useState(false);
+  const [stripePromise, setStripePromise] = useState<Promise<Stripe | null> | null>(null);
+
+  // Charger Stripe au montage
+  useEffect(() => {
+    const stripePublishableKey = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY;
+    console.log("Stripe publishable key:", stripePublishableKey ? "Found" : "Not found");
+    
+    if (stripePublishableKey) {
+      try {
+        const promise = loadStripe(stripePublishableKey);
+        setStripePromise(promise);
+        promise.catch((err) => {
+          console.error("Error loading Stripe:", err);
+          setError("Failed to load Stripe.js. Please check your internet connection and try again.");
+          setLoading(false);
+        });
+      } catch (err) {
+        console.error("Error initializing Stripe:", err);
+        setError("Failed to initialize Stripe. Please check your configuration.");
+        setLoading(false);
+      }
+    } else {
+      setError(
+        "Stripe is not configured. Please add NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY to your environment variables and restart the server."
+      );
+      setLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
-    const handleCheckout = async () => {
+    const initializeCheckout = async () => {
+      // Vérifier que Stripe est configuré
+      const stripePublishableKey = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY;
+      if (!stripePublishableKey || !stripePromise) {
+        // Attendre que Stripe soit chargé
+        if (stripePublishableKey) {
+          return; // Stripe est en cours de chargement
+        }
+        setError(
+          "Stripe is not configured. Please add NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY to your environment variables."
+        );
+        setLoading(false);
+        return;
+      }
+
       if (!planParam) {
         setError("No plan specified. Please select a plan.");
         setLoading(false);
@@ -47,68 +138,88 @@ export default function CheckoutPage() {
       const planMapping: Record<string, string> = {
         basic: "BASIC",
         pro: "PRO",
-        business: "BUSINESS",
       };
 
-      const plan = planMapping[planParam.toLowerCase()];
-      
-      if (!plan) {
+      const planCode = planMapping[planParam.toLowerCase()];
+
+      if (!planCode) {
         setError(
-          `Invalid plan: ${planParam}. Valid plans are: basic, pro, business`
+          `Invalid plan: ${planParam}. Valid plans are: basic, pro`
         );
         setLoading(false);
         return;
       }
 
       try {
-        // Appeler l'API pour créer la session Checkout
-        const response = await fetch("/api/stripe/create-checkout-session", {
+        // Appeler l'API pour créer le SetupIntent
+        const response = await fetch("/api/stripe/create-setup-intent", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
           },
           credentials: "include",
-          body: JSON.stringify({ plan }),
+          body: JSON.stringify({ plan: planCode }),
         });
 
         if (!response.ok) {
           const errorData = await response.json();
-          
+
           // Vérifier si c'est une erreur d'authentification
-          if (response.status === 401 || errorData.error === "Authentication required") {
+          if (
+            response.status === 401 ||
+            errorData.error === "Authentication required"
+          ) {
             const redirectUrl = `/checkout?plan=${planParam}`;
             router.replace(`/auth?redirect=${encodeURIComponent(redirectUrl)}`);
             return;
           }
-          
-          throw new Error(errorData.error || "Failed to create checkout session");
+
+          throw new Error(errorData.error || "Failed to create setup intent");
         }
 
         const data = await response.json();
 
-        // Rediriger vers Stripe Checkout
-        if (data.url) {
-          window.location.href = data.url;
-        } else {
-          throw new Error("No checkout URL received from server");
+        if (!data.clientSecret) {
+          throw new Error("No client secret received from server");
         }
+
+        setClientSecret(data.clientSecret);
+        setPlan(planCode);
+        setPriceId(data.priceId);
+        setCustomerId(data.customerId);
+        setLoading(false);
       } catch (err: any) {
-        console.error("Error creating checkout session:", err);
-        
+        console.error("Error creating setup intent:", err);
+
         // Vérifier si c'est une erreur d'authentification
-        if (err.message === "Authentication required" || err.message?.includes("Authentication")) {
+        if (
+          err.message === "Authentication required" ||
+          err.message?.includes("Authentication")
+        ) {
           const redirectUrl = `/checkout?plan=${planParam}`;
           router.replace(`/auth?redirect=${encodeURIComponent(redirectUrl)}`);
           return;
         }
-        
-        setError(err.message || "Failed to create checkout session. Please try again.");
+
+        setError(err.message || "Failed to initialize checkout. Please try again.");
         setLoading(false);
       }
     };
 
-    handleCheckout();
-  }, [planParam]);
+    initializeCheckout();
+  }, [planParam, router, stripePromise]);
+
+  const handleSuccess = () => {
+    setSuccess(true);
+    // Rediriger vers la page de succès après 2 secondes
+    setTimeout(() => {
+      router.push("/checkout/success");
+    }, 2000);
+  };
+
+  const handleError = (errorMsg: string) => {
+    setError(errorMsg);
+  };
 
   if (loading) {
     return (
@@ -119,15 +230,14 @@ export default function CheckoutPage() {
           className="text-center"
         >
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600 text-lg">Redirecting to Stripe Checkout...</p>
+          <p className="text-gray-600 text-lg">Loading checkout...</p>
           <p className="text-gray-500 text-sm mt-2">Please wait</p>
         </motion.div>
       </div>
     );
   }
 
-
-  if (error) {
+  if (error && !clientSecret) {
     return (
       <div className="min-h-screen bg-white flex items-center justify-center py-12 px-4">
         <motion.div
@@ -171,8 +281,156 @@ export default function CheckoutPage() {
     );
   }
 
-  return null;
+  if (success) {
+    return (
+      <div className="min-h-screen bg-white flex items-center justify-center py-12 px-4">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="max-w-md w-full bg-white rounded-xl shadow-sm border border-gray-200 p-8 text-center"
+        >
+          <div className="text-green-500 mb-4">
+            <svg
+              className="w-16 h-16 mx-auto"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+              />
+            </svg>
+          </div>
+          <h1 className="text-2xl font-bold text-gray-900 mb-2">
+            Payment Successful!
+          </h1>
+          <p className="text-gray-600 mb-6">
+            Your subscription has been activated. Redirecting...
+          </p>
+        </motion.div>
+      </div>
+    );
+  }
+
+  if (!clientSecret || !plan || !priceId || !customerId) {
+    return null;
+  }
+
+  const planDetails = PLAN_DETAILS[plan];
+
+  return (
+    <div className="min-h-screen bg-gray-50 py-12 px-4">
+      <div className="max-w-4xl mx-auto">
+        <div className="mb-6">
+          <Link
+            href="/credits"
+            className="text-blue-600 hover:text-blue-700 text-sm font-medium inline-flex items-center gap-1"
+          >
+            ← Back to Credits
+          </Link>
+        </div>
+
+        <div className="grid md:grid-cols-2 gap-8">
+          {/* Plan Summary */}
+          <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
+            <h2 className="text-2xl font-bold text-gray-900 mb-2">
+              {planDetails.name} Plan
+            </h2>
+            <div className="mb-6">
+              <div className="text-4xl font-extrabold text-gray-900">
+                {planDetails.price}
+                <span className="text-lg font-medium text-gray-500">/mo</span>
+              </div>
+              <p className="text-gray-600 mt-2">{planDetails.credits}</p>
+            </div>
+
+            <div className="border-t border-gray-200 pt-6">
+              <h3 className="text-sm font-semibold text-gray-900 mb-4">
+                What's included:
+              </h3>
+              <ul className="space-y-3">
+                {planDetails.features.map((feature, index) => (
+                  <li key={index} className="flex items-start gap-3">
+                    <svg
+                      className="w-5 h-5 text-green-500 flex-shrink-0 mt-0.5"
+                      fill="currentColor"
+                      viewBox="0 0 20 20"
+                    >
+                      <path
+                        fillRule="evenodd"
+                        d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
+                        clipRule="evenodd"
+                      />
+                    </svg>
+                    <span className="text-sm text-gray-700">{feature}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
+
+          {/* Payment Form */}
+          <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
+            <h2 className="text-xl font-bold text-gray-900 mb-6">
+              Payment Information
+            </h2>
+
+            {error && (
+              <motion.div
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm mb-6"
+              >
+                {error}
+              </motion.div>
+            )}
+
+            {stripePromise ? (
+              <Elements
+                stripe={stripePromise}
+                options={{
+                  clientSecret: clientSecret,
+                  appearance: {
+                    theme: "stripe",
+                    variables: {
+                      colorPrimary: "#2563eb",
+                      colorBackground: "#ffffff",
+                      colorText: "#111827",
+                      colorDanger: "#ef4444",
+                      fontFamily: "system-ui, sans-serif",
+                      spacingUnit: "4px",
+                      borderRadius: "8px",
+                    },
+                  },
+                }}
+              >
+                <PaymentForm
+                  clientSecret={clientSecret}
+                  plan={plan}
+                  priceId={priceId}
+                  customerId={customerId}
+                  onSuccess={handleSuccess}
+                  onError={handleError}
+                />
+              </Elements>
+            ) : (
+              <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">
+                Stripe is not configured. Please add NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY to your environment variables.
+              </div>
+            )}
+
+            <div className="mt-6 pt-6 border-t border-gray-200">
+              <p className="text-xs text-gray-500 text-center">
+                Your payment is secure and encrypted. We never store your card
+                details.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
 }
-
-
-

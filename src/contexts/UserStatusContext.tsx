@@ -74,7 +74,7 @@ export function UserStatusProvider({ children }: { children: ReactNode }) {
                   : null;
                 const now = new Date();
 
-                if (plan === "PRO" || plan === "BUSINESS") {
+                if (plan === "PRO" || plan === "BASIC") {
                   if (renewsAt && renewsAt > now) {
                     setStatus("pro");
                   } else {
@@ -136,7 +136,7 @@ export function UserStatusProvider({ children }: { children: ReactNode }) {
                   : null;
                 const now = new Date();
 
-                if (plan === "PRO" || plan === "BUSINESS") {
+                if (plan === "PRO" || plan === "BASIC") {
                   if (renewsAt && renewsAt > now) {
                     setStatus("pro");
                   } else {

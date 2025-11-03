@@ -30,7 +30,7 @@ export async function GET(request: NextRequest) {
       where: {
         OR: [
           { plan: Plan.PRO },
-          { plan: Plan.BUSINESS },
+          { plan: Plan.BASIC },
           { status: SubscriptionStatus.CANCELED },
         ],
       },

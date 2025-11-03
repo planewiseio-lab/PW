@@ -96,10 +96,10 @@ export function InsufficientCreditsModal({
                   </h3>
                   <p className="text-gray-600">
                     {plan === "Free"
-                      ? "5 requests per day • Daily renewal"
+                      ? "50 credits per month • Monthly renewal"
                       : plan === "Basic"
-                      ? "Up to 500 total requests / month • Monthly renewal"
-                      : "Up to 2500 total requests / month • Monthly renewal"}
+                      ? "350 credits per month • Monthly renewal"
+                      : "750 credits per month • Monthly renewal"}
                   </p>
                 </div>
               </div>
@@ -189,7 +189,7 @@ export function InsufficientCreditsModal({
               </div>
 
               <div className="text-center text-sm text-gray-500 mb-4">
-                Up to 500 total requests / month
+                350 credits per month
               </div>
 
               <button
@@ -238,7 +238,7 @@ export function InsufficientCreditsModal({
               </div>
 
               <div className="text-center text-sm text-gray-500 mb-4">
-                Up to 2500 total requests / month
+                750 credits per month
               </div>
 
               <button
@@ -265,7 +265,7 @@ export function InsufficientCreditsModal({
                   More Requests
                 </h4>
                 <p className="text-sm text-gray-600">
-                  Up to 2500 requests per month
+                  Up to 750 credits per month
                 </p>
               </div>
               <div>

@@ -400,7 +400,7 @@ export async function ensureMonthlyTopUp(userId: string): Promise<void> {
   let finalPlan = subscription.plan;
   let finalStatus = subscription.status;
 
-  // For paid plans (PRO/BUSINESS), verify Stripe subscription status
+  // For paid plans (PRO/BASIC), verify Stripe subscription status
   if (subscription.plan !== Plan.FREE && subscription.stripeSubId) {
     try {
       const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
@@ -451,7 +451,7 @@ export async function ensureMonthlyTopUp(userId: string): Promise<void> {
   const maxCreditsByPlan = {
     [Plan.FREE]: 50, // 50 crédits par mois
     [Plan.PRO]: 750, // 750 crédits maximum par mois (PRO)
-    [Plan.BUSINESS]: 350, // 350 crédits maximum par mois (BASIC - mappé sur BUSINESS dans Prisma)
+    [Plan.BASIC]: 350, // 350 crédits maximum par mois (BASIC)
   };
 
   const maxCredits = maxCreditsByPlan[finalPlan];

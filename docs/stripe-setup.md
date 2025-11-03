@@ -65,7 +65,7 @@ NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=pk_test_... # ou pk_live_... pour production
 # Price IDs des produits créés
 STRIPE_PRICE_ID_BASIC=price_xxxxxxxxxxxxx
 STRIPE_PRICE_ID_PRO=price_xxxxxxxxxxxxx
-STRIPE_PRICE_ID_BUSINESS=price_xxxxxxxxxxxxx # si nécessaire
+STRIPE_PRICE_ID_BASIC=price_xxxxxxxxxxxxx # si nécessaire
 
 # URL du site (pour les redirects)
 NEXT_PUBLIC_SITE_URL=http://localhost:3000 # ou https://votre-domaine.com pour production

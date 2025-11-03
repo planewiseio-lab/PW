@@ -127,21 +127,18 @@ export async function POST(request: NextRequest) {
         // Mapping basé sur les Price IDs configurés
         const basicPriceId = process.env.STRIPE_PRICE_ID_BASIC;
         const proPriceId = process.env.STRIPE_PRICE_ID_PRO;
-        const businessPriceId = process.env.STRIPE_PRICE_ID_BUSINESS;
 
         if (priceId === basicPriceId) {
-          plan = Plan.PRO; // BASIC mappe vers PRO (BASIC n'existe pas dans l'enum Plan)
+          plan = Plan.BASIC; // BASIC plan (350 crédits)
         } else if (priceId === proPriceId) {
-          plan = Plan.PRO;
-        } else if (priceId === businessPriceId) {
-          plan = Plan.BUSINESS;
+          plan = Plan.PRO; // PRO plan (750 crédits)
         } else if (subscription.metadata?.plan) {
           // Fallback: utiliser le plan dans metadata si disponible
           const metadataPlan = subscription.metadata.plan.toUpperCase();
-          if (metadataPlan === "BASIC" || metadataPlan === "PRO") {
-            plan = Plan.PRO; // BASIC et PRO utilisent tous les deux Plan.PRO
-          } else if (metadataPlan === "BUSINESS") {
-            plan = Plan.BUSINESS;
+          if (metadataPlan === "BASIC") {
+            plan = Plan.BASIC; // BASIC plan (350 crédits)
+          } else if (metadataPlan === "PRO") {
+            plan = Plan.PRO; // PRO plan (750 crédits)
           }
         }
         // Vérifier si l'abonnement est programmé pour être annulé à la fin de la période
@@ -244,7 +241,7 @@ export async function POST(request: NextRequest) {
         if (event.type === "customer.subscription.created" && plan !== Plan.FREE) {
           const maxCreditsByPlan = {
             [Plan.PRO]: 750, // 750 crédits maximum par mois (PRO)
-            [Plan.BUSINESS]: 350, // 350 crédits maximum par mois (BASIC - mappé sur BUSINESS)
+            [Plan.BASIC]: 350, // 350 crédits maximum par mois (BASIC)
           };
 
           const maxCredits = maxCreditsByPlan[plan];

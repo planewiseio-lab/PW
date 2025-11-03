@@ -32,7 +32,7 @@ export async function GET(request: NextRequest) {
     const sqlCommands = [
       // Créer les enums
       `DO $$ BEGIN
-        CREATE TYPE "Plan" AS ENUM ('FREE', 'PRO', 'BUSINESS');
+        CREATE TYPE "Plan" AS ENUM ('FREE', 'PRO', 'BASIC');
       EXCEPTION
         WHEN duplicate_object THEN null;
       END $$;`,

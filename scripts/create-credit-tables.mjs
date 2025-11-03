@@ -21,7 +21,7 @@ async function createCreditTables() {
     // Create enums
     console.log("Creating enums...");
     await supabase.rpc("exec", {
-      sql: `CREATE TYPE IF NOT EXISTS "Plan" AS ENUM ('FREE', 'PRO', 'BUSINESS');`,
+      sql: `CREATE TYPE IF NOT EXISTS "Plan" AS ENUM ('FREE', 'PRO', 'BASIC');`,
     });
 
     await supabase.rpc("exec", {

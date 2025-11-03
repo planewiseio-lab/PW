@@ -134,7 +134,7 @@ export function AllUsersSection() {
     if (plan === "PRO") {
       return "bg-blue-100 text-blue-800 border-blue-200";
     }
-    if (plan === "BUSINESS") {
+    if (plan === "BASIC") {
       return "bg-purple-100 text-purple-800 border-purple-200";
     }
     if (plan === "FREE") {
@@ -144,7 +144,7 @@ export function AllUsersSection() {
   };
 
   const getPlanDisplayName = (plan: string) => {
-    if (plan === "BUSINESS") {
+    if (plan === "BASIC") {
       return "BASIC";
     }
     return plan;
