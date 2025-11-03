@@ -8,6 +8,9 @@ export default function Footer() {
           © {new Date().getFullYear()} PlaneWise.io
         </p>
         <div className="flex items-center gap-4 text-sm">
+          <a href="/about-us" className="text-gray-600 hover:text-brand-700">
+            About Us
+          </a>
           <a href="/privacy" className="text-gray-600 hover:text-brand-700">
             Privacy
           </a>

@@ -1,6 +1,8 @@
 "use client";
 
 import { useUserStatus } from "@/contexts/UserStatusContext";
+import { useCookieConsent } from "@/hooks/useCookieConsent";
+import { usePathname } from "next/navigation";
 import { AdUnitDisplay, AdUnitInArticle, AdUnitCompact } from "./AdSense";
 
 interface AdWrapperProps {
@@ -19,9 +21,12 @@ export function AdWrapper({
   children,
 }: AdWrapperProps) {
   const { shouldShowAds, status } = useUserStatus();
+  const cookieConsent = useCookieConsent();
 
-  // Si les pubs doivent être affichées (guest ou subscribed sans souscription active)
-  if (!shouldShowAds) {
+  // Ne pas afficher les pubs si:
+  // 1. L'utilisateur a une souscription active (shouldShowAds = false)
+  // 2. Le consentement aux cookies n'a pas été accepté
+  if (!shouldShowAds || cookieConsent !== "accepted") {
     return children ? <>{children}</> : null;
   }
 
@@ -68,8 +73,18 @@ export function AdSection({
   positionLabel?: string;
 }) {
   const { shouldShowAds } = useUserStatus();
+  const cookieConsent = useCookieConsent();
+  const pathname = usePathname() || "/";
 
-  if (!shouldShowAds) return null;
+  // Ne pas afficher les pubs sur les pages légales/informatives
+  const isLegalPage = pathname === "/privacy" || pathname === "/terms" || pathname === "/about-us";
+
+  // Ne pas afficher les pubs si:
+  // 1. L'utilisateur a une souscription active
+  // 2. Le consentement aux cookies n'a pas été accepté
+  // 3. On est sur une page légale/informative (privacy, terms, about-us)
+  if (!shouldShowAds || cookieConsent !== "accepted" || isLegalPage)
+    return null;
 
   // Mode développement: afficher un placeholder visuel
   const isDevelopment = process.env.NODE_ENV === "development";

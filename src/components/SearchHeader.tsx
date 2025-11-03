@@ -34,6 +34,9 @@ export default function SearchHeader() {
   const isAdminPage = pathname.startsWith("/admin");
   const isCheckoutPage = pathname.startsWith("/checkout");
   const isContactPage = pathname === "/contact";
+  const isPrivacyPage = pathname === "/privacy";
+  const isTermsPage = pathname === "/terms";
+  const isAboutUsPage = pathname === "/about-us";
   const isResetPasswordPage = pathname === "/auth/reset-password";
   const isAuthCallbackPage = pathname === "/auth/callback";
 
@@ -68,8 +71,8 @@ export default function SearchHeader() {
     });
   };
 
-  // Pas de SearchHeader sur la home, les pages d'auth, les pages admin, les pages checkout, la page contact, la page reset password, et la page auth callback
-  if (isHome || isAuthPage || isAdminPage || isCheckoutPage || isContactPage || isResetPasswordPage || isAuthCallbackPage) return null;
+  // Pas de SearchHeader sur la home, les pages d'auth, les pages admin, les pages checkout, la page contact, privacy, terms, about-us, la page reset password, et la page auth callback
+  if (isHome || isAuthPage || isAdminPage || isCheckoutPage || isContactPage || isPrivacyPage || isTermsPage || isAboutUsPage || isResetPasswordPage || isAuthCallbackPage) return null;
 
   // Éviter les différences d'hydration - rendu initial avec transition
   if (!isMounted) {

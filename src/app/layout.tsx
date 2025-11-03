@@ -21,6 +21,8 @@ import { AdSection } from "@/components/ads/AdWrapper";
 import { UserStatusProvider } from "@/contexts/UserStatusContext";
 import { Comfortaa } from "next/font/google";
 import Script from "next/script";
+import CookieConsent from "@/components/CookieConsent";
+import GoogleAnalytics from "@/components/GoogleAnalytics";
 
 export const comfortaa = Comfortaa({
   subsets: ["latin"],
@@ -179,23 +181,10 @@ export default function RootLayout({
         <GuestQuotaExceededModal />
         {/* Modal de crédits épuisés pour utilisateurs Free */}
         <FreeCreditsExceededModal />
-        {/* Google Analytics */}
-        {process.env.NEXT_PUBLIC_GA_ID && (
-          <>
-            <Script
-              src={`https://www.googletagmanager.com/gtag/js?id=${process.env.NEXT_PUBLIC_GA_ID}`}
-              strategy="afterInteractive"
-            />
-            <Script id="google-analytics" strategy="afterInteractive">
-              {`
-                window.dataLayer = window.dataLayer || [];
-                function gtag(){dataLayer.push(arguments);}
-                gtag('js', new Date());
-                gtag('config', '${process.env.NEXT_PUBLIC_GA_ID}');
-              `}
-            </Script>
-          </>
-        )}
+        {/* Google Analytics - Chargé uniquement si consentement accepté */}
+        <GoogleAnalytics />
+        {/* Cookie Consent Banner */}
+        <CookieConsent />
         </UserStatusProvider>
       </body>
     </html>
