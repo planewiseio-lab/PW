@@ -23,10 +23,10 @@ function bool(v: string | null | undefined, d = false) {
 export const GET = withAirportBrowseAccess(
   async (req: Request, ctx: { params: Promise<{ code: string }> }) => {
     // Check for required API key
-    const apiKey = process.env.AIRREG_API_KEY || process.env.RAPID_KEY;
+    const apiKey = process.env.API_MARKET_KEY || process.env.AIRREG_API_KEY;
     if (!apiKey) {
       return NextResponse.json(
-        { error: "Missing AIRREG_API_KEY environment variable" },
+        { error: "Missing API_MARKET_KEY environment variable" },
         { status: 500 }
       );
     }

@@ -46,7 +46,9 @@ export function shouldMarkAsArrived(flight: FlightData): boolean {
     return true;
   }
 
-  // 4. Règle secondaire : Si arrivée prévue et 4h de retard = Arrived
+  // 4. Règle secondaire : Si arrivée prévue et temps écoulé = Arrived
+  // Seulement si l'heure d'arrivée est passée depuis au moins 2 heures
+  // Cela évite de marquer comme arrivé un vol qui est encore en vol
   if (flight.arrival.scheduledTime || flight.arrival.estimatedTime) {
     const arrivalTime =
       flight.arrival.actualTime ||
@@ -58,7 +60,9 @@ export function shouldMarkAsArrived(flight: FlightData): boolean {
       const hoursSinceArrival =
         (now.getTime() - arrivalDate.getTime()) / (1000 * 60 * 60);
 
-      if (hoursSinceArrival > 4) {
+      // Si l'heure d'arrivée estimée est passée de plus de 2 heures, considérer comme arrivé
+      // Cela permet un délai raisonnable pour que le statut soit mis à jour par l'API
+      if (hoursSinceArrival > 2) {
         return true;
       }
     }

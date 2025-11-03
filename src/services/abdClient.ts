@@ -1,8 +1,7 @@
 import { getRedisLike } from "@/lib/redisClient";
 
-const ABD_BASE = process.env.AIRREG_API_BASE || "https://aerodatabox.p.rapidapi.com";
-const ABD_HOST = "aerodatabox.p.rapidapi.com";
-const ABD_KEY = process.env.AIRREG_API_KEY || process.env.RAPID_KEY || "";
+const ABD_BASE = process.env.API_MARKET_BASE_URL || process.env.AIRREG_API_BASE || "https://prod.api.market/api/v1/aedbx/aerodatabox";
+const ABD_KEY = process.env.API_MARKET_KEY || process.env.AIRREG_API_KEY || "";
 
 export interface AbdClientOptions {
     timeoutMs?: number; // default 3000
@@ -24,35 +23,86 @@ async function fetchWithTimeout(url: string, init: RequestInit, timeoutMs: numbe
 async function getJsonWithRetry(path: string, params: URLSearchParams, opts: AbdClientOptions) {
     const timeoutMs = opts.timeoutMs ?? 3000;
 	const retry = Math.max(0, opts.retry ?? 1);
-	const url = `${ABD_BASE}${path}?${params.toString()}`;
+	
+	// api.market REST API - tester plusieurs URLs
+	// Structure 1: URL REST api.market officielle (prod.api.market/api/v1/{workspace}/{product})
+	const url1 = `https://prod.api.market/api/v1/aedbx/aerodatabox${path}?${params.toString()}`;
+	
+	// Structure 2: URL api.market sans prod (fallback)
+	const url2 = `https://api.market/api/v1/aedbx/aerodatabox${path}?${params.toString()}`;
+	
+	// Structure 3: URL api.market alternative (sans /v1)
+	const url3 = `https://api.market/api/aedbx/aerodatabox${path}?${params.toString()}`;
+	
+	// Structure 4: URL api.market directe (structure simplifiée)
+	const url4 = `https://api.market/aedbx/aerodatabox${path}?${params.toString()}`;
+	
+	const urlsToTry = [url1, url2, url3, url4];
+	
 	let attempt = 0;
 	let lastErr: any;
 	const start = Date.now();
-	while (attempt <= retry) {
-		try {
-			const res = await fetchWithTimeout(url, {
-				headers: {
-					Accept: "application/json",
-					"X-RapidAPI-Key": String(ABD_KEY),
-					"X-RapidAPI-Host": ABD_HOST,
-				},
-				cache: "no-store",
-			}, timeoutMs);
-			const text = await res.text();
-			if (!res.ok) throw new Error(`ABD ${res.status}: ${text.slice(0, 200)}`);
+	
+	// Essayer chaque URL jusqu'à trouver une qui fonctionne
+	for (const url of urlsToTry) {
+		attempt = 0;
+		while (attempt <= retry) {
 			try {
-				return { data: JSON.parse(text), latencyMs: Date.now() - start };
-			} catch {
-				return { data: {}, latencyMs: Date.now() - start };
+				const res = await fetchWithTimeout(url, {
+					headers: {
+						Accept: "application/json",
+						"x-magicapi-key": String(ABD_KEY), // api.market REST API header (selon documentation)
+						"x-api-market-key": String(ABD_KEY), // Compatibilité MCP
+					},
+					cache: "no-store",
+				}, timeoutMs);
+				const text = await res.text();
+				
+				// Si succès, retourner immédiatement
+				if (res.ok) {
+					try {
+						return { data: JSON.parse(text), latencyMs: Date.now() - start };
+					} catch {
+						return { data: {}, latencyMs: Date.now() - start };
+					}
+				}
+				
+				// Si erreur 401/403, essayer la prochaine URL (pas de retry)
+				if (res.status === 401 || res.status === 403) {
+					console.log(`[ABD Client] Auth error (${res.status}) with ${url.substring(0, 80)}..., trying next...`);
+					break; // Sortir de la boucle while, passer à la prochaine URL
+				}
+				
+				// Pour les autres erreurs (429, 500, etc.), retry ou essayer la prochaine URL
+				if (attempt < retry) {
+					// Retry la même URL
+					throw new Error(`ABD ${res.status}: ${text.slice(0, 200)}`);
+				} else {
+					// Dernière tentative pour cette URL, essayer la prochaine URL
+					break;
+				}
+			} catch (e: any) {
+				lastErr = e;
+				if (attempt === retry) {
+					// Si c'est la dernière tentative pour cette URL et la dernière URL, lancer l'erreur
+					if (url === urlsToTry[urlsToTry.length - 1]) {
+						break; // Sortir de la boucle while et for
+					}
+					// Essayer la prochaine URL
+					break;
+				}
+				// Retry avec délai
+				await new Promise((r) => setTimeout(r, 200 * Math.pow(2, attempt)));
+				attempt++;
 			}
-		} catch (e) {
-			lastErr = e;
-			if (attempt === retry) break;
-			await new Promise((r) => setTimeout(r, 200 * Math.pow(2, attempt)));
-			attempt++;
 		}
+		// Si on a réussi, on ne devrait pas arriver ici (return dans le try)
+		// Si on arrive ici, c'est qu'on doit essayer la prochaine URL
 	}
-	throw lastErr;
+	
+	// Si toutes les URLs ont échoué
+	if (lastErr) throw lastErr;
+	throw new Error("All API endpoints failed");
 }
 
 async function cachedJson(key: string, fn: () => Promise<any>, ttlSeconds: number) {

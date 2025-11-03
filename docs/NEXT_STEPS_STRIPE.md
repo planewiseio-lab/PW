@@ -195,3 +195,6 @@ Une fois tous ces éléments cochés, votre intégration Stripe est prête ! �
 
 
 
+
+
+

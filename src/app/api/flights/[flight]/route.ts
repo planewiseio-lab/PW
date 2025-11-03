@@ -6,8 +6,8 @@ import {
 import { withFlightBrowseAccess } from "@/lib/withActionAccess";
 
 const AERODATABOX_API_KEY =
-  process.env.AERODATABOX_API_KEY || process.env.RAPID_KEY;
-const AERODATABOX_BASE_URL = "https://aerodatabox.p.rapidapi.com";
+  process.env.API_MARKET_KEY || process.env.AERODATABOX_API_KEY;
+const AERODATABOX_BASE_URL = process.env.API_MARKET_BASE_URL || "https://prod.api.market/api/v1/aedbx/aerodatabox";
 
 // Cache optimisé avec TTL et nettoyage automatique
 const cache = new Map<string, { data: any; timestamp: number; ttl: number }>();
@@ -103,80 +103,140 @@ function setCache(key: string, data: string, ttl: number): void {
 async function callAero(
   path: string
 ): Promise<{ ok: boolean; status: number; text: string; url: string }> {
-  const url = `${AERODATABOX_BASE_URL}${path}`;
-
-  // Déduplication des requêtes identiques
-  if (pendingRequests.has(url)) {
-    return pendingRequests.get(url);
+  // api.market REST API - selon documentation: https://docs.api.market
+  // Base URL: https://prod.api.market/api/v1
+  // Authentication: x-magicapi-key header
+  
+  // Structure 1: URL REST api.market officielle (prod.api.market/api/v1/{workspace}/{product})
+  const url1 = `https://prod.api.market/api/v1/aedbx/aerodatabox${path}`;
+  
+  // Structure 2: URL api.market sans prod (fallback)
+  const url2 = `https://api.market/api/v1/aedbx/aerodatabox${path}`;
+  
+  // Structure 3: URL api.market alternative (sans /v1)
+  const url3 = `https://api.market/api/aedbx/aerodatabox${path}`;
+  
+  // Structure 4: URL api.market directe (structure simplifiée)
+  const url4 = `https://api.market/aedbx/aerodatabox${path}`;
+  
+  const urlsToTry = [url1, url2, url3, url4];
+  
+  // Utiliser la première URL comme clé de déduplication
+  const dedupKey = url1;
+  if (pendingRequests.has(dedupKey)) {
+    return pendingRequests.get(dedupKey);
   }
 
   const requestPromise = (async () => {
     const startTime = Date.now();
-    try {
-      // Timeout de 15 secondes
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 15000);
+    
+    // Essayer chaque URL jusqu'à trouver une qui fonctionne
+    for (const url of urlsToTry) {
+      try {
+        // Timeout de 15 secondes
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 15000);
 
-      const response = await fetch(url, {
-        method: "GET",
-        headers: {
-          "X-RapidAPI-Key": AERODATABOX_API_KEY!,
-          "X-RapidAPI-Host": "aerodatabox.p.rapidapi.com",
-        },
-        signal: controller.signal,
-      });
+        const response = await fetch(url, {
+          method: "GET",
+          headers: {
+            Accept: "application/json",
+            "x-magicapi-key": AERODATABOX_API_KEY!, // api.market REST API header (selon documentation)
+            "x-api-market-key": AERODATABOX_API_KEY!, // Compatibilité MCP
+          },
+          signal: controller.signal,
+        });
 
-      clearTimeout(timeoutId);
-      const text = await response.text();
+        clearTimeout(timeoutId);
+        const text = await response.text();
 
-      // Logger la requête API
-      const responseTime = Date.now() - startTime;
-      const { logApiRequest } = await import("@/lib/apiTracker");
+        // Logger la requête API (seulement pour la première tentative)
+        if (url === url1) {
+          const responseTime = Date.now() - startTime;
+          const { logApiRequest } = await import("@/lib/apiTracker");
 
-      // Récupérer l'utilisateur pour le logging
-      const { createClient } = await import("@/lib/supabase/server");
-      const supabase = await createClient();
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
+          // Récupérer l'utilisateur pour le logging
+          const { createClient } = await import("@/lib/supabase/server");
+          const supabase = await createClient();
+          const {
+            data: { user },
+          } = await supabase.auth.getUser();
 
-      await logApiRequest(
-        path,
-        "GET",
-        response.status,
-        responseTime,
-        user?.id || null
-      );
+          await logApiRequest(
+            path,
+            "GET",
+            response.status,
+            responseTime,
+            user?.id || null
+          );
+        }
 
-      return {
-        ok: response.ok,
-        status: response.status,
-        text,
-        url,
-      };
-    } catch (error: any) {
-      if (error.name === "AbortError") {
+        // Si succès, retourner immédiatement
+        if (response.ok) {
+          return {
+            ok: response.ok,
+            status: response.status,
+            text,
+            url,
+          };
+        }
+
+        // Si erreur 401/403, essayer la prochaine URL
+        if (response.status === 401 || response.status === 403) {
+          console.log(`[callAero flights] Auth error (${response.status}) with ${url}, trying next...`);
+          continue;
+        }
+
+        // Pour les autres erreurs (429, 500, etc.), retourner quand même
         return {
-          ok: false,
-          status: 408,
-          text: JSON.stringify({ error: "Request timeout" }),
+          ok: response.ok,
+          status: response.status,
+          text,
           url,
         };
+      } catch (error: any) {
+        // Si erreur réseau ou timeout, essayer la prochaine URL
+        if (error.name === "AbortError") {
+          console.log(`[callAero flights] Timeout with ${url}, trying next...`);
+          if (url === urlsToTry[urlsToTry.length - 1]) {
+            // Dernière URL, retourner l'erreur timeout
+            return {
+              ok: false,
+              status: 408,
+              text: JSON.stringify({ error: "Request timeout" }),
+              url,
+            };
+          }
+          continue;
+        }
+        console.log(`[callAero flights] Network error with ${url}: ${error.message}, trying next...`);
+        if (url === urlsToTry[urlsToTry.length - 1]) {
+          // Dernière URL, retourner l'erreur
+          return {
+            ok: false,
+            status: 500,
+            text: JSON.stringify({ error: "Network error" }),
+            url,
+          };
+        }
+        continue;
       }
-      return {
-        ok: false,
-        status: 500,
-        text: JSON.stringify({ error: "Network error" }),
-        url,
-      };
     }
+    
+    // Si toutes les URLs ont échoué
+    return {
+      ok: false,
+      status: 502,
+      text: JSON.stringify({ error: "All API endpoints failed" }),
+      url: urlsToTry[0],
+    };
   })();
 
-  pendingRequests.set(url, requestPromise);
+  pendingRequests.set(dedupKey, requestPromise);
 
   // Nettoyer après completion
   requestPromise.finally(() => {
-    pendingRequests.delete(url);
+    pendingRequests.delete(dedupKey);
   });
 
   return requestPromise;
@@ -217,20 +277,21 @@ export const GET = withFlightBrowseAccess(
         );
       }
 
-      // Clé de cache optimisée (ajouter timestamp pour éviter le cache en dev)
+      // Clé de cache optimisée (sans timestamp pour permettre le cache)
       const isHistoricalDate = dateLocal && new Date(dateLocal) < new Date();
-      const cacheKey = `flight:${numberRaw}:${
-        dateLocal || "today"
-      }:${Date.now()}`;
+      const cacheKey = `flight:${numberRaw}:${dateLocal || "today"}`;
 
       // Vérifier le cache pour toutes les dates (avec TTL différent)
       const cached = getCache(cacheKey);
       if (cached) {
+        console.log(`[FlightAPI] Cache HIT for ${cacheKey}`);
         const response = NextResponse.json(JSON.parse(cached));
         response.headers.set("X-Cache", "HIT");
         response.headers.set("Cache-Control", "public, max-age=300"); // 5 minutes
         return response;
       }
+
+      console.log(`[FlightAPI] Cache MISS for ${cacheKey} - calling API`);
 
       // SOLUTION OPTIMALE: Une seule requête à AeroDataBox
       let candidates: string[] = [];
@@ -406,16 +467,22 @@ export const GET = withFlightBrowseAccess(
       // Logique métier : Corriger les statuts obsolètes
       let correctedStatus = f?.status || "Unknown";
       // Utiliser les règles centralisées pour corriger le statut
+      // Utiliser revisedTime ou predictedTime comme estimatedTime pour la correction
+      const estimatedArrivalTime = 
+        f?.arrival?.predictedTime?.local ||
+        f?.arrival?.revisedTime?.local ||
+        f?.arrival?.estimatedTime?.local;
+      
       const flightData = {
         status: correctedStatus,
         departure: {
           scheduledTime: f?.departure?.scheduledTime?.local,
-          actualTime: f?.departure?.actualTime?.local,
+          actualTime: f?.departure?.revisedTime?.local || f?.departure?.actualTime?.local,
         },
         arrival: {
           scheduledTime: f?.arrival?.scheduledTime?.local,
-          estimatedTime: f?.arrival?.estimatedTime?.local,
-          actualTime: f?.arrival?.actualTime?.local,
+          estimatedTime: estimatedArrivalTime,
+          actualTime: f?.arrival?.revisedTime?.local || f?.arrival?.actualTime?.local,
         },
       };
 

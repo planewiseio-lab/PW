@@ -1,6 +1,6 @@
 "use client";
 
-import { useUserStatus } from "@/hooks/useUserStatus";
+import { useUserStatus } from "@/contexts/UserStatusContext";
 import { AdUnitDisplay, AdUnitInArticle, AdUnitCompact } from "./AdSense";
 
 interface AdWrapperProps {

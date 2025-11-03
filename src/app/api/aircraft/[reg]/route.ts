@@ -7,12 +7,10 @@ import { withAircraftLookupAccess as withAircraftAccess } from "@/lib/withAction
 import { logApiRequest } from "@/lib/apiTracker";
 import { createClient } from "@/lib/supabase/server";
 
-// mêmes variables que l’ancienne version
-const RAPID_KEY = process.env.RAPID_KEY || process.env.AIRREG_API_KEY;
-const RAPID_HOST =
-  process.env.RAPID_HOST ||
-  process.env.AIRREG_API_HOST ||
-  "aerodatabox.p.rapidapi.com";
+// Configuration pour api.market (seul provider)
+const API_MARKET_KEY = process.env.API_MARKET_KEY || process.env.AIRREG_API_KEY;
+// Base URL pour fallback (si nécessaire)
+const AERODATABOX_BASE_URL = process.env.API_MARKET_BASE_URL || "https://prod.api.market/api/v1/aedbx/aerodatabox";
 
 // --- petit cache mémoire local (équivalent à getCache/setCache)
 const cacheStore = new Map<string, { data: string; expires: number }>();
@@ -32,25 +30,66 @@ function setCache(key: string, data: string, ttl = AIRCRAFT_TTL_MS) {
 type Up = { ok: boolean; status: number; text: string; url: string };
 
 async function callAero(pathPart: string): Promise<Up> {
-  const url = `https://${RAPID_HOST}${pathPart}`;
-  let attempt = 0,
-    last: Up = { ok: false, status: 0, text: "", url };
+  // api.market REST API - selon documentation: https://docs.api.market
+  // Base URL: https://prod.api.market/api/v1
+  // Authentication: x-magicapi-key header
+  
+  // Structure 1: URL REST api.market officielle (prod.api.market/api/v1/{workspace}/{product})
+  const url1 = `https://prod.api.market/api/v1/aedbx/aerodatabox${pathPart}`;
+  
+  // Structure 2: URL api.market sans prod (fallback)
+  const url2 = `https://api.market/api/v1/aedbx/aerodatabox${pathPart}`;
+  
+  // Structure 3: URL api.market alternative (sans /v1)
+  const url3 = `https://api.market/api/aedbx/aerodatabox${pathPart}`;
+  
+  // Structure 4: URL api.market directe (structure simplifiée)
+  const url4 = `https://api.market/aedbx/aerodatabox${pathPart}`;
+  
+  const urlsToTry = [url1, url2, url3, url4];
+    
+  let attempt = 0;
+  let last: Up = { ok: false, status: 0, text: "", url: urlsToTry[0] };
   const startTime = Date.now();
 
-  while (attempt < 3) {
+  for (const url of urlsToTry) {
+    attempt++;
+    console.log(`[callAero] Attempt ${attempt}: Fetching URL: ${url}`);
+    
+    // api.market REST API utilise x-magicapi-key (selon documentation officielle)
+    // Essayer aussi x-api-market-key pour compatibilité MCP
+    const headers: HeadersInit = {
+      Accept: "application/json",
+      "x-magicapi-key": String(API_MARKET_KEY),
+      // Ajouter aussi x-api-market-key pour compatibilité avec MCP
+      "x-api-market-key": String(API_MARKET_KEY),
+    };
+    
+    // Log des headers pour debug
+    if (attempt === 1) {
+      console.log(`[callAero] Using api.market REST with headers: x-magicapi-key and x-api-market-key`);
+    }
+    
     const r = await fetch(url, {
       cache: "no-store",
-      headers: {
-        Accept: "application/json",
-        "X-RapidAPI-Host": RAPID_HOST,
-        "X-RapidAPI-Key": String(RAPID_KEY),
-      },
+      headers,
     });
     const text = await r.text();
     last = { ok: r.ok, status: r.status, text, url };
+    console.log(`[callAero] Response status: ${r.status}, URL: ${url}`);
+    if (text.length > 0 && !text.startsWith("<!DOCTYPE")) {
+      console.log(`[callAero] Response preview: ${text.substring(0, 200)}`);
+    } else if (text.startsWith("<!DOCTYPE")) {
+      console.log(`[callAero] Response is HTML (404 page)`);
+    }
+    
+    // Si erreur 503 avec message Redis, c'est probablement une interception locale
+    if (r.status === 503 && text.includes("Redis")) {
+      console.log(`[callAero] WARNING: Got Redis error - URL might be intercepted locally or DNS issue`);
+    }
 
     // Logger seulement la première tentative (éviter les dups)
-    if (attempt === 0) {
+    if (attempt === 1) {
       const responseTime = Date.now() - startTime;
       const { logApiRequest } = await import("@/lib/apiTracker");
 
@@ -70,16 +109,39 @@ async function callAero(pathPart: string): Promise<Up> {
       );
     }
 
-    if (r.ok) return last;
-    if (r.status >= 500 || r.status === 429) {
-      await new Promise((res) =>
-        setTimeout(res, 300 * Math.pow(2, attempt) + Math.random() * 200)
-      );
-      attempt++;
+    // Si succès, on retourne
+    if (r.ok) {
+      return last;
+    }
+    
+    // Si erreur 401/403, essayer la prochaine URL si disponible
+    if ((r.status === 401 || r.status === 403) && attempt < urlsToTry.length) {
+      console.log(`[callAero] Auth error (${r.status}) with current URL, trying next URL...`);
       continue;
     }
+    
+    // Si erreur 500/429, retry la même URL après délai
+    if (r.status >= 500 || r.status === 429) {
+      if (attempt <= 3) {
+        await new Promise((res) =>
+          setTimeout(res, 300 * Math.pow(2, attempt) + Math.random() * 200)
+        );
+        // Retry la même URL
+        attempt--;
+        continue;
+      }
+    }
+    
+    // Si 404 et qu'on peut essayer une autre URL, continuer
+    if (r.status === 404 && attempt < urlsToTry.length) {
+      console.log(`[callAero] 404 with current URL, trying next URL...`);
+      continue;
+    }
+    
+    // Pour les autres erreurs, arrêter
     break;
   }
+  
   return last;
 }
 
@@ -156,8 +218,8 @@ async function buildAircraftFromFlights(reg: string) {
 
 export const GET = withAircraftAccess(
   async (req: Request, ctx: { params: Promise<{ reg: string }> }) => {
-    if (!RAPID_KEY) {
-      return NextResponse.json({ error: "Missing RAPID_KEY" }, { status: 500 });
+    if (!API_MARKET_KEY) {
+      return NextResponse.json({ error: "Missing API_MARKET_KEY - api.market key required" }, { status: 500 });
     }
 
     const { reg } = await ctx.params;

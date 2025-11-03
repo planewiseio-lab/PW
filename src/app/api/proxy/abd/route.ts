@@ -2,9 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 
-const AERODATABOX_BASE_URL = "https://aerodatabox.p.rapidapi.com";
+const AERODATABOX_BASE_URL = process.env.API_MARKET_BASE_URL || "https://prod.api.market/api/v1/aedbx/aerodatabox";
 const AERODATABOX_API_KEY =
-  process.env.AERODATABOX_API_KEY || process.env.RAPID_KEY;
+  process.env.API_MARKET_KEY || process.env.AERODATABOX_API_KEY;
 
 // Mapping des endpoints vers les tiers AeroDataBox
 function getTier(endpoint: string): string {
@@ -70,12 +70,12 @@ async function handleProxy(request: NextRequest, method: string) {
 
     const startTime = Date.now();
 
-    // Appel à l'API AeroDataBox
+    // Appel à l'API AeroDataBox via api.market
     const response = await fetch(`${AERODATABOX_BASE_URL}${endpoint}`, {
       method,
       headers: {
-        "X-RapidAPI-Key": AERODATABOX_API_KEY!,
-        "X-RapidAPI-Host": "aerodatabox.p.rapidapi.com",
+        "x-magicapi-key": AERODATABOX_API_KEY!, // api.market REST API header (selon documentation)
+        "x-api-market-key": AERODATABOX_API_KEY!, // Compatibilité MCP
       },
     });
 

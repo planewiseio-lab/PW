@@ -2,9 +2,9 @@ import { NextResponse } from "next/server";
 import { withCreditChargeABD } from "@/lib/withCreditChargeABD";
 import { ActionType } from "@prisma/client";
 
-const AERODATABOX_BASE_URL = "https://aerodatabox.p.rapidapi.com";
+const AERODATABOX_BASE_URL = process.env.API_MARKET_BASE_URL || "https://prod.api.market/api/v1/aedbx/aerodatabox";
 const AERODATABOX_API_KEY =
-  process.env.AERODATABOX_API_KEY || process.env.RAPID_KEY;
+  process.env.API_MARKET_KEY || process.env.AERODATABOX_API_KEY;
 
 // Cache TTL
 const FLIGHTS_TTL_MS = 1000 * 60 * 60 * 2; // 2 hours
@@ -26,21 +26,84 @@ function toISOZ(date: Date): string {
 }
 
 // Helper function to call AeroDataBox API
+// Utilise la même logique que l'endpoint principal avec plusieurs URLs à essayer
 async function callAero(path: string) {
-  const url = `${AERODATABOX_BASE_URL}${path}`;
-  const response = await fetch(url, {
-    headers: {
-      "X-RapidAPI-Key": AERODATABOX_API_KEY || "",
-      "X-RapidAPI-Host": "aerodatabox.p.rapidapi.com",
-    },
-  });
+  // api.market REST API - selon documentation: https://docs.api.market
+  // Base URL: https://prod.api.market/api/v1
+  // Authentication: x-magicapi-key header
+  
+  // Structure 1: URL REST api.market officielle (prod.api.market/api/v1/{workspace}/{product})
+  const url1 = `https://prod.api.market/api/v1/aedbx/aerodatabox${path}`;
+  
+  // Structure 2: URL api.market sans prod (fallback)
+  const url2 = `https://api.market/api/v1/aedbx/aerodatabox${path}`;
+  
+  // Structure 3: URL api.market alternative (sans /v1)
+  const url3 = `https://api.market/api/aedbx/aerodatabox${path}`;
+  
+  // Structure 4: URL api.market directe (structure simplifiée)
+  const url4 = `https://api.market/aedbx/aerodatabox${path}`;
+  
+  const urlsToTry = [url1, url2, url3, url4];
+  
+  const headers = {
+    Accept: "application/json",
+    "x-magicapi-key": AERODATABOX_API_KEY || "", // api.market REST API header (selon documentation)
+    "x-api-market-key": AERODATABOX_API_KEY || "", // Compatibilité MCP
+  };
 
-  const text = await response.text();
+  // Essayer chaque URL jusqu'à trouver une qui fonctionne
+  let attempt = 0;
+  for (const url of urlsToTry) {
+    attempt++;
+    console.log(`[callAero flights] Attempt ${attempt}: Fetching URL: ${url}`);
+    try {
+      const response = await fetch(url, { headers, cache: "no-store" });
+      const text = await response.text();
+      
+      console.log(`[callAero flights] Response status: ${response.status}, URL: ${url}`);
+      if (text.length > 0 && !text.startsWith("<!DOCTYPE")) {
+        console.log(`[callAero flights] Response preview: ${text.substring(0, 200)}`);
+      }
+      
+      // Si succès, retourner immédiatement
+      if (response.ok) {
+        console.log(`[callAero flights] ✅ Success with ${url}`);
+        return {
+          status: response.status,
+          ok: response.ok,
+          text,
+          url,
+        };
+      }
+      
+      // Si erreur 401/403, essayer la prochaine URL
+      if (response.status === 401 || response.status === 403) {
+        console.log(`[callAero flights] ❌ Auth error (${response.status}) with ${url}, trying next...`);
+        continue;
+      }
+      
+      // Pour les autres erreurs, retourner quand même (404, 500, etc.)
+      console.log(`[callAero flights] ⚠️ Error ${response.status} with ${url}, returning...`);
+      return {
+        status: response.status,
+        ok: response.ok,
+        text,
+        url,
+      };
+    } catch (error) {
+      // En cas d'erreur réseau, essayer la prochaine URL
+      console.log(`[callAero flights] ❌ Network error with ${url}: ${error}, trying next...`);
+      continue;
+    }
+  }
+  
+  // Si toutes les URLs ont échoué, retourner une erreur
   return {
-    status: response.status,
-    ok: response.ok,
-    text,
-    url,
+    status: 502,
+    ok: false,
+    text: JSON.stringify({ error: "All API endpoints failed" }),
+    url: urlsToTry[0],
   };
 }
 

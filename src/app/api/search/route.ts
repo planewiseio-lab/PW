@@ -7,17 +7,22 @@ export async function GET(req: Request) {
 
   // ⚠️ Chemin exemple : à ajuster selon l’endpoint Aerodatabox que tu utilises
   // Souvent, on interroge par immatriculation :
-  const upstreamUrl = `${
-    process.env.AIRREG_API_BASE
-  }/aircraft/registration/${encodeURIComponent(q)}`;
+  const apiBase =
+    process.env.API_MARKET_BASE_URL ||
+    process.env.AIRREG_API_BASE ||
+    "https://prod.api.market/api/v1/aedbx/aerodatabox";
+  const apiKey = process.env.API_MARKET_KEY || process.env.AIRREG_API_KEY;
+  const upstreamUrl = `${apiBase}/aircraft/registration/${encodeURIComponent(
+    q
+  )}`;
 
   try {
     const r = await fetch(upstreamUrl, {
       cache: "no-store",
       headers: {
         Accept: "application/json",
-        "X-RapidAPI-Key": process.env.AIRREG_API_KEY as string,
-        "X-RapidAPI-Host": process.env.AIRREG_API_HOST as string,
+        "x-magicapi-key": apiKey as string, // api.market REST API header (selon documentation)
+        "x-api-market-key": apiKey as string, // Compatibilité MCP
       },
     });
 

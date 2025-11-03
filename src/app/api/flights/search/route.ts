@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 
 const AERODATABOX_API_KEY =
-  process.env.AERODATABOX_API_KEY || process.env.RAPID_KEY;
-const AERODATABOX_BASE_URL = "https://aerodatabox.p.rapidapi.com";
+  process.env.API_MARKET_KEY || process.env.AERODATABOX_API_KEY;
+const AERODATABOX_BASE_URL = process.env.API_MARKET_BASE_URL || "https://prod.api.market/api/v1/aedbx/aerodatabox";
 
 export async function GET(request: NextRequest) {
   try {
@@ -30,8 +30,8 @@ export async function GET(request: NextRequest) {
     const response = await fetch(apiUrl, {
       method: "GET",
       headers: {
-        "X-RapidAPI-Key": AERODATABOX_API_KEY,
-        "X-RapidAPI-Host": "aerodatabox.p.rapidapi.com",
+        "x-magicapi-key": AERODATABOX_API_KEY, // api.market REST API header (selon documentation)
+        "x-api-market-key": AERODATABOX_API_KEY, // Compatibilité MCP
       },
     });
 

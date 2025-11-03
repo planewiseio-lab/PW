@@ -533,7 +533,7 @@ export async function ensureMonthlyTopUp(userId: string): Promise<void> {
 
   // Update subscription renewal date and plan/status if changed
   const nextRenewal = new Date(now);
-  nextRenewal.setMonth(nextRenewal.getMonth() + 1);
+    nextRenewal.setMonth(nextRenewal.getMonth() + 1);
 
   await prisma.subscriptions.update({
     where: { userId },

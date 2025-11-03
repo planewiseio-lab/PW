@@ -24,6 +24,38 @@ export default function AccountSettingsPage() {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  const fetchingRef = useRef(false); // Empêche les appels multiples simultanés
+
+  // Fonction réutilisable pour récupérer les données d'abonnement
+  const fetchSubscriptionData = async () => {
+    if (fetchingRef.current) return;
+    fetchingRef.current = true;
+    
+    try {
+      const subResponse = await fetch("/api/user/subscription", {
+        credentials: "include",
+        cache: "no-store",
+      });
+      if (subResponse.ok) {
+        const subData = await subResponse.json();
+        setSubscription(subData.subscription);
+      }
+      
+      // Récupérer l'historique de facturation
+      const billingResponse = await fetch("/api/user/billing-history", {
+        credentials: "include",
+        cache: "no-store",
+      });
+      if (billingResponse.ok) {
+        const billingData = await billingResponse.json();
+        setBillingHistory(billingData.invoices || []);
+      }
+    } catch (err) {
+      console.error("[Account Settings] Error fetching subscription:", err);
+    } finally {
+      fetchingRef.current = false;
+    }
+  };
 
   useEffect(() => {
     // Reset state when component mounts or pathname changes (navigation)
@@ -31,6 +63,7 @@ export default function AccountSettingsPage() {
     setUser(null);
     setFullName("");
     setEmail("");
+    fetchingRef.current = false; // Réinitialiser le flag
 
     const checkAuth = async () => {
       try {
@@ -68,28 +101,7 @@ export default function AccountSettingsPage() {
             setEmail(user.email || "");
             
             // Récupérer l'abonnement et l'historique de facturation
-            try {
-              const subResponse = await fetch("/api/user/subscription", {
-                credentials: "include",
-                cache: "no-store",
-              });
-              if (subResponse.ok) {
-                const subData = await subResponse.json();
-                setSubscription(subData.subscription);
-              }
-              
-              // Récupérer l'historique de facturation
-              const billingResponse = await fetch("/api/user/billing-history", {
-                credentials: "include",
-                cache: "no-store",
-              });
-              if (billingResponse.ok) {
-                const billingData = await billingResponse.json();
-                setBillingHistory(billingData.invoices || []);
-              }
-            } catch (err) {
-              console.error("[Account Settings] Error fetching subscription:", err);
-            }
+            await fetchSubscriptionData();
             
             setLoading(false);
             return;
@@ -106,28 +118,7 @@ export default function AccountSettingsPage() {
           setEmail(session.user.email || "");
           
           // Récupérer l'abonnement et l'historique de facturation
-          try {
-            const subResponse = await fetch("/api/user/subscription", {
-              credentials: "include",
-              cache: "no-store",
-            });
-            if (subResponse.ok) {
-              const subData = await subResponse.json();
-              setSubscription(subData.subscription);
-            }
-            
-            // Récupérer l'historique de facturation
-            const billingResponse = await fetch("/api/user/billing-history", {
-              credentials: "include",
-              cache: "no-store",
-            });
-            if (billingResponse.ok) {
-              const billingData = await billingResponse.json();
-              setBillingHistory(billingData.invoices || []);
-            }
-          } catch (err) {
-            console.error("[Account Settings] Error fetching subscription:", err);
-          }
+          await fetchSubscriptionData();
           
           setLoading(false);
           return;
@@ -154,33 +145,26 @@ export default function AccountSettingsPage() {
 
     return () => {
       clearTimeout(timeoutId);
+      fetchingRef.current = false;
     };
   }, [pathname, router]); // Re-run when pathname changes (navigation)
 
-  // Fonction pour recharger les données d'abonnement
-  const refreshSubscriptionData = async () => {
+  // Lire le paramètre tab de l'URL et ouvrir l'onglet correspondant
+  useEffect(() => {
     try {
-      const subResponse = await fetch("/api/user/subscription", {
-        credentials: "include",
-        cache: "no-store",
-      });
-      if (subResponse.ok) {
-        const subData = await subResponse.json();
-        setSubscription(subData.subscription);
-      }
-
-      // Récupérer l'historique de facturation
-      const billingResponse = await fetch("/api/user/billing-history", {
-        credentials: "include",
-        cache: "no-store",
-      });
-      if (billingResponse.ok) {
-        const billingData = await billingResponse.json();
-        setBillingHistory(billingData.invoices || []);
+      const tabParam = searchParams?.get("tab");
+      if (tabParam && ["profile", "security", "subscription", "preferences"].includes(tabParam)) {
+        setActiveTab(tabParam);
       }
     } catch (err) {
-      console.error("[Account Settings] Error refreshing subscription:", err);
+      // Si searchParams n'est pas disponible, garder le défaut
+      console.error("[Account Settings] Error reading tab param:", err);
     }
+  }, [searchParams]);
+
+  // Fonction pour recharger les données d'abonnement (réutilise fetchSubscriptionData)
+  const refreshSubscriptionData = async () => {
+    await fetchSubscriptionData();
   };
 
   // Recharger les données quand l'onglet subscription est actif et qu'on revient du Customer Portal

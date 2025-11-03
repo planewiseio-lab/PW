@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { usePathname } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
@@ -26,12 +26,19 @@ export function CreditsSection() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const pathname = usePathname();
+  const fetchingRef = useRef(false); // Empêche les appels multiples simultanés
 
   // Extract fetch logic to a reusable function with useCallback
   const fetchCreditsData = useCallback(async (showLoading = true) => {
+    // Éviter les appels multiples simultanés
+    if (fetchingRef.current) {
+      return;
+    }
+    fetchingRef.current = true;
+
     if (showLoading) {
-    setLoading(true);
-    setError(null);
+      setLoading(true);
+      setError(null);
     }
 
       // Safety guard: force-resolve skeleton after 3s
@@ -148,8 +155,9 @@ export function CreditsSection() {
         );
       } finally {
         // Always clear skeleton unless safety timer already did
-      if (!didTimeout && showLoading) setLoading(false);
+        if (!didTimeout && showLoading) setLoading(false);
         clearTimeout(safetyTimer);
+        fetchingRef.current = false; // Réinitialiser le flag
       }
   }, []); // No dependencies - function is stable
 
@@ -158,16 +166,16 @@ export function CreditsSection() {
     setLoading(true);
     setCreditsData(null);
     setError(null);
+    fetchingRef.current = false; // Réinitialiser le flag lors du changement de route
 
     // Initial fetch
     fetchCreditsData();
 
     return () => {
       // Abort any in-flight requests on unmount
-      // Note: abortControllers is closed over inside fetchCreditsData, but
-      // we ensure individual requests time out via their own timers.
+      fetchingRef.current = false; // Réinitialiser le flag lors du démontage
     };
-  }, [pathname, fetchCreditsData]); // Re-run when pathname changes (navigation)
+  }, [pathname]); // fetchCreditsData est stable, pas besoin de le mettre dans les dépendances
 
   // Auto-refresh when window regains focus (user comes back from another tab/window)
   useEffect(() => {
@@ -180,7 +188,7 @@ export function CreditsSection() {
     return () => {
       window.removeEventListener("focus", handleFocus);
     };
-  }, [fetchCreditsData]); // Include fetchCreditsData as dependency
+  }, []); // fetchCreditsData est stable, pas besoin de le mettre dans les dépendances
 
   // Listen for custom credit update events
   useEffect(() => {
@@ -193,7 +201,7 @@ export function CreditsSection() {
     return () => {
       window.removeEventListener("credits:updated", handleCreditUpdate);
     };
-  }, [fetchCreditsData]); // Include fetchCreditsData as dependency
+  }, []); // fetchCreditsData est stable, pas besoin de le mettre dans les dépendances
 
   if (loading) {
     return (

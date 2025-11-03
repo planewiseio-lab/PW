@@ -77,22 +77,42 @@ export default function FlightCard({ flightData }: FlightCardProps) {
         ? new Date(flightData.departure.actualTimeLocal).getTime()
         : new Date(flightData.departure.scheduledTimeLocal).getTime();
 
-      // Heure d'arrivée (estimated ou scheduled)
-      const arrivalTime = flightData.arrival.estimatedTimeLocal
+      // Heure d'arrivée (actual, estimated, ou scheduled)
+      const arrivalTime = flightData.arrival.actualTimeLocal
+        ? new Date(flightData.arrival.actualTimeLocal).getTime()
+        : flightData.arrival.estimatedTimeLocal
         ? new Date(flightData.arrival.estimatedTimeLocal).getTime()
         : new Date(flightData.arrival.scheduledTimeLocal).getTime();
+
+      // Vérifier le statut du vol
+      const status = (flightData?.status || "").toLowerCase();
+      const isArrived = 
+        status === "arrived" || 
+        status === "landed" || 
+        status === "arrived*";
 
       // Si le vol n'a pas encore décollé
       if (now < departureTime) {
         return 0;
       }
 
-      // Si le vol est arrivé
-      if (now >= arrivalTime) {
+      // Si le vol est officiellement arrivé selon le statut, retourner 100%
+      if (isArrived) {
         return 100;
       }
 
-      // Calculer le pourcentage de progression
+      // Si l'heure d'arrivée réelle est passée (pas juste estimée), considérer comme arrivé
+      if (flightData.arrival.actualTimeLocal && now >= new Date(flightData.arrival.actualTimeLocal).getTime()) {
+        return 100;
+      }
+
+      // Si l'heure estimée est passée mais le statut est encore "EnRoute", 
+      // limiter à 95% pour montrer que le vol est presque arrivé mais pas encore officiellement
+      if (now >= arrivalTime && (status === "enroute" || status === "in flight")) {
+        return 95;
+      }
+
+      // Calculer le pourcentage de progression normal
       const totalDuration = arrivalTime - departureTime;
       const elapsed = now - departureTime;
       const percentage = Math.min(
@@ -144,11 +164,50 @@ export default function FlightCard({ flightData }: FlightCardProps) {
   const getEstimatedTimeRemaining = () => {
     try {
       const now = currentTime.getTime();
-      const arrivalTime = flightData.arrival.estimatedTimeLocal
+      
+      // Vérifier d'abord le statut réel du vol
+      const status = (flightData?.status || "").toLowerCase();
+      const isArrived = 
+        status === "arrived" || 
+        status === "landed" || 
+        status === "arrived*";
+
+      // Si le vol est officiellement arrivé selon le statut
+      if (isArrived) {
+        return "Arrived";
+      }
+
+      // Si l'heure d'arrivée réelle est passée, considérer comme arrivé
+      if (flightData.arrival.actualTimeLocal) {
+        const actualArrivalTime = new Date(flightData.arrival.actualTimeLocal).getTime();
+        if (now >= actualArrivalTime) {
+          return "Arrived";
+        }
+      }
+
+      // Utiliser l'heure d'arrivée (actual, estimated, ou scheduled)
+      const arrivalTime = flightData.arrival.actualTimeLocal
+        ? new Date(flightData.arrival.actualTimeLocal).getTime()
+        : flightData.arrival.estimatedTimeLocal
         ? new Date(flightData.arrival.estimatedTimeLocal).getTime()
         : new Date(flightData.arrival.scheduledTimeLocal).getTime();
 
       const timeRemaining = arrivalTime - now;
+
+      // Ne dire "Arrived" que si vraiment arrivé (statut ou heure réelle passée)
+      // Sinon, afficher le temps restant même si négatif (vol en retard)
+      if (timeRemaining <= 0 && !isArrived && !flightData.arrival.actualTimeLocal) {
+        // Heure estimée passée mais vol pas encore arrivé officiellement
+        // Calculer le retard en minutes
+        const delayMinutes = Math.floor(Math.abs(timeRemaining) / (1000 * 60));
+        if (delayMinutes < 60) {
+          return `+${delayMinutes}m`;
+        } else {
+          const delayHours = Math.floor(delayMinutes / 60);
+          const remainingMinutes = delayMinutes % 60;
+          return `+${delayHours}h ${remainingMinutes}m`;
+        }
+      }
 
       if (timeRemaining <= 0) {
         return "Arrived";

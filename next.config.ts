@@ -7,7 +7,7 @@ const nextConfig: NextConfig = {
   },
   // Optimisations de performance
   experimental: {
-    optimizePackageImports: ["framer-motion", "lucide-react"],
+    optimizePackageImports: ["framer-motion"], // lucide-react retiré temporairement pour éviter les problèmes de cache HMR avec Turbopack
   },
   // Exclure ioredis du bundling client (c'est un module serveur uniquement)
   serverExternalPackages: ["ioredis"],
@@ -52,7 +52,7 @@ const nextConfig: NextConfig = {
               "style-src 'self' 'unsafe-inline' https://accounts.google.com",
               "img-src 'self' data: https: *.wikimedia.org *.commons.wikimedia.org *.googleusercontent.com *.staticflickr.com *.flickr.com https://pagead2.googlesyndication.com https://*.googlesyndication.com",
               "font-src 'self' fonts.gstatic.com",
-              "connect-src 'self' https://aerodatabox.p.rapidapi.com https://commons.wikimedia.org https://ssqqbcniphbdjttxgcug.supabase.co https://accounts.google.com https://oauth2.googleapis.com https://pagead2.googlesyndication.com",
+              "connect-src 'self' https://prod.api.market https://commons.wikimedia.org https://ssqqbcniphbdjttxgcug.supabase.co https://accounts.google.com https://oauth2.googleapis.com https://pagead2.googlesyndication.com",
               "frame-src 'self' https://accounts.google.com https://tpc.googlesyndication.com https://googleads.g.doubleclick.net",
               "frame-ancestors 'none'",
               "base-uri 'self'",

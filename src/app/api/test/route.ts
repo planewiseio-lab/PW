@@ -1,23 +1,24 @@
 import { NextRequest, NextResponse } from "next/server";
 
 const AERODATABOX_API_KEY =
-  process.env.AERODATABOX_API_KEY || process.env.RAPID_KEY;
+  process.env.API_MARKET_KEY || process.env.AERODATABOX_API_KEY;
+const AERODATABOX_BASE_URL = process.env.API_MARKET_BASE_URL || "https://prod.api.market/api/v1/aedbx/aerodatabox";
 
 export async function GET(request: NextRequest) {
   try {
     console.log("=== API Test ===");
     console.log("AeroDataBox API Key configured:", !!AERODATABOX_API_KEY);
     console.log("Environment variables:");
+    console.log("- API_MARKET_KEY:", !!process.env.API_MARKET_KEY);
     console.log("- AERODATABOX_API_KEY:", !!process.env.AERODATABOX_API_KEY);
-    console.log("- RAPID_KEY:", !!process.env.RAPID_KEY);
 
     if (!AERODATABOX_API_KEY) {
       return NextResponse.json(
         {
           error: "AeroDataBox API key not configured",
           details: {
+            API_MARKET_KEY: !!process.env.API_MARKET_KEY,
             AERODATABOX_API_KEY: !!process.env.AERODATABOX_API_KEY,
-            RAPID_KEY: !!process.env.RAPID_KEY,
           },
         },
         { status: 500 }
@@ -25,14 +26,14 @@ export async function GET(request: NextRequest) {
     }
 
     // Test simple de l'API AeroDataBox
-    const testUrl = "https://aerodatabox.p.rapidapi.com/flights/number/AC3";
+    const testUrl = `${AERODATABOX_BASE_URL}/flights/number/AC3`;
     console.log("Testing AeroDataBox URL:", testUrl);
 
     const response = await fetch(testUrl, {
       method: "GET",
       headers: {
-        "X-RapidAPI-Key": AERODATABOX_API_KEY,
-        "X-RapidAPI-Host": "aerodatabox.p.rapidapi.com",
+        "x-magicapi-key": AERODATABOX_API_KEY, // api.market REST API header (selon documentation)
+        "x-api-market-key": AERODATABOX_API_KEY, // Compatibilité MCP
       },
     });
 

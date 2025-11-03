@@ -3,23 +3,29 @@
 import { useState, useEffect } from "react";
 import { createClient } from "@/lib/supabase/client";
 
-interface ApiUsageStats {
-  total_requests: number;
-  tier: string;
-  unique_users: number;
-  avg_response_time: number;
+interface ApiMarketUsageData {
+  apiName: string;
+  store: string;
+  apiProduct: string;
+  quota: number;
+  apiCallsLeft: number;
+  apiCallsMade: number;
+  startDate: string;
+  renewDate: string;
+  endDate: string | null;
+}
+
+interface ApiMarketUsageResponse {
+  usageData: ApiMarketUsageData[];
 }
 
 export default function ApiUsageDashboard() {
-  const [stats, setStats] = useState<ApiUsageStats[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [usageData, setUsageData] = useState<ApiMarketUsageData[]>([]);
+  const [loading, setLoading] = useState(false); // Loading pour les données
+  const [authLoading, setAuthLoading] = useState(true); // Loading pour l'auth
+  const [error, setError] = useState<string | null>(null);
   const [isAdmin, setIsAdmin] = useState<boolean | null>(null);
   const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
-  const [totalUniqueUsers, setTotalUniqueUsers] = useState(0);
-
-  // Utiliser une date de test pour octobre 2025
-  const [selectedMonth, setSelectedMonth] = useState("2025-10");
-  const [filterUser, setFilterUser] = useState("");
 
   // Vérifier l'authentification et le rôle admin
   useEffect(() => {
@@ -27,44 +33,71 @@ export default function ApiUsageDashboard() {
     async function checkAuth() {
       try {
         const supabase = createClient();
+        
+        // Essayer d'abord avec getSession (plus rapide)
         const {
-          data: { user },
-          error,
-        } = await supabase.auth.getUser();
+          data: { session },
+          error: sessionError,
+        } = await supabase.auth.getSession();
 
         if (!mounted) return;
 
-        if (error || !user) {
-          setIsAuthenticated(false);
-          setIsAdmin(false);
+        if (sessionError || !session?.user) {
+          // Si pas de session, essayer getUser
+          const {
+            data: { user },
+            error: userError,
+          } = await supabase.auth.getUser();
+
+          if (!mounted) return;
+
+          if (userError || !user) {
+            setIsAuthenticated(false);
+            setIsAdmin(false);
+            setAuthLoading(false);
+            return;
+          }
+
+          // User trouvé via getUser
+          setIsAuthenticated(true);
+          const adminCheck =
+            user.user_metadata?.role === "admin" ||
+            user.app_metadata?.role === "admin";
+          setIsAdmin(adminCheck);
+          setAuthLoading(false);
           return;
         }
 
-        setIsAuthenticated(true);
-
-        // Vérifier si l'utilisateur est admin
-        const adminCheck =
-          user.user_metadata?.role === "admin" ||
-          user.app_metadata?.role === "admin";
-
-        setIsAdmin(adminCheck);
+        // Session trouvée
+        if (session?.user) {
+          setIsAuthenticated(true);
+          const adminCheck =
+            session.user.user_metadata?.role === "admin" ||
+            session.user.app_metadata?.role === "admin";
+          setIsAdmin(adminCheck);
+          setAuthLoading(false);
+          return;
+        }
       } catch (e) {
+        console.error("[Admin Usage] Auth check error:", e);
         if (!mounted) return;
-        // En cas d'erreur inattendue, ne pas bloquer le rendu
         setIsAuthenticated(false);
         setIsAdmin(false);
+        setAuthLoading(false);
       }
     }
 
     checkAuth();
 
-    // Filet de sécurité: éviter spinner infini
+    // Timeout de sécurité - plus long pour laisser le temps à l'auth
     const t = setTimeout(() => {
       if (mounted && (isAuthenticated === null || isAdmin === null)) {
-        setIsAuthenticated(false);
-        setIsAdmin(false);
+        console.warn("[Admin Usage] Auth check timeout");
+        // Ne pas forcer à false si on n'a pas encore de réponse
+        // Juste arrêter le loading de l'auth
+        setAuthLoading(false);
       }
-    }, 3000);
+    }, 5000);
 
     return () => {
       mounted = false;
@@ -72,130 +105,74 @@ export default function ApiUsageDashboard() {
     };
   }, []);
 
-  // Fonction loadStats - définie avant le useEffect qui l'utilise
-  async function loadStats() {
-    setLoading(true);
-    try {
-      // Utiliser l'endpoint API avec client admin (force cookies + timeout)
-      const ctl = new AbortController();
-      const to = setTimeout(() => ctl.abort(), 5000);
-      const response = await fetch("/api/admin/usage-stats", {
-        credentials: "include",
-        signal: ctl.signal,
-      });
-      clearTimeout(to);
-      // Déterminer l'état d'accès à partir du statut HTTP
-      if (response.status === 401) {
-        setIsAuthenticated(false);
-        setIsAdmin(false);
-        setLoading(false);
-        return;
-      }
-      if (response.status === 403) {
-        setIsAuthenticated(true);
-        setIsAdmin(false);
-        setLoading(false);
-        return;
-      }
-      // Succès: considérer authentifié + admin
-      setIsAuthenticated(true);
-      setIsAdmin(true);
-      const result = await response.json();
+  // Charger les données d'utilisation API.market
+  useEffect(() => {
+    if (!isAdmin) return;
 
-      if (result.error) {
-        console.error("[Admin Usage] API error:", result.error);
-        return;
-      }
+    async function loadUsageData() {
+      setLoading(true);
+      setError(null);
+      try {
+        const response = await fetch("/api/admin/api-market-usage", {
+          credentials: "include",
+        });
 
-      console.log("[Admin Usage] Raw data from API:", result.count, "records");
-      console.log("[Admin Usage] Sample data:", result.data?.slice(0, 3));
-      
-      // Vérifier la structure des données
-      if (result.data && result.data.length > 0) {
-        console.log("[Admin Usage] First record structure:", Object.keys(result.data[0]));
-        console.log("[Admin Usage] First record user_id:", result.data[0].user_id);
-        console.log("[Admin Usage] All user_ids:", result.data.map((r: any) => r.user_id));
-      }
-
-      let data = result.data || [];
-
-      // Filtrer par mois côté client
-      const monthStart = new Date(`${selectedMonth}-01T00:00:00Z`);
-      const monthEnd = new Date(monthStart);
-      monthEnd.setMonth(monthEnd.getMonth() + 1);
-
-      data = data.filter((req: any) => {
-        const reqDate = new Date(req.created_at);
-        return reqDate >= monthStart && reqDate < monthEnd;
-      });
-
-      // Filtrer par utilisateur si spécifié
-      if (filterUser) {
-        data = data.filter((req: any) => req.user_id === filterUser);
-      }
-
-      console.log("[Admin Usage] Filtered data:", data?.length || 0, "records");
-
-      // Calculer les stats par tier
-      const statsByTier = data?.reduce((acc: any, req: any) => {
-        const tier = req.tier || "unknown";
-        if (!acc[tier]) {
-          acc[tier] = {
-            tier,
-            total_requests: 0,
-            unique_users: new Set(),
-            total_response_time: 0,
-          };
+        if (response.status === 401) {
+          setIsAuthenticated(false);
+          setIsAdmin(false);
+          setLoading(false);
+          return;
         }
-        acc[tier].total_requests++;
-        acc[tier].unique_users.add(req.user_id);
-        acc[tier].total_response_time += req.response_time_ms || 0;
-        return acc;
-      }, {});
 
-      const formattedStats = Object.values(statsByTier || {}).map(
-        (stat: any) => ({
-          tier: stat.tier,
-          total_requests: stat.total_requests,
-          unique_users: stat.unique_users.size,
-          avg_response_time: Math.round(
-            stat.total_response_time / stat.total_requests
-          ),
-        })
-      );
+        if (response.status === 403) {
+          setIsAuthenticated(true);
+          setIsAdmin(false);
+          setLoading(false);
+          return;
+        }
 
-      console.log("[Admin Usage] Calculated stats:", formattedStats);
-      setStats(formattedStats);
+        if (!response.ok) {
+          const errorData = await response.json();
+          setError(errorData.error || "Failed to load usage data");
+          setLoading(false);
+          return;
+        }
 
-      // Calculer les utilisateurs uniques globaux
-      const allUserIds = new Set(
-        data.map((req: any) => req.user_id).filter(Boolean)
-      );
-      console.log("[Admin Usage] Global unique users:", allUserIds.size);
-      console.log("[Admin Usage] User IDs:", Array.from(allUserIds));
-      setTotalUniqueUsers(allUserIds.size);
-    } catch (error) {
-      console.error("Error loading stats:", error);
-      // En cas d'erreur (timeout/réseau), arrêter le spinner
-      setIsAuthenticated(false);
-      setIsAdmin(false);
-    } finally {
-      setLoading(false);
+        const data: ApiMarketUsageResponse = await response.json();
+        setUsageData(data.usageData || []);
+      } catch (err) {
+        console.error("[Admin Usage] Error loading data:", err);
+        setError(err instanceof Error ? err.message : "Failed to load data");
+      } finally {
+        setLoading(false);
+      }
     }
+
+    loadUsageData();
+  }, [isAdmin]);
+
+  // Conditions de rendu
+  // Afficher le loading pendant la vérification de l'auth
+  if (authLoading && (isAuthenticated === null || isAdmin === null)) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+          <p className="mt-4 text-gray-600">Verifying access...</p>
+        </div>
+      </div>
+    );
   }
 
-  // Deuxième useEffect pour charger les stats - après tous les hooks
-  useEffect(() => {
-    loadStats();
-  }, [selectedMonth, filterUser]);
-
-  // Conditions de rendu - après tous les hooks
-  // Afficher le message de connexion si pas authentifié et aucune donnée
-  if (isAuthenticated === false && stats.length === 0) {
+  // Afficher le message de connexion si pas authentifié
+  if (isAuthenticated === false) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
           <h1 className="text-2xl font-bold text-gray-900">Please sign in</h1>
+          <p className="text-gray-600 mt-2">
+            You need to be signed in to access this page
+          </p>
         </div>
       </div>
     );
@@ -213,136 +190,208 @@ export default function ApiUsageDashboard() {
     );
   }
 
-  // Afficher le loading pendant la vérification
-  if (isAuthenticated === null || isAdmin === null) {
+  // Si toujours null après le timeout, afficher un message d'erreur
+  if ((isAuthenticated === null || isAdmin === null) && !authLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600">Verifying access...</p>
+          <h1 className="text-2xl font-bold text-gray-900">
+            Authentication Error
+          </h1>
+          <p className="text-gray-600 mt-2">
+            Unable to verify your authentication status. Please refresh the page.
+          </p>
         </div>
       </div>
     );
   }
 
-  const totalRequests = stats.reduce((sum, s) => sum + s.total_requests, 0);
+  // Calculer les statistiques globales
+  const totalQuota = usageData.reduce((sum, item) => sum + item.quota, 0);
+  const totalCallsMade = usageData.reduce(
+    (sum, item) => sum + item.apiCallsMade,
+    0
+  );
+  const totalCallsLeft = usageData.reduce(
+    (sum, item) => sum + item.apiCallsLeft,
+    0
+  );
+  const totalUsage = totalQuota > 0 ? (totalCallsMade / totalQuota) * 100 : 0;
+
+  // Formater la date
+  const formatDate = (dateString: string) => {
+    try {
+      return new Date(dateString).toLocaleString("fr-FR", {
+        year: "numeric",
+        month: "short",
+        day: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+      });
+    } catch {
+      return dateString;
+    }
+  };
 
   return (
-    <main className="p-8">
-      <div className="max-w-7xl mx-auto">
-        <h1 className="text-3xl font-bold mb-6">API Usage Dashboard</h1>
-
-        {/* Filtres */}
-        <div className="bg-white rounded-lg shadow p-6 mb-6">
-          <h2 className="text-xl font-semibold mb-4">Filters</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium mb-2">Month</label>
-              <input
-                type="month"
-                value={selectedMonth}
-                onChange={(e) => setSelectedMonth(e.target.value)}
-                className="w-full px-3 py-2 border rounded-lg"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium mb-2">User ID</label>
-              <input
-                type="text"
-                value={filterUser}
-                onChange={(e) => setFilterUser(e.target.value)}
-                placeholder="Leave empty for all users"
-                className="w-full px-3 py-2 border rounded-lg"
-              />
-            </div>
-          </div>
-        </div>
+    <main className="min-h-screen bg-white py-10">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <h1 className="text-3xl font-bold mb-6">API.market Usage Dashboard</h1>
+        <p className="text-gray-600 mb-6">
+          Vue d'ensemble de vos quotas et utilisation API.market
+        </p>
 
         {/* Statistiques globales */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
-          <div className="bg-blue-50 rounded-lg p-6">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
+          <div className="bg-blue-50 rounded-lg p-6 text-center">
             <h3 className="text-sm font-medium text-blue-600 mb-2">
-              Total Requests
+              Quota Total
             </h3>
             <p className="text-3xl font-bold text-blue-900">
-              {totalRequests.toLocaleString()}
+              {totalQuota.toLocaleString()}
             </p>
+            <p className="text-xs text-gray-500 mt-1">appels/mois</p>
           </div>
-          <div className="bg-green-50 rounded-lg p-6">
+          <div className="bg-green-50 rounded-lg p-6 text-center">
             <h3 className="text-sm font-medium text-green-600 mb-2">
-              Unique Users
+              Appels Restants
             </h3>
             <p className="text-3xl font-bold text-green-900">
-              {totalUniqueUsers}
+              {totalCallsLeft.toLocaleString()}
+            </p>
+            <p className="text-xs text-gray-500 mt-1">disponibles</p>
+          </div>
+          <div className="bg-orange-50 rounded-lg p-6 text-center">
+            <h3 className="text-sm font-medium text-orange-600 mb-2">
+              Appels Utilisés
+            </h3>
+            <p className="text-3xl font-bold text-orange-900">
+              {totalCallsMade.toLocaleString()}
+            </p>
+            <p className="text-xs text-gray-500 mt-1">
+              {totalUsage.toFixed(1)}% du quota
             </p>
           </div>
-          <div className="bg-purple-50 rounded-lg p-6">
+          <div className="bg-purple-50 rounded-lg p-6 text-center">
             <h3 className="text-sm font-medium text-purple-600 mb-2">
-              Avg Response Time
+              Abonnements Actifs
             </h3>
             <p className="text-3xl font-bold text-purple-900">
-              {stats.length > 0
-                ? Math.round(
-                    stats.reduce(
-                      (sum, s) =>
-                        sum +
-                        (s.avg_response_time * s.total_requests) /
-                          totalRequests,
-                      0
-                    )
-                  )
-                : 0}
-              ms
+              {usageData.length}
             </p>
+            <p className="text-xs text-gray-500 mt-1">produits</p>
           </div>
         </div>
 
-        {/* Statistiques par tier */}
+        {/* Tableau des abonnements */}
         {loading ? (
           <div className="bg-white rounded-lg shadow p-8 text-center">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-            <p className="mt-4 text-gray-600">Loading statistics...</p>
+            <p className="mt-4 text-gray-600">Loading usage data...</p>
+          </div>
+        ) : error ? (
+          <div className="bg-red-50 rounded-lg shadow p-8 text-center">
+            <p className="text-red-600 font-semibold">Error</p>
+            <p className="text-red-500 mt-2">{error}</p>
+          </div>
+        ) : usageData.length === 0 ? (
+          <div className="bg-white rounded-lg shadow p-8 text-center">
+            <p className="text-gray-600">No usage data available</p>
           </div>
         ) : (
-          <div className="bg-white rounded-lg shadow overflow-hidden">
-            <table className="min-w-full divide-y divide-gray-200">
+          <div className="bg-white rounded-lg shadow overflow-hidden w-full">
+            <div className="overflow-x-auto w-full">
+              <table className="w-full divide-y divide-gray-200" style={{ minWidth: '800px' }}>
               <thead className="bg-gray-50">
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Tier
+                  <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    API / Produit
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Requests
+                  <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Quota
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Unique Users
+                  <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Utilisés
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Avg Response Time
+                  <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Restants
+                  </th>
+                  <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Utilisation
+                  </th>
+                  <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Date Début
+                  </th>
+                  <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Date Renouvellement
                   </th>
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {stats.map((stat) => (
-                  <tr key={stat.tier}>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800">
-                        {stat.tier}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {stat.total_requests.toLocaleString()}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {stat.unique_users}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {stat.avg_response_time}ms
-                    </td>
-                  </tr>
-                ))}
+                {usageData.map((item, index) => {
+                  const usagePercent =
+                    item.quota > 0 ? (item.apiCallsMade / item.quota) * 100 : 0;
+                  const isLowQuota = item.apiCallsLeft < item.quota * 0.1; // < 10%
+
+                  return (
+                    <tr
+                      key={`${item.apiName}-${index}`}
+                      className={isLowQuota ? "bg-red-50" : ""}
+                    >
+                      <td className="px-6 py-4 whitespace-nowrap text-center">
+                        <div className="text-sm font-medium text-gray-900">
+                          {item.apiProduct || item.apiName}
+                        </div>
+                        <div className="text-xs text-gray-500">
+                          {item.store}/{item.apiProduct}
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-center">
+                        {item.quota.toLocaleString()}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-center">
+                        {item.apiCallsMade.toLocaleString()}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-center">
+                        <span
+                          className={`text-sm font-semibold ${
+                            isLowQuota ? "text-red-600" : "text-green-600"
+                          }`}
+                        >
+                          {item.apiCallsLeft.toLocaleString()}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-center">
+                        <div className="flex items-center justify-center">
+                          <div className="w-full max-w-[100px] bg-gray-200 rounded-full h-2.5 mr-2">
+                            <div
+                              className={`h-2.5 rounded-full ${
+                                usagePercent > 90
+                                  ? "bg-red-500"
+                                  : usagePercent > 70
+                                  ? "bg-yellow-500"
+                                  : "bg-green-500"
+                              }`}
+                              style={{ width: `${Math.min(usagePercent, 100)}%` }}
+                            ></div>
+                          </div>
+                          <span className="text-xs text-gray-600">
+                            {usagePercent.toFixed(1)}%
+                          </span>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-center">
+                        {formatDate(item.startDate)}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-center">
+                        {formatDate(item.renewDate)}
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
+            </div>
           </div>
         )}
       </div>

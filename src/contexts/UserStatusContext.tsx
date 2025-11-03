@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import React, { createContext, useContext, useState, useEffect, useRef, ReactNode } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { User } from "@supabase/supabase-js";
 
@@ -13,15 +13,18 @@ interface UserStatusData {
   shouldShowAds: boolean;
 }
 
-/**
- * Hook pour détecter le statut de l'utilisateur (guest, subscribed, etc.)
- * et déterminer si les publicités doivent être affichées
- */
-export function useUserStatus(): UserStatusData {
+interface UserStatusContextType extends UserStatusData {
+  isLoading: boolean;
+}
+
+const UserStatusContext = createContext<UserStatusContextType | undefined>(undefined);
+
+export function UserStatusProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [status, setStatus] = useState<UserStatus>("loading");
-  const fetchingRef = useRef(false); // Empêche les appels multiples simultanés
+  const fetchingRef = useRef(false);
+  const subscriptionRef = useRef<any>(null);
 
   // Vérifier si Supabase est configuré
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -43,6 +46,10 @@ export function useUserStatus(): UserStatusData {
     const supabase = createClient();
 
     const getUser = async () => {
+      // Éviter les appels multiples simultanés
+      if (fetchingRef.current) return;
+      fetchingRef.current = true;
+
       try {
         const {
           data: { user },
@@ -52,11 +59,6 @@ export function useUserStatus(): UserStatusData {
 
         if (user) {
           // Vérifier si l'utilisateur a une souscription active et le plan
-          // Utiliser la nouvelle table subscriptions via l'API
-          // Éviter les appels multiples simultanés
-          if (fetchingRef.current) return;
-          fetchingRef.current = true;
-          
           try {
             const subscriptionResponse = await fetch("/api/user/subscription", {
               credentials: "include",
@@ -66,10 +68,6 @@ export function useUserStatus(): UserStatusData {
             if (subscriptionResponse.ok) {
               const data = await subscriptionResponse.json();
               if (data.subscription) {
-                // Différencier entre PRO/BUSINESS (plans payants) et FREE (plan gratuit)
-                // IMPORTANT: Vérifier le PLAN réel ET la date de fin de période (renewsAt)
-                // Si le plan est PRO/BUSINESS (même avec status CANCELED) ET que renewsAt est dans le futur,
-                // l'utilisateur a encore accès jusqu'à sa date de fin individuelle, donc pas de pubs
                 const plan = data.subscription.plan;
                 const renewsAt = data.subscription.renewsAt
                   ? new Date(data.subscription.renewsAt)
@@ -77,47 +75,33 @@ export function useUserStatus(): UserStatusData {
                 const now = new Date();
 
                 if (plan === "PRO" || plan === "BUSINESS") {
-                  // Vérifier si la période est encore valide (renewsAt dans le futur)
-                  // Chaque utilisateur a sa propre date de fin de période
                   if (renewsAt && renewsAt > now) {
-                    // Plan payant (PRO ou BUSINESS) avec période encore valide = pas de pubs
-                    // même si status est CANCELED, car l'utilisateur a encore accès jusqu'à renewsAt
-                setStatus("pro");
+                    setStatus("pro");
                   } else {
-                    // Plan payant mais période terminée = l'utilisateur devrait être sur FREE
-                    // (normalement le webhook devrait avoir mis à jour, mais on affiche les pubs pour être sûr)
                     setStatus("subscribed");
                   }
                 } else {
-                  // FREE plan = shows ads
                   setStatus("subscribed");
                 }
               } else {
-                // Pas de souscription = shows ads
                 setStatus("guest");
               }
             } else {
-              // Pas de souscription = shows ads
               setStatus("guest");
             }
           } catch (subErr) {
-            // Erreur API ou pas de souscription = shows ads
-            console.error(
-              "[useUserStatus] Error fetching subscription:",
-              subErr
-            );
+            console.error("[UserStatusProvider] Error fetching subscription:", subErr);
             setStatus("guest");
-          } finally {
-            fetchingRef.current = false;
           }
         } else {
           setStatus("guest");
         }
       } catch (err) {
-        console.error("[useUserStatus] Error getting user:", err);
+        console.error("[UserStatusProvider] Error getting user:", err);
         setStatus("guest");
       } finally {
         setLoading(false);
+        fetchingRef.current = false;
       }
     };
 
@@ -132,12 +116,11 @@ export function useUserStatus(): UserStatusData {
       } else {
         setUser(session.user);
 
-        // Vérifier la souscription après connexion
         if (session.user) {
           // Éviter les appels multiples simultanés
           if (fetchingRef.current) return;
           fetchingRef.current = true;
-          
+
           try {
             const subscriptionResponse = await fetch("/api/user/subscription", {
               credentials: "include",
@@ -147,10 +130,6 @@ export function useUserStatus(): UserStatusData {
             if (subscriptionResponse.ok) {
               const data = await subscriptionResponse.json();
               if (data.subscription) {
-                // Différencier entre PRO/BUSINESS (plans payants) et FREE (plan gratuit)
-                // IMPORTANT: Vérifier le PLAN réel ET la date de fin de période (renewsAt)
-                // Si le plan est PRO/BUSINESS (même avec status CANCELED) ET que renewsAt est dans le futur,
-                // l'utilisateur a encore accès jusqu'à sa date de fin individuelle, donc pas de pubs
                 const plan = data.subscription.plan;
                 const renewsAt = data.subscription.renewsAt
                   ? new Date(data.subscription.renewsAt)
@@ -158,27 +137,18 @@ export function useUserStatus(): UserStatusData {
                 const now = new Date();
 
                 if (plan === "PRO" || plan === "BUSINESS") {
-                  // Vérifier si la période est encore valide (renewsAt dans le futur)
-                  // Chaque utilisateur a sa propre date de fin de période
                   if (renewsAt && renewsAt > now) {
-                    // Plan payant (PRO ou BUSINESS) avec période encore valide = pas de pubs
-                    // même si status est CANCELED, car l'utilisateur a encore accès jusqu'à renewsAt
-                setStatus("pro");
+                    setStatus("pro");
                   } else {
-                    // Plan payant mais période terminée = l'utilisateur devrait être sur FREE
-                    // (normalement le webhook devrait avoir mis à jour, mais on affiche les pubs pour être sûr)
                     setStatus("subscribed");
                   }
                 } else {
-                  // FREE plan = shows ads
                   setStatus("subscribed");
                 }
               } else {
-                // Pas de souscription = shows ads
                 setStatus("guest");
               }
             } else {
-              // Erreur API = shows ads
               setStatus("guest");
             }
           } catch (err) {
@@ -190,6 +160,8 @@ export function useUserStatus(): UserStatusData {
       }
     });
 
+    subscriptionRef.current = subscription;
+
     return () => {
       subscription.unsubscribe();
       fetchingRef.current = false;
@@ -198,10 +170,34 @@ export function useUserStatus(): UserStatusData {
 
   const shouldShowAds = status === "guest" || status === "subscribed";
 
-  return {
+  const value: UserStatusContextType = {
     status: loading ? "loading" : status,
     user,
     isAuthenticated: !!user && !loading,
     shouldShowAds,
+    isLoading: loading,
   };
+
+  return (
+    <UserStatusContext.Provider value={value}>
+      {children}
+    </UserStatusContext.Provider>
+  );
 }
+
+export function useUserStatus(): UserStatusData {
+  const context = useContext(UserStatusContext);
+  if (context === undefined) {
+    // Fallback si le contexte n'est pas disponible (ne devrait jamais arriver)
+    console.warn("useUserStatus must be used within UserStatusProvider");
+    return {
+      status: "guest",
+      user: null,
+      isAuthenticated: false,
+      shouldShowAds: true,
+    };
+  }
+  const { isLoading, ...rest } = context;
+  return rest;
+}
+

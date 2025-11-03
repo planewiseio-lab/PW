@@ -18,6 +18,7 @@ import { GlobalInsufficientCreditsHandler } from "@/components/GlobalInsufficien
 import { GuestQuotaExceededModal } from "@/components/errors/GuestQuotaExceededModal";
 import { FreeCreditsExceededModal } from "@/components/errors/FreeCreditsExceededModal";
 import { AdSection } from "@/components/ads/AdWrapper";
+import { UserStatusProvider } from "@/contexts/UserStatusContext";
 import { Comfortaa } from "next/font/google";
 import Script from "next/script";
 
@@ -106,20 +107,21 @@ export default function RootLayout({
   return (
     <html lang="en">
       <Head>
-        <link rel="preconnect" href="https://aerodatabox.p.rapidapi.com" />
+        <link rel="preconnect" href="https://prod.api.market" />
         <link rel="preconnect" href="https://commons.wikimedia.org" />
-        <link rel="dns-prefetch" href="https://aerodatabox.p.rapidapi.com" />
+        <link rel="dns-prefetch" href="https://prod.api.market" />
         <link rel="dns-prefetch" href="https://commons.wikimedia.org" />
         <link rel="dns-prefetch" href="https://www.googletagmanager.com" />
       </Head>
       <body
         className={`${comfortaa.className} min-h-screen flex flex-col text-gray-900 bg-white`}
       >
-        {/* background grid - discret + fade bas */}
-        <div className="fixed inset-0 -z-10 bg-white">
-          <div className="bg-dot-grid w-full h-full [mask-image:linear-gradient(to_bottom,black_65%,transparent_100%)]" />
-        </div>{" "}
-        {/* Header (même structure que ton index.html) */}
+        <UserStatusProvider>
+          {/* background grid - discret + fade bas */}
+          <div className="fixed inset-0 -z-10 bg-white">
+            <div className="bg-dot-grid w-full h-full [mask-image:linear-gradient(to_bottom,black_65%,transparent_100%)]" />
+          </div>{" "}
+          {/* Header (même structure que ton index.html) */}
         <header className="sticky top-0 z-50 border-b border-black/5 bg-white/70 backdrop-blur-md">
           <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8 h-14 flex items-center justify-between">
             <a
@@ -194,6 +196,7 @@ export default function RootLayout({
             </Script>
           </>
         )}
+        </UserStatusProvider>
       </body>
     </html>
   );

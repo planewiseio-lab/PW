@@ -81,18 +81,18 @@ export async function deduplicatedFetch(
             }
             
             // Déclencher l'événement pour afficher le modal (seulement pour les invités)
-            const { triggerGuestQuotaExceeded } = await import("@/hooks/useGuestQuotaExceeded");
-            triggerGuestQuotaExceeded({
-              message: errorData?.message || "Guest quota exceeded",
-              guestRemaining: errorData?.guestRemaining ?? errorData?.remaining ?? 0,
-              guestUsed: errorData?.guestUsed ?? errorData?.used ?? 4,
-              guestLimit: errorData?.guestLimit ?? errorData?.limit ?? 4,
-              guestTtl: errorData?.guestTtl ?? errorData?.ttl ?? 0, // TTL en secondes
-              status: 429,
-              code: "GUEST_QUOTA_EXCEEDED",
-            });
-            // Lancer une erreur avec le code GUEST_QUOTA_EXCEEDED pour que useAircraftData puisse le détecter
-            throw new Error("GUEST_QUOTA_EXCEEDED");
+          const { triggerGuestQuotaExceeded } = await import("@/hooks/useGuestQuotaExceeded");
+          triggerGuestQuotaExceeded({
+            message: errorData?.message || "Guest quota exceeded",
+            guestRemaining: errorData?.guestRemaining ?? errorData?.remaining ?? 0,
+            guestUsed: errorData?.guestUsed ?? errorData?.used ?? 4,
+            guestLimit: errorData?.guestLimit ?? errorData?.limit ?? 4,
+            guestTtl: errorData?.guestTtl ?? errorData?.ttl ?? 0, // TTL en secondes
+            status: 429,
+            code: "GUEST_QUOTA_EXCEEDED",
+          });
+          // Lancer une erreur avec le code GUEST_QUOTA_EXCEEDED pour que useAircraftData puisse le détecter
+          throw new Error("GUEST_QUOTA_EXCEEDED");
           } catch (checkError: any) {
             // Si la vérification échoue, vérifier si c'est déjà une erreur non-GUEST_QUOTA
             if (checkError.message !== "GUEST_QUOTA_EXCEEDED" && !checkError.message.includes("HTTP")) {
@@ -247,18 +247,18 @@ export async function fetchAircraftData(registration: string): Promise<any> {
             }
             
             // Déclencher l'événement pour afficher le modal (seulement pour les invités)
-            const { triggerGuestQuotaExceeded } = await import("@/hooks/useGuestQuotaExceeded");
-            triggerGuestQuotaExceeded({
-              message: errorData?.message || "Guest quota exceeded",
-              guestRemaining: errorData?.guestRemaining ?? errorData?.remaining ?? 0,
-              guestUsed: errorData?.guestUsed ?? errorData?.used ?? 4,
-              guestLimit: errorData?.guestLimit ?? errorData?.limit ?? 4,
-              guestTtl: errorData?.guestTtl ?? errorData?.ttl ?? 0, // TTL en secondes
-              status: 429,
-              code: "GUEST_QUOTA_EXCEEDED",
-            });
-            // Lancer une erreur avec le code GUEST_QUOTA_EXCEEDED pour que useAircraftData puisse le détecter
-            throw new Error("GUEST_QUOTA_EXCEEDED");
+          const { triggerGuestQuotaExceeded } = await import("@/hooks/useGuestQuotaExceeded");
+          triggerGuestQuotaExceeded({
+            message: errorData?.message || "Guest quota exceeded",
+            guestRemaining: errorData?.guestRemaining ?? errorData?.remaining ?? 0,
+            guestUsed: errorData?.guestUsed ?? errorData?.used ?? 4,
+            guestLimit: errorData?.guestLimit ?? errorData?.limit ?? 4,
+            guestTtl: errorData?.guestTtl ?? errorData?.ttl ?? 0, // TTL en secondes
+            status: 429,
+            code: "GUEST_QUOTA_EXCEEDED",
+          });
+          // Lancer une erreur avec le code GUEST_QUOTA_EXCEEDED pour que useAircraftData puisse le détecter
+          throw new Error("GUEST_QUOTA_EXCEEDED");
           } catch (checkError: any) {
             // Si la vérification échoue, vérifier si c'est déjà une erreur non-GUEST_QUOTA
             if (checkError.message !== "GUEST_QUOTA_EXCEEDED" && !checkError.message.includes("HTTP")) {

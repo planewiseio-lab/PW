@@ -5,10 +5,10 @@ export const env = {
     anonKey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
   },
   aerodatabox: {
-    apiKey: process.env.AERODATABOX_API_KEY || process.env.RAPID_KEY!,
+    apiKey: process.env.API_MARKET_KEY || process.env.AERODATABOX_API_KEY!,
   },
   airreg: {
-    apiKey: process.env.AIRREG_API_KEY || process.env.RAPID_KEY!,
+    apiKey: process.env.API_MARKET_KEY || process.env.AIRREG_API_KEY!,
   },
 } as const;
 
