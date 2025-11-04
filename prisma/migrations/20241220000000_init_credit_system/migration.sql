@@ -1,5 +1,5 @@
 -- CreateEnum
-CREATE TYPE "Plan" AS ENUM ('FREE', 'PRO', 'BUSINESS');
+CREATE TYPE "Plan" AS ENUM ('FREE', 'PRO', 'BASIC');
 
 -- CreateEnum
 CREATE TYPE "SubscriptionStatus" AS ENUM ('ACTIVE', 'PAST_DUE', 'CANCELED');

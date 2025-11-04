@@ -42,23 +42,35 @@ export async function POST(request: NextRequest) {
 
     // 2. Récupérer les données depuis le body
     const body = await request.json();
-    const { paymentMethodId, priceId, plan } = body;
+    const { paymentMethodId, priceId, plan: planRaw } = body;
 
-    if (!paymentMethodId || !priceId || !plan) {
+    console.log(`[Confirm Subscription] Received request:`, {
+      paymentMethodId: paymentMethodId ? "present" : "missing",
+      priceId,
+      planRaw,
+    });
+
+    if (!paymentMethodId || !priceId || !planRaw) {
       return NextResponse.json(
         { error: "paymentMethodId, priceId, and plan are required" },
         { status: 400 }
       );
     }
 
+    // Normaliser le plan en majuscules
+    const plan = planRaw.toUpperCase().trim();
+
     // 3. Valider le plan
     const validPlans = ["BASIC", "PRO"];
     if (!validPlans.includes(plan)) {
+      console.error(`[Confirm Subscription] Invalid plan: "${planRaw}" (normalized: "${plan}")`);
       return NextResponse.json(
         { error: `Invalid plan. Must be one of: ${validPlans.join(", ")}` },
         { status: 400 }
       );
     }
+
+    console.log(`[Confirm Subscription] Valid plan: ${plan}`);
 
     // 4. Récupérer la subscription existante
     let subscription = await prisma.subscriptions.findUnique({
@@ -128,25 +140,59 @@ export async function POST(request: NextRequest) {
 
     // 10. Mettre à jour la subscription dans la base de données
     // Convertir la chaîne plan en enum Prisma
-    // Convertir la chaîne plan en enum Prisma
+    console.log(`[Confirm Subscription] Converting plan string to enum:`, {
+      plan,
+      planType: typeof plan,
+      PlanEnum: Plan,
+      PlanBASIC: Plan.BASIC,
+      PlanPRO: Plan.PRO,
+      PlanFREE: Plan.FREE,
+    });
+
+    // Déterminer le plan enum directement
     let planEnum: Plan;
-    switch (plan) {
-      case "BASIC":
-        planEnum = Plan.BASIC; // BASIC plan (350 crédits)
-        break;
-      case "PRO":
-        planEnum = Plan.PRO; // PRO plan (750 crédits)
-        break;
-      default:
-        return NextResponse.json(
-          { error: `Invalid plan: ${plan}` },
-          { status: 400 }
-        );
+    if (plan === "BASIC") {
+      planEnum = Plan.BASIC;
+      console.log(`[Confirm Subscription] Mapped to Plan.BASIC: ${planEnum}`);
+    } else if (plan === "PRO") {
+      planEnum = Plan.PRO;
+      console.log(`[Confirm Subscription] Mapped to Plan.PRO: ${planEnum}`);
+    } else {
+      console.error(`[Confirm Subscription] Invalid plan: "${plan}"`);
+      return NextResponse.json(
+        { error: `Invalid plan: ${plan}` },
+        { status: 400 }
+      );
     }
+
+    // Vérifier que planEnum est bien défini
+    if (planEnum === undefined || planEnum === null) {
+      console.error(`[Confirm Subscription] planEnum is undefined after mapping!`);
+      return NextResponse.json(
+        { error: `Failed to map plan: ${plan}` },
+        { status: 500 }
+      );
+    }
+
+    console.log(`[Confirm Subscription] planEnum value:`, {
+      planEnum,
+      planEnumString: String(planEnum),
+      planEnumType: typeof planEnum,
+      equalsBASIC: planEnum === Plan.BASIC,
+      equalsPRO: planEnum === Plan.PRO,
+    });
 
     const renewsAt = new Date(stripeSubscription.current_period_end * 1000);
 
-    await prisma.subscriptions.update({
+    console.log(`[Confirm Subscription] Updating subscription for user ${user.id}:`, {
+      plan: planEnum,
+      planString: String(planEnum),
+      status: SubscriptionStatus.ACTIVE,
+      stripeSubId: stripeSubscription.id,
+      renewsAt: renewsAt.toISOString(),
+    });
+
+    const updatedSubscription = await prisma.subscriptions.update({
       where: { userId: user.id },
       data: {
         plan: planEnum,
@@ -154,6 +200,12 @@ export async function POST(request: NextRequest) {
         stripeSubId: stripeSubscription.id,
         renewsAt: renewsAt,
       },
+    });
+
+    console.log(`[Confirm Subscription] Subscription updated successfully:`, {
+      userId: updatedSubscription.userId,
+      plan: updatedSubscription.plan,
+      status: updatedSubscription.status,
     });
 
     return NextResponse.json({

@@ -53,59 +53,10 @@ function calculateProgress(flightData: any): number {
 }
 
 // -- Showcase (carousel des services)
+// Données en dur pour éviter les appels API inutiles qui consomment des crédits
 function ShowcaseSection() {
   const [currentSlide, setCurrentSlide] = useState(0);
   const [isHovered, setIsHovered] = useState(false);
-  const [aircraftData, setAircraftData] = useState<any>(null);
-  const [flightData, setFlightData] = useState<any>(null);
-  const [airportData, setAirportData] = useState<any>(null);
-  const [loadingData, setLoadingData] = useState({
-    aircraft: false,
-    flight: false,
-    airport: false,
-  });
-
-  // Charger les données réelles au montage
-  useEffect(() => {
-    // Charger données aircraft (C-FRSR - exemple populaire)
-    setLoadingData((prev) => ({ ...prev, aircraft: true }));
-    fetch("/api/aircraft/C-FRSR")
-      .then((res) => res.json())
-      .then((data) => {
-        if (data && !data.error) {
-          setAircraftData(data);
-        }
-      })
-      .catch(() => {})
-      .finally(() =>
-        setLoadingData((prev) => ({ ...prev, aircraft: false }))
-      );
-
-    // Charger données flight (AC833 - vol populaire)
-    const today = new Date().toISOString().split("T")[0];
-    setLoadingData((prev) => ({ ...prev, flight: true }));
-    fetch(`/api/flights/AC833?date=${today}`)
-      .then((res) => res.json())
-      .then((data) => {
-        if (data && data.flightData && !data.error) {
-          setFlightData(data.flightData);
-        }
-      })
-      .catch(() => {})
-      .finally(() => setLoadingData((prev) => ({ ...prev, flight: false })));
-
-    // Charger données airport (YYZ - Toronto Pearson)
-    setLoadingData((prev) => ({ ...prev, airport: true }));
-    fetch("/api/airport/YYZ?dir=departures&before=1&after=1&limit=3")
-      .then((res) => res.json())
-      .then((data) => {
-        if (data && data.flights && !data.error) {
-          setAirportData(data.flights.slice(0, 3));
-        }
-      })
-      .catch(() => {})
-      .finally(() => setLoadingData((prev) => ({ ...prev, airport: false })));
-  }, []);
 
   const slides = useMemo(() => {
     return [
@@ -139,12 +90,7 @@ function ShowcaseSection() {
       },
       preview: (
         <div className="bg-white rounded-2xl border border-gray-200 shadow-sm flex-1 flex flex-col overflow-hidden">
-          {loadingData.aircraft ? (
-            <div className="h-full flex items-center justify-center">
-              <div className="animate-spin rounded-full h-8 w-8 border-2 border-gray-300 border-t-blue-600"></div>
-            </div>
-          ) : (
-            <>
+          <>
           {/* Header avec registration et badge */}
           <div className="px-4 pt-6 pb-4 flex items-center justify-between">
             <div className="flex items-center gap-3">
@@ -262,7 +208,6 @@ function ShowcaseSection() {
             </div>
           </div>
         </>
-          )}
         </div>
       ),
     },
@@ -425,13 +370,7 @@ function ShowcaseSection() {
         progress: "65%",
         eta: "2h 15m",
       },
-      preview: loadingData.flight ? (
-        <div className="bg-white rounded-2xl border border-gray-200 shadow-sm flex-1 flex flex-col overflow-hidden">
-          <div className="h-full flex items-center justify-center">
-            <div className="animate-spin rounded-full h-8 w-8 border-2 border-gray-300 border-t-blue-600"></div>
-          </div>
-        </div>
-      ) : (
+      preview: (
         <div className="bg-white rounded-2xl border border-gray-200 shadow-sm flex-1 flex flex-col overflow-hidden">
           {/* Header */}
           <div className="bg-gradient-to-r from-blue-50 to-indigo-50 px-4 pt-6 pb-4 border-b border-gray-200 flex items-center justify-between">
@@ -633,13 +572,7 @@ function ShowcaseSection() {
         arrivals: "18 flights",
         lastUpdate: "2 min ago",
       },
-      preview: loadingData.airport ? (
-        <div className="bg-white rounded-2xl border border-gray-200 shadow-sm flex-1 flex flex-col overflow-hidden">
-          <div className="h-full flex items-center justify-center">
-            <div className="animate-spin rounded-full h-8 w-8 border-2 border-gray-300 border-t-purple-600"></div>
-          </div>
-        </div>
-      ) : (
+      preview: (
         <div className="bg-white rounded-2xl border border-gray-200 shadow-sm flex-1 flex flex-col overflow-hidden">
           {/* Header */}
           <div className="px-4 pt-6 pb-4 border-b border-gray-200">
@@ -741,7 +674,7 @@ function ShowcaseSection() {
       ),
     },
   ];
-  }, [loadingData.aircraft, loadingData.flight, loadingData.airport]);
+  }, []);
 
   // Auto-rotate slides
   useEffect(() => {

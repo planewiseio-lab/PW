@@ -82,7 +82,27 @@ export function withActionAccess<T = any>(
         }
       }
 
-      // 3. Si l'utilisateur n'est pas connecté, utiliser le quota invité
+      // 3. Si l'utilisateur n'est pas connecté, vérifier si l'action nécessite une authentification
+      // Certaines actions (comme VIEW_FLIGHT_HISTORY) sont réservées aux utilisateurs connectés
+      const actionsRequiringAuth: ActionType[] = [
+        ActionType.VIEW_FLIGHT_HISTORY,
+      ];
+
+      if (actionsRequiringAuth.includes(actionType)) {
+        console.log(
+          `[Action Access] 🚫 Guest user blocked - ${actionType} requires authentication`
+        );
+        return NextResponse.json(
+          {
+            error: "Authentication required",
+            code: "AUTH_REQUIRED",
+            message: "This action requires authentication. Please log in to continue.",
+          },
+          { status: 401 }
+        );
+      }
+
+      // Pour les autres actions, utiliser le quota invité
       console.log(`[Action Access] 🎭 Guest user, using guest quota`);
 
       // Wrapper avec le quota invité

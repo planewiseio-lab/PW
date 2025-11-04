@@ -1,15 +1,20 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { motion } from "framer-motion";
 
 export default function CheckoutSuccessPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    // Déclencher l'événement pour rafraîchir les données de crédits
+    // Cela permet de mettre à jour la subscription après le checkout
+    window.dispatchEvent(new CustomEvent("credits:updated"));
+    
     // Simuler un chargement court pour une meilleure UX
     const timer = setTimeout(() => {
       setLoading(false);

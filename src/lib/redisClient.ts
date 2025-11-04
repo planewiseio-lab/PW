@@ -88,6 +88,25 @@ let client: RedisLike | null = null;
 
 export function getRedisLike(): RedisLike {
 	if (client) return client;
+	
+	// Check if we should use Supabase cache instead of Redis
+	// Default to Supabase cache if REDIS_URL is not set
+	const useSupabaseCache = process.env.USE_SUPABASE_CACHE === "true" || !process.env.REDIS_URL;
+	
+	if (useSupabaseCache) {
+		// Use Supabase PostgreSQL cache
+		try {
+			const { getRedisLike: getSupabaseRedisLike } = require("./supabaseRedisClient");
+			client = getSupabaseRedisLike();
+			console.log("[Redis] Using Supabase PostgreSQL cache");
+			return client;
+		} catch (error) {
+			console.warn("[Redis] Failed to load Supabase cache, falling back to memory:", error);
+			// Fall through to memory
+		}
+	}
+	
+	// Try to use Redis if REDIS_URL is set
 	const url = process.env.REDIS_URL;
 	if (url) {
 		try {
@@ -102,8 +121,8 @@ export function getRedisLike(): RedisLike {
 			// eslint-disable-next-line @typescript-eslint/no-var-requires, @typescript-eslint/no-implied-eval
 			IORedis = new Function('return require("ioredis")')();
 			} catch (importError: any) {
-				// ioredis not available, fall through to memory client
-				console.log("[Redis] ioredis not available, using in-memory fallback");
+				// ioredis not available, fall through to Supabase cache or memory
+				console.log("[Redis] ioredis not available, using Supabase cache or memory fallback");
 				throw new Error("ioredis not available");
 			}
 			
@@ -140,17 +159,32 @@ export function getRedisLike(): RedisLike {
                     return (await redis.expire(key, seconds)) as number;
                 },
 			};
+			console.log("[Redis] Using external Redis server");
 			return client;
 		} catch {
-			// fallthrough to memory
+			// fallthrough to Supabase cache or memory
 		}
 	}
+	
+	// Try Supabase cache as fallback
+	try {
+		const { getRedisLike: getSupabaseRedisLike } = require("./supabaseRedisClient");
+		client = getSupabaseRedisLike();
+		console.log("[Redis] Using Supabase PostgreSQL cache (fallback)");
+		return client;
+	} catch (error) {
+		console.warn("[Redis] Failed to load Supabase cache, using in-memory fallback:", error);
+	}
+	
+	// Final fallback: in-memory
 	client = new MemoryRedisLike();
+	console.log("[Redis] Using in-memory fallback");
 	return client;
 }
 
 export function sha1(input: string) {
 	return crypto.createHash("sha1").update(input).digest("hex");
 }
+
 
 

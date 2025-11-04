@@ -20,6 +20,7 @@ export default function AccountSettingsPage() {
     renewsAt: string;
   } | null>(null);
   const [billingHistory, setBillingHistory] = useState<any[]>([]);
+  const [displayedInvoices, setDisplayedInvoices] = useState(3);
   const [loadingAction, setLoadingAction] = useState(false);
   const router = useRouter();
   const pathname = usePathname();
@@ -57,6 +58,7 @@ export default function AccountSettingsPage() {
       if (billingResponse.ok) {
         const billingData = await billingResponse.json();
         setBillingHistory(billingData.invoices || []);
+        setDisplayedInvoices(3); // Réinitialiser à 3 factures affichées
       }
     } catch (err) {
       console.error("[Account Settings] Error fetching subscription:", err);
@@ -212,6 +214,19 @@ export default function AccountSettingsPage() {
     window.addEventListener("focus", handleFocus);
     return () => window.removeEventListener("focus", handleFocus);
   }, [activeTab]);
+
+  // Écouter l'événement credits:updated pour rafraîchir les données après le checkout
+  useEffect(() => {
+    const handleCreditUpdate = () => {
+      console.log("[Account Settings] Credit update event received, refreshing subscription data...");
+      refreshSubscriptionData();
+    };
+
+    window.addEventListener("credits:updated", handleCreditUpdate);
+    return () => {
+      window.removeEventListener("credits:updated", handleCreditUpdate);
+    };
+  }, []); // Une seule fois au montage
 
   const handleUpdateProfile = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -1212,75 +1227,100 @@ export default function AccountSettingsPage() {
                       </p>
                     </div>
                     ) : (
-                      <div className="space-y-3">
-                        {billingHistory.map((invoice: any) => (
-                          <div
-                            key={invoice.id}
-                            className="flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
-                          >
-                            <div className="flex-1">
-                              <div className="flex items-center gap-3">
-                                <h4 className="font-semibold text-gray-900">
-                                  {invoice.description}
-                                </h4>
-                                <span
-                                  className={`px-2 py-1 rounded-full text-xs font-medium ${
-                                    invoice.status === "paid"
-                                      ? "bg-green-100 text-green-800"
-                                      : invoice.status === "open"
-                                      ? "bg-yellow-100 text-yellow-800"
-                                      : invoice.status === "draft"
-                                      ? "bg-gray-100 text-gray-800"
-                                      : "bg-red-100 text-red-800"
-                                  }`}
-                                >
-                                  {invoice.status.toUpperCase()}
-                                </span>
-                  </div>
-                              <p className="text-sm text-gray-500 mt-1">
-                                {new Date(invoice.date).toLocaleDateString("en-US", {
-                                  year: "numeric",
-                                  month: "long",
-                                  day: "numeric",
-                                })}
-                              </p>
-                            </div>
-                            <div className="flex items-center gap-4">
-                              <div className="text-right">
-                                <p className="font-semibold text-gray-900">
-                                  {new Intl.NumberFormat("en-US", {
-                                    style: "currency",
-                                    currency: invoice.currency.toUpperCase() || "USD",
-                                  }).format(invoice.amount)}
+                      <>
+                        <div className="space-y-3">
+                          {billingHistory.slice(0, displayedInvoices).map((invoice: any) => (
+                            <div
+                              key={invoice.id}
+                              className="flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+                            >
+                              <div className="flex-1">
+                                <div className="flex items-center gap-3">
+                                  <h4 className="font-semibold text-gray-900">
+                                    {invoice.description}
+                                  </h4>
+                                  <span
+                                    className={`px-2 py-1 rounded-full text-xs font-medium ${
+                                      invoice.status === "paid"
+                                        ? "bg-green-100 text-green-800"
+                                        : invoice.status === "open"
+                                        ? "bg-yellow-100 text-yellow-800"
+                                        : invoice.status === "draft"
+                                        ? "bg-gray-100 text-gray-800"
+                                        : "bg-red-100 text-red-800"
+                                    }`}
+                                  >
+                                    {invoice.status.toUpperCase()}
+                                  </span>
+                                </div>
+                                <p className="text-sm text-gray-500 mt-1">
+                                  {new Date(invoice.date).toLocaleDateString("en-US", {
+                                    year: "numeric",
+                                    month: "long",
+                                    day: "numeric",
+                                  })}
                                 </p>
                               </div>
-                              {invoice.invoiceUrl && (
-                                <a
-                                  href={invoice.invoiceUrl}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="text-brand-600 hover:text-brand-700 font-medium text-sm flex items-center gap-1"
-                                >
-                                  <svg
-                                    className="w-4 h-4"
-                                    fill="none"
-                                    stroke="currentColor"
-                                    viewBox="0 0 24 24"
+                              <div className="flex items-center gap-4">
+                                <div className="text-right">
+                                  <p className="font-semibold text-gray-900">
+                                    {new Intl.NumberFormat("en-US", {
+                                      style: "currency",
+                                      currency: invoice.currency.toUpperCase() || "USD",
+                                    }).format(invoice.amount)}
+                                  </p>
+                                </div>
+                                {invoice.invoiceUrl && (
+                                  <a
+                                    href={invoice.invoiceUrl}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="text-brand-600 hover:text-brand-700 font-medium text-sm flex items-center gap-1"
                                   >
-                                    <path
-                                      strokeLinecap="round"
-                                      strokeLinejoin="round"
-                                      strokeWidth={2}
-                                      d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"
-                                    />
-                                  </svg>
-                                  View
-                                </a>
-                              )}
+                                    <svg
+                                      className="w-4 h-4"
+                                      fill="none"
+                                      stroke="currentColor"
+                                      viewBox="0 0 24 24"
+                                    >
+                                      <path
+                                        strokeLinecap="round"
+                                        strokeLinejoin="round"
+                                        strokeWidth={2}
+                                        d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"
+                                      />
+                                    </svg>
+                                    View
+                                  </a>
+                                )}
+                              </div>
                             </div>
+                          ))}
+                        </div>
+                        {billingHistory.length > displayedInvoices && (
+                          <div className="mt-4 pt-4 border-t border-gray-200">
+                            <button
+                              onClick={() => setDisplayedInvoices(displayedInvoices + 3)}
+                              className="w-full flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium text-brand-600 hover:text-brand-700 hover:bg-brand-50 rounded-lg transition-colors"
+                            >
+                              Load More ({billingHistory.length - displayedInvoices} remaining)
+                              <svg
+                                className="w-4 h-4"
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
+                              >
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  strokeWidth={2}
+                                  d="M19 9l-7 7-7-7"
+                                />
+                              </svg>
+                            </button>
                           </div>
-                        ))}
-                      </div>
+                        )}
+                      </>
                     )}
                   </div>
                 </div>

@@ -37,17 +37,6 @@ const PLAN_DETAILS: Record<
       "Community support",
     ],
   },
-  BASIC: {
-    name: "Basic",
-    price: "$19.99",
-    credits: "2000 credits/month",
-    features: [
-      "Everything in Pro",
-      "Priority support",
-      "Custom integrations",
-      "Dedicated account manager",
-    ],
-  },
 };
 
 export default function CheckoutPage() {
@@ -60,8 +49,11 @@ export default function CheckoutPage() {
   const [plan, setPlan] = useState<string | null>(null);
   const [priceId, setPriceId] = useState<string | null>(null);
   const [customerId, setCustomerId] = useState<string | null>(null);
-  const [success, setSuccess] = useState(false);
   const [stripePromise, setStripePromise] = useState<Promise<Stripe | null> | null>(null);
+  const [currentSubscription, setCurrentSubscription] = useState<{
+    plan: string;
+    status: string;
+  } | null>(null);
 
   // Charger Stripe au montage
   useEffect(() => {
@@ -125,6 +117,22 @@ export default function CheckoutPage() {
           const redirectUrl = `/checkout?plan=${planParam}`;
           router.replace(`/auth?redirect=${encodeURIComponent(redirectUrl)}`);
           return;
+        }
+
+        // Récupérer l'abonnement actuel de l'utilisateur
+        try {
+          const subscriptionResponse = await fetch("/api/user/subscription", {
+            credentials: "include",
+            cache: "no-store",
+          });
+          if (subscriptionResponse.ok) {
+            const subscriptionData = await subscriptionResponse.json();
+            if (subscriptionData.subscription) {
+              setCurrentSubscription(subscriptionData.subscription);
+            }
+          }
+        } catch (subErr) {
+          console.error("Error fetching current subscription:", subErr);
         }
       } catch (authErr) {
         // En cas d'erreur de vérification auth, rediriger vers auth quand même
@@ -210,11 +218,12 @@ export default function CheckoutPage() {
   }, [planParam, router, stripePromise]);
 
   const handleSuccess = () => {
-    setSuccess(true);
-    // Rediriger vers la page de succès après 2 secondes
-    setTimeout(() => {
-      router.push("/checkout/success");
-    }, 2000);
+    // Déclencher l'événement pour rafraîchir les données de crédits
+    // Cela permet de mettre à jour la subscription immédiatement
+    window.dispatchEvent(new CustomEvent("credits:updated"));
+    
+    // Rediriger immédiatement vers la page de succès (pas de message intermédiaire)
+    router.push("/checkout/success");
   };
 
   const handleError = (errorMsg: string) => {
@@ -276,40 +285,6 @@ export default function CheckoutPage() {
               View Credits
             </a>
           </div>
-        </motion.div>
-      </div>
-    );
-  }
-
-  if (success) {
-    return (
-      <div className="min-h-screen bg-white flex items-center justify-center py-12 px-4">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="max-w-md w-full bg-white rounded-xl shadow-sm border border-gray-200 p-8 text-center"
-        >
-          <div className="text-green-500 mb-4">
-            <svg
-              className="w-16 h-16 mx-auto"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
-              />
-            </svg>
-          </div>
-          <h1 className="text-2xl font-bold text-gray-900 mb-2">
-            Payment Successful!
-          </h1>
-          <p className="text-gray-600 mb-6">
-            Your subscription has been activated. Redirecting...
-          </p>
         </motion.div>
       </div>
     );
@@ -377,6 +352,54 @@ export default function CheckoutPage() {
             <h2 className="text-xl font-bold text-gray-900 mb-6">
               Payment Information
             </h2>
+
+            {/* Avertissement si l'utilisateur a déjà un plan actif */}
+            {currentSubscription &&
+              (currentSubscription.plan === "BASIC" ||
+                currentSubscription.plan === "PRO") &&
+              currentSubscription.plan !== plan &&
+              currentSubscription.status === "ACTIVE" && (
+                <motion.div
+                  initial={{ opacity: 0, y: -10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="bg-yellow-50 border-2 border-yellow-400 text-yellow-800 px-4 py-4 rounded-lg mb-6"
+                >
+                  <div className="flex items-start gap-3">
+                    <svg
+                      className="w-5 h-5 text-yellow-600 flex-shrink-0 mt-0.5"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+                      />
+                    </svg>
+                    <div>
+                      <h3 className="font-semibold text-yellow-900 mb-1">
+                        Important: Plan Change Warning
+                      </h3>
+                      <p className="text-sm text-yellow-800">
+                        You currently have an active{" "}
+                        <strong>{currentSubscription.plan}</strong> plan. If you
+                        proceed with this subscription:
+                      </p>
+                      <ul className="text-sm text-yellow-800 mt-2 space-y-1 list-disc list-inside">
+                        <li>
+                          Your current <strong>{currentSubscription.plan}</strong>{" "}
+                          plan will be <strong>replaced</strong> immediately
+                        </li>
+                        <li>
+                          Your credit balance will be <strong>replaced</strong> with the credits offered by the selected plan
+                        </li>
+                      </ul>
+                    </div>
+                  </div>
+                </motion.div>
+              )}
 
             {error && (
               <motion.div

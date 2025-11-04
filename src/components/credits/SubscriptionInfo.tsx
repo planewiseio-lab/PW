@@ -68,7 +68,9 @@ export function SubscriptionInfo({ subscription }: SubscriptionInfoProps) {
         </div>
 
           <div>
-            <div className="text-sm text-gray-500">Renews on</div>
+            <div className="text-sm text-gray-500">
+              {subscription.status === SubscriptionStatus.CANCELED ? "Ends on" : "Renews on"}
+            </div>
             <div className="font-medium text-gray-900">
               {new Date(subscription.renewsAt).toLocaleDateString("en-CA", {
                 timeZone: "America/Toronto",

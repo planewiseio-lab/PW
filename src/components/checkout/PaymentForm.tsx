@@ -52,9 +52,10 @@ export default function PaymentForm({
       const { error: setupError, setupIntent } = await stripe.confirmSetup({
         elements,
         confirmParams: {
+          // Ne pas rediriger automatiquement, on gère la redirection après confirmation
           return_url: `${window.location.origin}/checkout/success`,
         },
-        redirect: "if_required",
+        redirect: "if_required", // Rediriger seulement si nécessaire (3D Secure)
       });
 
       if (setupError) {

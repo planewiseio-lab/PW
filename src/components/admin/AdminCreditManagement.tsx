@@ -56,7 +56,13 @@ export function AdminCreditManagement({
         setAmount("");
         setNote("");
       } else {
-        setResult(`Error: ${data.error}`);
+        // Afficher un message d'erreur plus clair
+        const errorMessage = data.error || "An error occurred";
+        if (errorMessage.includes("cannot modify your own credits")) {
+          setResult(`Security Error: ${errorMessage}. Please use a different admin account to modify your credits.`);
+        } else {
+          setResult(`Error: ${errorMessage}`);
+        }
       }
     } catch (error) {
       setResult(`Error: ${error}`);

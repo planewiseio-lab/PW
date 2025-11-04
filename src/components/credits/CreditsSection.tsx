@@ -293,6 +293,7 @@ export function CreditsSection() {
             balance={creditsData.balance} 
             isFreeUser={creditsData.isFreeUser}
             renewsAt={creditsData.renewsAt || creditsData.subscription?.renewsAt}
+            status={creditsData.subscription?.status}
           />
         </div>
       </div>

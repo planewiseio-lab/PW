@@ -76,10 +76,12 @@ export async function GET(request: NextRequest) {
     const { data: supabaseUsers, error: supabaseError } =
       await supabaseAdmin.auth.admin.listUsers();
 
-    // Créer une map userId -> email pour un accès rapide
+    // Créer une map userId -> email et userId -> exists pour un accès rapide
     const emailMap = new Map<string, string>();
+    const userExistsMap = new Map<string, boolean>();
     if (!supabaseError && supabaseUsers?.users) {
       supabaseUsers.users.forEach((user) => {
+        userExistsMap.set(user.id, true);
         if (user.email) {
           emailMap.set(user.id, user.email);
         }
@@ -89,9 +91,11 @@ export async function GET(request: NextRequest) {
     // Combiner les données et appliquer le filtre de crédits
     let usersWithCredits = subscriptions.map((subscription) => {
       const credits = creditsMap.get(subscription.userId) ?? 0;
+      const userExists = userExistsMap.get(subscription.userId) ?? false;
       return {
         userId: subscription.userId,
         email: emailMap.get(subscription.userId) || null,
+        userExists, // Indique si l'utilisateur existe dans Supabase Auth
         plan: subscription.plan,
         status: subscription.status,
         credits,

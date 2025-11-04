@@ -4,6 +4,7 @@ import { AdminUserSearch } from "@/components/admin/AdminUserSearch";
 import { AdminCreditManagement } from "@/components/admin/AdminCreditManagement";
 import { prisma } from "@/lib/prisma";
 import { AdminCreditsClient } from "./AdminCreditsClient";
+import { verifyAdmin } from "@/lib/security/verifyAdmin";
 
 async function getAdminUser(userId: string) {
   const subscription = await prisma.subscriptions.findUnique({
@@ -44,9 +45,8 @@ export default async function AdminCreditsPage() {
     );
   }
 
-  // Check if user is admin
-  const isAdmin =
-    user.user_metadata?.role === "admin" || user.app_metadata?.role === "admin";
+  // Vérification sécurisée de l'admin (double vérification : métadonnées + whitelist)
+  const isAdmin = verifyAdmin(user);
 
   if (!isAdmin) {
     return (

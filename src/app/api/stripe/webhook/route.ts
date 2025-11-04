@@ -122,24 +122,53 @@ export async function POST(request: NextRequest) {
         // Map Stripe Price ID to our plan
         // On vérifie si le Price ID correspond à un de nos Price IDs configurés
         const priceId = subscription.items.data[0]?.price.id;
-        let plan = Plan.FREE;
+        let plan: Plan = Plan.FREE;
 
         // Mapping basé sur les Price IDs configurés
         const basicPriceId = process.env.STRIPE_PRICE_ID_BASIC;
         const proPriceId = process.env.STRIPE_PRICE_ID_PRO;
 
+        console.log(`[Webhook] Price ID mapping:`, {
+          priceId,
+          basicPriceId,
+          proPriceId,
+          subscriptionMetadata: subscription.metadata,
+        });
+
         if (priceId === basicPriceId) {
           plan = Plan.BASIC; // BASIC plan (350 crédits)
+          console.log(`[Webhook] Mapped to BASIC plan (priceId: ${priceId})`);
         } else if (priceId === proPriceId) {
           plan = Plan.PRO; // PRO plan (750 crédits)
+          console.log(`[Webhook] Mapped to PRO plan (priceId: ${priceId})`);
         } else if (subscription.metadata?.plan) {
           // Fallback: utiliser le plan dans metadata si disponible
-          const metadataPlan = subscription.metadata.plan.toUpperCase();
+          const metadataPlan = subscription.metadata.plan.toUpperCase().trim();
           if (metadataPlan === "BASIC") {
             plan = Plan.BASIC; // BASIC plan (350 crédits)
+            console.log(`[Webhook] Mapped to BASIC plan from metadata`);
           } else if (metadataPlan === "PRO") {
             plan = Plan.PRO; // PRO plan (750 crédits)
+            console.log(`[Webhook] Mapped to PRO plan from metadata`);
+          } else {
+            console.warn(`[Webhook] Invalid metadata plan: "${subscription.metadata.plan}" (normalized: "${metadataPlan}"), defaulting to FREE`);
+            plan = Plan.FREE;
           }
+        } else {
+          console.warn(`[Webhook] Could not determine plan for priceId: ${priceId}, defaulting to FREE`);
+          plan = Plan.FREE;
+        }
+
+        // Vérifier que plan est bien défini après le mapping
+        console.log(`[Webhook] Plan after mapping:`, {
+          plan,
+          planString: String(plan),
+          planType: typeof plan,
+        });
+
+        if (plan === undefined || plan === null) {
+          console.error(`[Webhook] Plan is undefined after mapping! Defaulting to FREE`);
+          plan = Plan.FREE;
         }
         // Vérifier si l'abonnement est programmé pour être annulé à la fin de la période
         const cancelAtPeriodEnd = subscription.cancel_at_period_end || false;
@@ -152,7 +181,12 @@ export async function POST(request: NextRequest) {
             : SubscriptionStatus.CANCELED;
 
         // Si l'abonnement est annulé ou a expiré, retourner au plan FREE
-        let finalPlan = plan;
+        console.log(`[Webhook] Initial plan determination:`, {
+          plan,
+          planType: typeof plan,
+          planValue: plan,
+        });
+        let finalPlan: Plan = plan;
         let finalRenewsAt: Date;
         let finalStatus = status;
 
@@ -216,7 +250,36 @@ export async function POST(request: NextRequest) {
           }
         }
 
-        await prisma.subscriptions.upsert({
+        console.log(`[Webhook] Determining final plan:`, {
+          plan,
+          finalPlan,
+          status,
+          finalStatus,
+          cancelAtPeriodEnd,
+          subscriptionStatus: subscription.status,
+        });
+
+        // Vérifier que finalPlan est bien défini
+        if (!finalPlan || finalPlan === undefined) {
+          console.error(`[Webhook] finalPlan is undefined! Using plan instead: ${plan}`);
+          finalPlan = plan || Plan.FREE;
+        }
+
+        // Vérifier que finalRenewsAt est bien défini
+        if (!finalRenewsAt) {
+          console.error(`[Webhook] finalRenewsAt is undefined! Using fallback date`);
+          finalRenewsAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+        }
+
+        console.log(`[Webhook] Updating subscription for user ${userSubscription.userId}:`, {
+          plan: finalPlan,
+          planString: String(finalPlan),
+          status: finalStatus,
+          renewsAt: finalRenewsAt.toISOString(),
+          stripeSubId: subscription.id,
+        });
+
+        const updatedSubscription = await prisma.subscriptions.upsert({
           where: { userId: userSubscription.userId },
           update: {
             plan: finalPlan,
@@ -234,6 +297,12 @@ export async function POST(request: NextRequest) {
             stripeCustomerId: customerId,
             stripeSubId: subscription.id,
           },
+        });
+
+        console.log(`[Webhook] Subscription updated successfully:`, {
+          userId: updatedSubscription.userId,
+          plan: updatedSubscription.plan,
+          status: updatedSubscription.status,
         });
 
         // Attribuer les crédits initiaux lors de la création d'un nouvel abonnement payant

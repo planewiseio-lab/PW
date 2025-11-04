@@ -5,6 +5,7 @@ import { useState, useEffect } from "react";
 interface UserWithCredits {
   userId: string;
   email: string | null;
+  userExists?: boolean; // Indique si l'utilisateur existe dans Supabase Auth
   plan: string;
   status: string;
   credits: number;
@@ -331,7 +332,12 @@ export function AllUsersSection() {
                     <td className="px-4 py-3 whitespace-nowrap">
                       <span className="text-sm text-gray-900">
                         {user.email || (
-                          <span className="text-gray-400 italic">No email</span>
+                          <span 
+                            className={user.userExists === false ? "text-red-400 italic font-semibold" : "text-gray-400 italic"}
+                            title={user.userExists === false ? "User does not exist in Supabase Auth (orphaned subscription)" : "No email available"}
+                          >
+                            {user.userExists === false ? "⚠️ No email (orphaned)" : "No email"}
+                          </span>
                         )}
                       </span>
                     </td>

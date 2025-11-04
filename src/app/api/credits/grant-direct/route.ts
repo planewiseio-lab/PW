@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { prisma } from "@/lib/prisma";
 import { Plan, SubscriptionStatus } from "@prisma/client";
 import { randomUUID } from "crypto";
+import { verifyAdmin, canModifyCredits, logAdminCreditAction } from "@/lib/security/verifyAdmin";
 
 export async function POST(request: NextRequest) {
   try {
@@ -17,11 +18,13 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const isAdmin =
-      user.user_metadata?.role === "admin" ||
-      user.app_metadata?.role === "admin";
+    // Vérification sécurisée de l'admin (double vérification : métadonnées + whitelist)
+    const isAdmin = verifyAdmin(user);
 
     if (!isAdmin) {
+      console.warn(
+        `[Security] Unauthorized admin access attempt by user ${user.id} (${user.email})`
+      );
       return NextResponse.json(
         { error: "Admin access required" },
         { status: 403 }
@@ -37,7 +40,25 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    console.log(`[Admin] Granting ${amount} credits to user ${userId}`);
+    // Empêcher l'auto-modification (même les admins ne peuvent pas modifier leurs propres crédits)
+    if (!canModifyCredits(user.id, userId)) {
+      return NextResponse.json(
+        { error: "You cannot modify your own credits through the admin panel" },
+        { status: 403 }
+      );
+    }
+
+    // Log d'audit pour la traçabilité
+    const action = parseInt(amount) >= 0 ? "grant" : "remove";
+    logAdminCreditAction(
+      user.id,
+      user.email,
+      userId,
+      action,
+      Math.abs(parseInt(amount)),
+      reason || "MANUAL_ADJUST",
+      { note, adminAction: true }
+    );
 
     // 1. S'assurer que l'abonnement existe (pour éviter l'erreur FK)
     // Si l'abonnement existe déjà, NE PAS le modifier (préserver le plan et le statut)

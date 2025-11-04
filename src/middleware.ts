@@ -64,7 +64,16 @@ export async function middleware(request: NextRequest) {
 
     // Only log errors for debugging, but don't block requests
     if (error && !error.message.includes("Auth session missing")) {
-      console.log(`[Middleware] 🔍 Error:`, error.message);
+      // Ne pas logger les erreurs de connexion réseau courantes (ECONNRESET, fetch failed)
+      const isNetworkError = 
+        error.message?.includes("fetch failed") ||
+        error.message?.includes("ECONNRESET") ||
+        error.message?.includes("ECONNREFUSED") ||
+        error.message?.includes("ETIMEDOUT");
+      
+      if (!isNetworkError) {
+        console.log(`[Middleware] 🔍 Error:`, error.message);
+      }
     }
 
     // Si erreur 403, nettoyer les cookies de session
@@ -84,8 +93,18 @@ export async function middleware(request: NextRequest) {
         }
       });
     }
-  } catch (err) {
-    console.error("Error in middleware auth check:", err);
+  } catch (err: any) {
+    // Ne pas logger les erreurs de connexion réseau courantes
+    const isNetworkError = 
+      err?.message?.includes("fetch failed") ||
+      err?.message?.includes("ECONNRESET") ||
+      err?.message?.includes("ECONNREFUSED") ||
+      err?.message?.includes("ETIMEDOUT") ||
+      err?.cause?.code === "ECONNRESET";
+    
+    if (!isNetworkError) {
+      console.error("Error in middleware auth check:", err);
+    }
   }
 
   supabaseResponse.headers.set("X-Request-Id", reqId);

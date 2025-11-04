@@ -6,24 +6,23 @@ import { cachedRequest } from "@/lib/requestDeduplication";
 import { withAircraftLookupAccess as withAircraftAccess } from "@/lib/withActionAccess";
 import { logApiRequest } from "@/lib/apiTracker";
 import { createClient } from "@/lib/supabase/server";
+import { getCache as getSupabaseCache, setCache as setSupabaseCache } from "@/lib/supabaseCache";
 
 // Configuration pour api.market (seul provider)
 const API_MARKET_KEY = process.env.API_MARKET_KEY || process.env.AIRREG_API_KEY;
 // Base URL pour fallback (si nécessaire)
 const AERODATABOX_BASE_URL = process.env.API_MARKET_BASE_URL || "https://prod.api.market/api/v1/aedbx/aerodatabox";
 
-// --- petit cache mémoire local (équivalent à getCache/setCache)
-const cacheStore = new Map<string, { data: string; expires: number }>();
-const AIRCRAFT_TTL_MS = 24 * 60 * 60 * 1000; // 24h
+// --- Cache Supabase (persiste entre redémarrages)
 
-function getCache(key: string) {
-  const c = cacheStore.get(key);
-  if (c && Date.now() < c.expires) return c.data;
-  if (c) cacheStore.delete(key);
-  return null;
+const AIRCRAFT_TTL_SECONDS = 24 * 60 * 60; // 24h en secondes
+
+async function getCache(key: string): Promise<string | null> {
+  return await getSupabaseCache(key);
 }
-function setCache(key: string, data: string, ttl = AIRCRAFT_TTL_MS) {
-  cacheStore.set(key, { data, expires: Date.now() + ttl });
+
+async function setCache(key: string, data: string, ttlSeconds = AIRCRAFT_TTL_SECONDS) {
+  await setSupabaseCache(key, data, ttlSeconds);
 }
 
 // --- helpers (copie de l’ancienne logique)
@@ -253,7 +252,7 @@ export const GET = withAircraftAccess(
 
     // 1️⃣ Vérifie le cache
     if (!forceRefresh) {
-      const cached = getCache(cacheKey);
+      const cached = await getCache(cacheKey);
       if (cached) {
         console.log(`[CACHE] hit aircraft ${reg}`);
         return new NextResponse(cached, {
@@ -278,7 +277,7 @@ export const GET = withAircraftAccess(
       last = resp;
       if (resp.ok) {
         const body = resp.text && resp.text.trim() ? resp.text : "{}";
-        setCache(cacheKey, body, AIRCRAFT_TTL_MS);
+        await setCache(cacheKey, body, AIRCRAFT_TTL_SECONDS);
         console.log(`[CACHE] stored aircraft ${reg} for 24h`);
         return new NextResponse(body, {
           status: 200,
@@ -295,7 +294,7 @@ export const GET = withAircraftAccess(
       const minimal = await buildAircraftFromFlights(reg);
       if (minimal) {
         const body = JSON.stringify(minimal);
-        setCache(cacheKey, body, 60 * 60 * 1000); // 1h
+        await setCache(cacheKey, body, 60 * 60); // 1h en secondes
         console.log(`[FALLBACK] rebuilt and cached minimal aircraft ${reg}`);
         return new NextResponse(body, {
           status: 200,
