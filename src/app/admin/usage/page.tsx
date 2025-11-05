@@ -218,6 +218,128 @@ export default function ApiUsageDashboard() {
   );
   const totalUsage = totalQuota > 0 ? (totalCallsMade / totalQuota) * 100 : 0;
 
+  // Calculer les requêtes restantes par tier
+  const tier1RequestsLeft = Math.floor(totalCallsLeft / 1); // Tier 1 = 1 appel par requête
+  const tier2RequestsLeft = Math.floor(totalCallsLeft / 2); // Tier 2 = 2 appels par requête
+  const tier3RequestsLeft = Math.floor(totalCallsLeft / 6); // Tier 3 = 6 appels par requête
+
+  // Calculer le temps restant jusqu'au renouvellement
+  const getTimeUntilRenewal = () => {
+    if (usageData.length === 0) return null;
+    
+    // Prendre la date de renouvellement la plus proche
+    const renewDates = usageData
+      .map(item => new Date(item.renewDate))
+      .filter(date => !isNaN(date.getTime()));
+    
+    if (renewDates.length === 0) return null;
+    
+    const nextRenewal = new Date(Math.min(...renewDates.map(d => d.getTime())));
+    const now = new Date();
+    const diff = nextRenewal.getTime() - now.getTime();
+    
+    if (diff <= 0) return { text: "Renouvelé", days: 0, hours: 0, minutes: 0 };
+    
+    const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+    const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+    const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+    
+    let text = "";
+    if (days > 0) {
+      text = `${days} jour${days > 1 ? 's' : ''} ${hours}h`;
+    } else if (hours > 0) {
+      text = `${hours}h ${minutes}min`;
+    } else {
+      text = `${minutes}min`;
+    }
+    
+    return { text, days, hours, minutes };
+  };
+
+  const timeUntilRenewal = getTimeUntilRenewal();
+
+  // Calculer la situation spécifique pour chaque tier
+  const getTierSituation = (requestsLeft: number, costPerRequest: number) => {
+    if (!timeUntilRenewal || timeUntilRenewal.days === 0) {
+      return { status: "Renouvelé", color: "gray" };
+    }
+    
+    // Calculer le nombre de jours restants
+    const daysRemaining = timeUntilRenewal.days + (timeUntilRenewal.hours / 24);
+    
+    if (usageData.length === 0) return { status: "N/A", color: "gray" };
+    
+    // Calculer combien de requêtes de ce tier peuvent être faites par jour avec le reste
+    const requestsPerDay = requestsLeft / daysRemaining;
+    
+    // Calculer le nombre total de requêtes possibles pour ce tier avec le quota total
+    const totalTierRequestsPossible = Math.floor(totalQuota / costPerRequest);
+    
+    // Calculer le pourcentage de requêtes restantes pour ce tier
+    // Si on a utilisé 157 appels sur 600, et qu'on a 443 restants
+    // Pour Tier 1 : 443 requêtes restantes sur 600 possibles = 73.8%
+    const percentageRemaining = (requestsLeft / totalTierRequestsPossible) * 100;
+    
+    // Calculer aussi le ratio requêtes/jour vs quota/jour pour ce tier
+    const quotaPerDay = totalTierRequestsPossible / 30; // Sur 30 jours
+    const ratio = requestsPerDay / quotaPerDay;
+    
+    // Situation basée sur plusieurs critères :
+    // 1. Si on a plus de 80% de requêtes restantes pour ce tier = Confortable
+    // 2. Si on a entre 50-80% = Normal
+    // 3. Si on a moins de 50% = Attention
+    // Aussi : si le ratio requêtes/jour est très élevé (> 1.5x le quota/jour) = Confortable
+    
+    if (percentageRemaining >= 80 || ratio >= 1.5) {
+      return { status: "Confortable", color: "green" };
+    } else if (percentageRemaining >= 50 || ratio >= 1.0) {
+      return { status: "Normal", color: "orange" };
+    } else if (percentageRemaining >= 20) {
+      return { status: "Attention", color: "orange" };
+    } else {
+      return { status: "Critique", color: "red" };
+    }
+  };
+
+  const tier1Situation = getTierSituation(tier1RequestsLeft, 1);
+  const tier2Situation = getTierSituation(tier2RequestsLeft, 2);
+  const tier3Situation = getTierSituation(tier3RequestsLeft, 6);
+
+  // Calculer les statistiques supplémentaires
+  const getAdditionalStats = () => {
+    if (usageData.length === 0) return null;
+    
+    const startDate = new Date(usageData[0].startDate);
+    const now = new Date();
+    const daysElapsed = Math.max(1, (now.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
+    const dailyUsageRate = totalCallsMade / daysElapsed;
+    const projectedUsage = dailyUsageRate * 30; // Projection sur 30 jours
+    const daysUntilRenewal = timeUntilRenewal?.days || 0;
+    const hoursUntilRenewal = timeUntilRenewal?.hours || 0;
+    const daysRemaining = daysUntilRenewal + (hoursUntilRenewal / 24);
+    
+    // Calculer le dépassement prévu
+    let overage: { daysUntilOverage: number; quotaOverage: number } | null = null;
+    if (projectedUsage > totalCallsLeft && dailyUsageRate > 0) {
+      const daysUntilOverage = totalCallsLeft / dailyUsageRate;
+      const quotaOverage = projectedUsage - totalCallsLeft;
+      overage = {
+        daysUntilOverage: Math.round(daysUntilOverage * 10) / 10,
+        quotaOverage: Math.round(quotaOverage),
+      };
+    }
+    
+    return {
+      dailyUsageRate: Math.round(dailyUsageRate * 10) / 10,
+      projectedUsage: Math.round(projectedUsage),
+      daysRemaining: Math.round(daysRemaining * 10) / 10,
+      daysElapsed: Math.round(daysElapsed * 10) / 10,
+      overage,
+    };
+  };
+
+  const additionalStats = getAdditionalStats();
+
   // Formater la date
   const formatDate = (dateString: string) => {
     try {
@@ -391,6 +513,217 @@ export default function ApiUsageDashboard() {
                 })}
               </tbody>
             </table>
+            </div>
+          </div>
+        )}
+
+        {/* Tableau récapitulatif par tier */}
+        {usageData.length > 0 && (
+          <div className="mt-8 bg-white rounded-lg shadow overflow-hidden">
+            <div className="px-6 py-4 border-b border-gray-200">
+              <h2 className="text-xl font-bold text-gray-900">Récapitulatif par Tier</h2>
+              <p className="text-sm text-gray-600 mt-1">
+                Nombre de requêtes restantes selon le type d'endpoint
+              </p>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full divide-y divide-gray-200">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Tier
+                    </th>
+                    <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Coût par requête
+                    </th>
+                    <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Requêtes restantes
+                    </th>
+                    <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Temps restant
+                    </th>
+                    <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Situation
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  <tr className="hover:bg-gray-50">
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="flex items-center">
+                        <span className="px-2.5 py-1 bg-blue-100 text-blue-800 text-xs font-medium rounded-full">
+                          Tier 1
+                        </span>
+                        <span className="ml-3 text-sm text-gray-500">Endpoints simples</span>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-center text-sm text-gray-900">
+                      1 appel
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-center">
+                      <span className="text-lg font-bold text-green-600">
+                        {tier1RequestsLeft.toLocaleString()}
+                      </span>
+                      <span className="text-xs text-gray-500 ml-1">requêtes</span>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-center text-sm text-gray-600">
+                      {timeUntilRenewal?.text || "N/A"}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-center">
+                      <span className={`px-2.5 py-1 text-xs font-medium rounded-full ${
+                        tier1Situation.color === "green" ? "bg-green-100 text-green-800" :
+                        tier1Situation.color === "orange" ? "bg-orange-100 text-orange-800" :
+                        tier1Situation.color === "red" ? "bg-red-100 text-red-800" :
+                        "bg-gray-100 text-gray-800"
+                      }`}>
+                        {tier1Situation.status}
+                      </span>
+                    </td>
+                  </tr>
+                  <tr className="hover:bg-gray-50">
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="flex items-center">
+                        <span className="px-2.5 py-1 bg-orange-100 text-orange-800 text-xs font-medium rounded-full">
+                          Tier 2
+                        </span>
+                        <span className="ml-3 text-sm text-gray-500">Endpoints moyens</span>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-center text-sm text-gray-900">
+                      2 appels
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-center">
+                      <span className="text-lg font-bold text-orange-600">
+                        {tier2RequestsLeft.toLocaleString()}
+                      </span>
+                      <span className="text-xs text-gray-500 ml-1">requêtes</span>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-center text-sm text-gray-600">
+                      {timeUntilRenewal?.text || "N/A"}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-center">
+                      <span className={`px-2.5 py-1 text-xs font-medium rounded-full ${
+                        tier2Situation.color === "green" ? "bg-green-100 text-green-800" :
+                        tier2Situation.color === "orange" ? "bg-orange-100 text-orange-800" :
+                        tier2Situation.color === "red" ? "bg-red-100 text-red-800" :
+                        "bg-gray-100 text-gray-800"
+                      }`}>
+                        {tier2Situation.status}
+                      </span>
+                    </td>
+                  </tr>
+                  <tr className="hover:bg-gray-50">
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="flex items-center">
+                        <span className="px-2.5 py-1 bg-red-100 text-red-800 text-xs font-medium rounded-full">
+                          Tier 3
+                        </span>
+                        <span className="ml-3 text-sm text-gray-500">Endpoints complexes</span>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-center text-sm text-gray-900">
+                      6 appels
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-center">
+                      <span className="text-lg font-bold text-red-600">
+                        {tier3RequestsLeft.toLocaleString()}
+                      </span>
+                      <span className="text-xs text-gray-500 ml-1">requêtes</span>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-center text-sm text-gray-600">
+                      {timeUntilRenewal?.text || "N/A"}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-center">
+                      <span className={`px-2.5 py-1 text-xs font-medium rounded-full ${
+                        tier3Situation.color === "green" ? "bg-green-100 text-green-800" :
+                        tier3Situation.color === "orange" ? "bg-orange-100 text-orange-800" :
+                        tier3Situation.color === "red" ? "bg-red-100 text-red-800" :
+                        "bg-gray-100 text-gray-800"
+                      }`}>
+                        {tier3Situation.status}
+                      </span>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {/* Statistiques supplémentaires */}
+        {usageData.length > 0 && additionalStats && (
+          <div className="mt-8 bg-white rounded-lg shadow overflow-hidden">
+            <div className="px-6 py-4 border-b border-gray-200">
+              <h2 className="text-xl font-bold text-gray-900">Statistiques d'Utilisation</h2>
+              <p className="text-sm text-gray-600 mt-1">
+                Métriques détaillées sur la consommation et les projections
+              </p>
+            </div>
+            <div className="px-6 py-6">
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+                <div className="bg-blue-50 rounded-lg p-4 text-center">
+                  <h3 className="text-sm font-medium text-blue-600 mb-1">
+                    Taux d'utilisation quotidien
+                  </h3>
+                  <p className="text-2xl font-bold text-blue-900">
+                    {additionalStats.dailyUsageRate.toLocaleString()}
+                  </p>
+                  <p className="text-xs text-gray-500 mt-1">appels/jour</p>
+                </div>
+                <div className="bg-purple-50 rounded-lg p-4 text-center">
+                  <h3 className="text-sm font-medium text-purple-600 mb-1">
+                    Projection sur 30 jours
+                  </h3>
+                  <p className="text-2xl font-bold text-purple-900">
+                    {additionalStats.projectedUsage.toLocaleString()}
+                  </p>
+                  <p className="text-xs text-gray-500 mt-1">appels estimés</p>
+                </div>
+                <div className="bg-teal-50 rounded-lg p-4 text-center">
+                  <h3 className="text-sm font-medium text-teal-600 mb-1">
+                    Jours écoulés
+                  </h3>
+                  <p className="text-2xl font-bold text-teal-900">
+                    {additionalStats.daysElapsed.toLocaleString()}
+                  </p>
+                  <p className="text-xs text-gray-500 mt-1">depuis le début du cycle</p>
+                </div>
+                <div className="bg-indigo-50 rounded-lg p-4 text-center">
+                  <h3 className="text-sm font-medium text-indigo-600 mb-1">
+                    Jours restants
+                  </h3>
+                  <p className="text-2xl font-bold text-indigo-900">
+                    {additionalStats.daysRemaining.toLocaleString()}
+                  </p>
+                  <p className="text-xs text-gray-500 mt-1">jusqu'au renouvellement</p>
+                </div>
+              </div>
+              
+              {/* Alerte de dépassement */}
+              {additionalStats.overage && (
+                <div className="mt-6 bg-red-50 border border-red-200 rounded-lg p-4">
+                  <div className="flex items-start">
+                    <div className="flex-shrink-0">
+                      <svg className="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
+                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                      </svg>
+                    </div>
+                    <div className="ml-3 flex-1">
+                      <h3 className="text-sm font-medium text-red-800">
+                        Dépassement prévu
+                      </h3>
+                      <div className="mt-2 text-sm text-red-700">
+                        <p>
+                          La projection sur 30 jours ({additionalStats.projectedUsage.toLocaleString()} appels) dépasse les quotas restants ({totalCallsLeft.toLocaleString()} appels).
+                        </p>
+                        <p className="mt-1">
+                          <strong>Dépassement prévu dans {additionalStats.overage.daysUntilOverage.toLocaleString()} jours</strong> avec un dépassement estimé de <strong>{additionalStats.overage.quotaOverage.toLocaleString()} quotas</strong>.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         )}
