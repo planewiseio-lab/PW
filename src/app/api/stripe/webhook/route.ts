@@ -6,7 +6,7 @@ import { Plan, SubscriptionStatus } from "@prisma/client";
 import { randomUUID } from "crypto";
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  apiVersion: "2024-12-18.acacia",
+  apiVersion: "2024-12-18.acacia" as any, // Version plus récente que les types Stripe
 });
 
 const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET!;

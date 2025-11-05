@@ -266,10 +266,15 @@ export default function SearchHeader() {
                 {/* Sélecteur de date intégré (visible seulement pour les vols) */}
                 {mode === "flight" && (
                   <div className="flex items-center gap-2 border-l border-gray-200 pl-3 shrink-0">
+                    <label htmlFor="flight-date-picker" className="sr-only">
+                      Flight date
+                    </label>
                     <input
+                      id="flight-date-picker"
                       type="date"
                       value={searchDate}
                       onChange={(e) => setSearchDate(e.target.value)}
+                      aria-label="Flight date"
                       className="
                         bg-transparent border-0 outline-none
                         text-[16px] text-gray-700
@@ -337,10 +342,15 @@ export default function SearchHeader() {
                   <div className="w-px h-6 bg-gray-300 shrink-0"></div>
 
                   {/* Champ date */}
+                  <label htmlFor="flight-date-picker-mobile" className="sr-only">
+                    Flight date
+                  </label>
                   <input
+                    id="flight-date-picker-mobile"
                     type="date"
                     value={searchDate}
                     onChange={(e) => setSearchDate(e.target.value)}
+                    aria-label="Flight date"
                     className="
             bg-transparent border-0 outline-none
             text-[16px] text-gray-700

@@ -74,58 +74,86 @@ export function CreditsSection() {
         let isFreeUser = false;
         let quotas: CreditsData["quotas"] = undefined;
         let renewsAt: CreditsData["renewsAt"] = undefined;
-        try {
-          const tt = withTimeout(3000);
-          const balanceResponse = await fetch("/api/credits/balance", {
-            credentials: "include",
-            cache: "no-store",
-            signal: tt.signal,
-          });
-          tt.clear();
-          if (balanceResponse.ok) {
-            const data = await balanceResponse.json();
-            balance = data.credits || 0;
-            isFreeUser = data.isFreeUser || false;
-            quotas = data.quotas;
-            renewsAt = data.renewsAt;
-          } else {
-            console.warn("Failed to fetch balance:", balanceResponse.status);
-          }
-        } catch (err) {
-          console.warn("Error fetching balance:", err);
+        
+        // Paralléliser les 3 requêtes indépendantes avec Promise.all
+        const [balanceResult, historyResult, subscriptionResult] = await Promise.allSettled([
+          // Balance request
+          (async () => {
+            try {
+              const tt = withTimeout(3000);
+              const response = await fetch("/api/credits/balance", {
+                credentials: "include",
+                cache: "no-store",
+                signal: tt.signal,
+              });
+              tt.clear();
+              if (response.ok) {
+                return await response.json();
+              }
+              console.warn("Failed to fetch balance:", response.status);
+              return null;
+            } catch (err) {
+              console.warn("Error fetching balance:", err);
+              return null;
+            }
+          })(),
+          // History request
+          (async () => {
+            try {
+              const tt = withTimeout(3000);
+              const response = await fetch("/api/credits/history?limit=10", {
+                credentials: "include",
+                cache: "no-store",
+                signal: tt.signal,
+              });
+              tt.clear();
+              if (response.ok) {
+                return await response.json();
+              }
+              console.warn("Failed to fetch history:", response.status);
+              return { items: [], nextCursor: null };
+            } catch (err) {
+              console.warn("Error fetching history:", err);
+              return { items: [], nextCursor: null };
+            }
+          })(),
+          // Subscription request
+          (async () => {
+            try {
+              const tt = withTimeout(3000);
+              const response = await fetch("/api/user/subscription", {
+                credentials: "include",
+                cache: "no-store",
+                signal: tt.signal,
+              });
+              tt.clear();
+              if (response.ok) {
+                return await response.json();
+              }
+              return null;
+            } catch (err) {
+              console.warn("Error fetching subscription:", err);
+              return null;
+            }
+          })(),
+        ]);
+
+        // Traiter les résultats
+        if (balanceResult.status === "fulfilled" && balanceResult.value) {
+          const data = balanceResult.value;
+          balance = data.credits || 0;
+          isFreeUser = data.isFreeUser || false;
+          quotas = data.quotas;
+          renewsAt = data.renewsAt;
         }
 
-        // Fetch history
-        let history = { items: [], nextCursor: null };
-        try {
-          const tt = withTimeout(3000);
-          const historyResponse = await fetch("/api/credits/history?limit=10", {
-            credentials: "include",
-            cache: "no-store",
-            signal: tt.signal,
-          });
-          tt.clear();
-          if (historyResponse.ok) {
-            history = await historyResponse.json();
-          } else {
-            console.warn("Failed to fetch history:", historyResponse.status);
-          }
-        } catch (err) {
-          console.warn("Error fetching history:", err);
-        }
+        const history = historyResult.status === "fulfilled" && historyResult.value
+          ? historyResult.value
+          : { items: [], nextCursor: null };
 
-      // Fetch subscription info
-      let subscription = null;
-      try {
-        const tt = withTimeout(3000);
-        const subscriptionResponse = await fetch("/api/user/subscription", {
-          credentials: "include",
-          cache: "no-store",
-          signal: tt.signal,
-        });
-        tt.clear();
-        if (subscriptionResponse.ok) {
-          const data = await subscriptionResponse.json();
+        let subscription = null;
+        if (subscriptionResult.status === "fulfilled" && subscriptionResult.value) {
+          const data = subscriptionResult.value;
           if (data.subscription) {
             subscription = {
               plan: data.subscription.plan,
@@ -133,12 +161,9 @@ export function CreditsSection() {
               renewsAt: new Date(data.subscription.renewsAt),
             };
           }
-        } else {
-          console.warn("Failed to fetch subscription:", subscriptionResponse.status);
+        } else if (subscriptionResult.status === "rejected") {
+          console.warn("Error fetching subscription:", subscriptionResult.reason);
         }
-      } catch (err) {
-        console.warn("Error fetching subscription:", err);
-      }
 
         setCreditsData({
           balance,

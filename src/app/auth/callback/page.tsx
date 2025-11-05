@@ -1,11 +1,11 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { motion } from "framer-motion";
 import { createClient } from "@/lib/supabase/client";
 
-export default function AuthCallbackPage() {
+function AuthCallbackContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [countdown, setCountdown] = useState(5);
@@ -188,6 +188,18 @@ export default function AuthCallbackPage() {
         </div>
       </motion.div>
     </div>
+  );
+}
+
+export default function AuthCallbackPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center bg-white">
+        <div className="animate-pulse text-gray-400">Loading...</div>
+      </div>
+    }>
+      <AuthCallbackContent />
+    </Suspense>
   );
 }
 

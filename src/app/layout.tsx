@@ -2,31 +2,70 @@ import "./globals.css";
 import type { Metadata } from "next";
 import Head from "next/head";
 import AOSInit from "@/components/AOSInit";
-import SearchHeader from "@/components/SearchHeader";
 import AuthButton from "@/components/AuthButton";
+import dynamic from "next/dynamic";
+
+// Lazy load SearchHeader pour réduire le bundle initial
+// Ce composant utilise framer-motion qui est lourd (~75KB)
+const SearchHeader = dynamic(() => import("@/components/SearchHeader"), {
+  ssr: true, // SSR pour le SEO
+});
+
+// ClientTransition est déjà un composant client ("use client")
+// Import direct car Next.js 15 gère automatiquement le rendu côté client
+// et évite les problèmes HMR avec dynamic()
 import ClientTransition from "@/components/ClientTransition";
-import Footer from "@/components/layout/Footer";
-import ScrollToTop from "@/components/layout/ScrollToTop";
+
+// Lazy load Footer et ScrollToTop (non-critiques pour le rendu initial)
+const Footer = dynamic(() => import("@/components/layout/Footer"), {
+  ssr: true, // SSR pour le footer (important pour le SEO)
+});
+
+// ScrollToTop - lazy loaded (SSR par défaut dans Server Components)
+const ScrollToTop = dynamic(() => import("@/components/layout/ScrollToTop"), {
+  ssr: true, // SSR activé car on est dans un Server Component
+});
+
+// Lazy load modals et handlers d'erreur (non-critiques pour le rendu initial)
+// Note: ssr: false n'est pas autorisé dans Server Components (Next.js 15)
+// Ces composants sont "use client" donc ils gèrent le rendu côté client automatiquement
+const ClientGlobalLogoutModal = dynamic(() => import("@/components/ClientGlobalLogoutModal"));
+
+const AuthErrorHandler = dynamic(() => import("@/components/AuthErrorHandler"));
+
+const UserDeletedHandler = dynamic(() => import("@/components/UserDeletedHandler"));
+
+const SupabaseErrorHandler = dynamic(() => import("@/components/SupabaseErrorHandler"));
+
+const GlobalInsufficientCreditsHandler = dynamic(
+  () => import("@/components/GlobalInsufficientCreditsHandler").then((mod) => ({ default: mod.GlobalInsufficientCreditsHandler }))
+);
+
+const GuestQuotaExceededModal = dynamic(
+  () => import("@/components/errors/GuestQuotaExceededModal").then((mod) => ({ default: mod.GuestQuotaExceededModal }))
+);
+
+const FreeCreditsExceededModal = dynamic(
+  () => import("@/components/errors/FreeCreditsExceededModal").then((mod) => ({ default: mod.FreeCreditsExceededModal }))
+);
+
+const CookieConsent = dynamic(() => import("@/components/CookieConsent"));
+
+const GoogleAnalytics = dynamic(() => import("@/components/GoogleAnalytics"));
+
 import ErrorBoundary from "@/components/ErrorBoundary";
 import PWASetup from "@/components/PWASetup";
 import StructuredData from "@/components/StructuredData";
-import ClientGlobalLogoutModal from "@/components/ClientGlobalLogoutModal";
-import AuthErrorHandler from "@/components/AuthErrorHandler";
-import UserDeletedHandler from "@/components/UserDeletedHandler";
-import SupabaseErrorHandler from "@/components/SupabaseErrorHandler";
-import { GlobalInsufficientCreditsHandler } from "@/components/GlobalInsufficientCreditsHandler";
-import { GuestQuotaExceededModal } from "@/components/errors/GuestQuotaExceededModal";
-import { FreeCreditsExceededModal } from "@/components/errors/FreeCreditsExceededModal";
 import { AdSection } from "@/components/ads/AdWrapper";
 import { UserStatusProvider } from "@/contexts/UserStatusContext";
 import { Comfortaa } from "next/font/google";
 import Script from "next/script";
-import CookieConsent from "@/components/CookieConsent";
-import GoogleAnalytics from "@/components/GoogleAnalytics";
 
 export const comfortaa = Comfortaa({
   subsets: ["latin"],
   weight: ["400", "600", "700"], // choisis ce dont tu as besoin
+  display: "swap", // Optimisation: afficher le texte immédiatement avec une police de fallback
+  preload: true, // Précharger la police
 });
 export const metadata: Metadata = {
   metadataBase: new URL("https://plane-wise.com"),
@@ -109,10 +148,20 @@ export default function RootLayout({
   return (
     <html lang="en">
       <Head>
-        <link rel="preconnect" href="https://prod.api.market" />
-        <link rel="preconnect" href="https://commons.wikimedia.org" />
+        {/* Preconnect pour les domaines critiques (API et images) - Amélioration LCP */}
+        <link rel="preconnect" href="https://prod.api.market" crossOrigin="anonymous" />
+        <link rel="preconnect" href="https://api.market" crossOrigin="anonymous" />
+        <link rel="preconnect" href="https://commons.wikimedia.org" crossOrigin="anonymous" />
+        <link rel="preconnect" href="https://upload.wikimedia.org" crossOrigin="anonymous" />
+        <link rel="preconnect" href="https://staticflickr.com" crossOrigin="anonymous" />
+        {/* DNS prefetch pour les autres domaines */}
         <link rel="dns-prefetch" href="https://prod.api.market" />
+        <link rel="dns-prefetch" href="https://api.market" />
         <link rel="dns-prefetch" href="https://commons.wikimedia.org" />
+        <link rel="dns-prefetch" href="https://upload.wikimedia.org" />
+        <link rel="dns-prefetch" href="https://staticflickr.com" />
+        <link rel="dns-prefetch" href="https://farm5.staticflickr.com" />
+        <link rel="dns-prefetch" href="https://farm66.staticflickr.com" />
         <link rel="dns-prefetch" href="https://www.googletagmanager.com" />
       </Head>
       <body

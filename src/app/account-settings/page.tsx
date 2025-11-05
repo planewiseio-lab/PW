@@ -1,12 +1,12 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, Suspense } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { motion } from "framer-motion";
 import PasswordRequirements from "@/components/PasswordRequirements";
 
-export default function AccountSettingsPage() {
+function AccountSettingsContent() {
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("profile");
@@ -41,22 +41,29 @@ export default function AccountSettingsPage() {
     fetchingRef.current = true;
     
     try {
-      const subResponse = await fetch("/api/user/subscription", {
-        credentials: "include",
-        cache: "no-store",
-      });
-      if (subResponse.ok) {
-        const subData = await subResponse.json();
+      // Paralléliser les 2 requêtes indépendantes avec Promise.all
+      const [subResponse, billingResponse] = await Promise.all([
+        fetch("/api/user/subscription", {
+          credentials: "include",
+          cache: "no-store",
+        }),
+        fetch("/api/user/billing-history", {
+          credentials: "include",
+          cache: "no-store",
+        }),
+      ]);
+
+      // Traiter les réponses en parallèle
+      const [subData, billingData] = await Promise.all([
+        subResponse.ok ? subResponse.json() : Promise.resolve(null),
+        billingResponse.ok ? billingResponse.json() : Promise.resolve(null),
+      ]);
+
+      if (subData?.subscription) {
         setSubscription(subData.subscription);
       }
       
-      // Récupérer l'historique de facturation
-      const billingResponse = await fetch("/api/user/billing-history", {
-        credentials: "include",
-        cache: "no-store",
-      });
-      if (billingResponse.ok) {
-        const billingData = await billingResponse.json();
+      if (billingData?.invoices) {
         setBillingHistory(billingData.invoices || []);
         setDisplayedInvoices(3); // Réinitialiser à 3 factures affichées
       }
@@ -1494,5 +1501,20 @@ export default function AccountSettingsPage() {
         </div>
       </motion.div>
     </main>
+  );
+}
+
+export default function AccountSettingsPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-white flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600 text-lg">Loading...</p>
+        </div>
+      </div>
+    }>
+      <AccountSettingsContent />
+    </Suspense>
   );
 }

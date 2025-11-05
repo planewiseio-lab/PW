@@ -21,6 +21,18 @@ export function withActionAccess<T = any>(
     request: NextRequest,
     ...args: any[]
   ): Promise<NextResponse<T> | Response> => {
+    // Helper to convert Response to NextResponse
+    const toNextResponse = (response: NextResponse<T> | Response): NextResponse<T> => {
+      if (response instanceof NextResponse) {
+        return response;
+      }
+      // Convert Response to NextResponse
+      return new NextResponse(response.body, {
+        status: response.status,
+        statusText: response.statusText,
+        headers: response.headers,
+      }) as NextResponse<T>;
+    };
     try {
       // 1. Vérifier l'authentification Supabase
       const supabase = await createClient();
@@ -62,7 +74,8 @@ export function withActionAccess<T = any>(
           const creditHandler = withCreditChargeABD(
             actionType,
             async (req, ...args) => {
-              return await handler(req, ...args);
+              const result = await handler(req, ...args);
+              return toNextResponse(result);
             }
           );
           return await creditHandler(request, ...args);
@@ -75,7 +88,8 @@ export function withActionAccess<T = any>(
           const creditHandler = withCreditChargeABD(
             actionType,
             async (req, ...args) => {
-              return await handler(req, ...args);
+              const result = await handler(req, ...args);
+              return toNextResponse(result);
             }
           );
           return await creditHandler(request, ...args);
@@ -106,7 +120,10 @@ export function withActionAccess<T = any>(
       console.log(`[Action Access] 🎭 Guest user, using guest quota`);
 
       // Wrapper avec le quota invité
-      const guestHandler = withGuestQuota(handler);
+      const guestHandler = withGuestQuota(async (req, ...args) => {
+        const result = await handler(req, ...args);
+        return toNextResponse(result);
+      });
       return await guestHandler(request, ...args);
     } catch (error) {
       console.error(

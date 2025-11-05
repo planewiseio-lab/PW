@@ -86,6 +86,14 @@ class MemoryRedisLike implements RedisLike {
 
 let client: RedisLike | null = null;
 
+// Helper function to assert non-null RedisLike
+function assertRedisLike(c: RedisLike | null): RedisLike {
+	if (!c) {
+		throw new Error("RedisLike client is null");
+	}
+	return c;
+}
+
 export function getRedisLike(): RedisLike {
 	if (client) return client;
 	
@@ -97,7 +105,8 @@ export function getRedisLike(): RedisLike {
 		// Use Supabase PostgreSQL cache
 		try {
 			const { getRedisLike: getSupabaseRedisLike } = require("./supabaseRedisClient");
-			client = getSupabaseRedisLike();
+			const supabaseClient = getSupabaseRedisLike();
+			client = assertRedisLike(supabaseClient);
 			console.log("[Redis] Using Supabase PostgreSQL cache");
 			return client;
 		} catch (error) {
@@ -169,7 +178,8 @@ export function getRedisLike(): RedisLike {
 	// Try Supabase cache as fallback
 	try {
 		const { getRedisLike: getSupabaseRedisLike } = require("./supabaseRedisClient");
-		client = getSupabaseRedisLike();
+		const supabaseClient = getSupabaseRedisLike();
+		client = assertRedisLike(supabaseClient);
 		console.log("[Redis] Using Supabase PostgreSQL cache (fallback)");
 		return client;
 	} catch (error) {

@@ -77,8 +77,9 @@ export function GuestQuotaExceededModal() {
   }, []);
 
   useEffect(() => {
-    const handleGuestQuotaExceeded = async (event: CustomEvent) => {
-      console.log("[GuestQuotaExceededModal] Event received:", event.detail);
+    const handleGuestQuotaExceeded = async (event: Event) => {
+      const customEvent = event as CustomEvent;
+      console.log("[GuestQuotaExceededModal] Event received:", customEvent.detail);
       
       // Vérifier si l'utilisateur est authentifié avant d'afficher le modal
       try {
@@ -94,21 +95,21 @@ export function GuestQuotaExceededModal() {
         // En cas d'erreur, continuer (mieux vaut afficher le modal que rien)
       }
 
-      const receivedLimit = event.detail?.guestLimit;
+      const receivedLimit = customEvent.detail?.guestLimit;
       // Si limit reçu, l'utiliser, sinon default à 3 pour les requêtes générales
       // Si c'est 4, corriger à 3 (probablement une erreur de backend)
       const correctedLimit =
         receivedLimit && receivedLimit !== 4 ? receivedLimit : 3;
-      setGuestRemaining(event.detail?.guestRemaining ?? 0);
+      setGuestRemaining(customEvent.detail?.guestRemaining ?? 0);
       setGuestLimit(correctedLimit);
-      const ttl = event.detail?.guestTtl ?? event.detail?.ttl ?? 0;
+      const ttl = customEvent.detail?.guestTtl ?? customEvent.detail?.ttl ?? 0;
       console.log(
         "[GuestQuotaExceededModal] TTL:",
         ttl,
         "Limit:",
         correctedLimit,
         "Full event detail:",
-        event.detail
+        customEvent.detail
       );
       setGuestTtl(ttl);
       // Initialiser timeRemaining avec ttl immédiatement

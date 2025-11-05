@@ -69,7 +69,9 @@ export function useAircraftHistory(registration: string | undefined, days: numbe
 			}, REQUEST_TIMEOUT_MS);
 			try {
 				const resp = await fetch(url, {
-					cache: "no-store",
+					// Utiliser cache: "default" pour permettre le bfcache
+					// Le cache mémoire (memoryCache) gère déjà la fraîcheur des données
+					cache: "default",
 					signal: controller.signal,
 				});
 				clearTimeout(timeoutId);
@@ -84,7 +86,7 @@ export function useAircraftHistory(registration: string | undefined, days: numbe
 						}
 
 						// Gérer les erreurs de quota invité (429)
-						if (response.status === 429 && errorData?.code === "GUEST_QUOTA_EXCEEDED") {
+						if (resp.status === 429 && errorData?.code === "GUEST_QUOTA_EXCEEDED") {
 							// Déclencher l'événement pour afficher le modal Guest
 							const { triggerGuestQuotaExceeded } = await import("./useGuestQuotaExceeded");
 							triggerGuestQuotaExceeded({

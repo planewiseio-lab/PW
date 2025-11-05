@@ -4,7 +4,7 @@ import { prisma } from "@/lib/prisma";
 import Stripe from "stripe";
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  apiVersion: "2024-12-18.acacia",
+  apiVersion: "2024-12-18.acacia" as any, // Version plus récente que les types Stripe
 });
 
 export async function GET(request: NextRequest) {

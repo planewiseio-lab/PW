@@ -96,8 +96,10 @@ export default function AuthButton() {
         <div className="relative">
           <button
             onClick={() => setShowMenu(!showMenu)}
-            className="group relative flex items-center justify-center w-10 h-10 rounded-full bg-[#178cf2] text-white shadow hover:brightness-110 transition-all duration-200 hover:scale-105"
-            title="Menu"
+            className="group relative flex items-center justify-center min-w-[44px] min-h-[44px] w-10 h-10 rounded-full bg-[#178cf2] text-white shadow hover:brightness-110 transition-all duration-200 hover:scale-105"
+            aria-label="User menu"
+            aria-expanded={showMenu}
+            aria-haspopup="true"
           >
             <svg
               className="w-5 h-5 transition-transform group-hover:scale-110"

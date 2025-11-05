@@ -51,12 +51,12 @@ export async function GET(request: NextRequest) {
       api_requests: {
         count: apiRequests?.length || 0,
         sample: apiRequests?.slice(0, 3) || [],
-        error: apiError?.message,
+        error: apiError ? (apiError as any).message : undefined,
       },
       profiles: {
         count: profiles?.length || 0,
         sample: profiles?.slice(0, 3) || [],
-        error: profilesError?.message,
+        error: profilesError ? (profilesError as any).message : undefined,
       },
     });
   } catch (error: any) {

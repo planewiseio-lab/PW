@@ -87,11 +87,11 @@ export async function GET(request: NextRequest) {
     `;
 
     // Exécuter le SQL
-    const { data, error } = await supabaseAdmin.rpc("exec", { sql });
+    const { data, error: rpcError } = await supabaseAdmin.rpc("exec", { sql });
 
-    if (error) {
-      console.error("Error creating tables:", error);
-      return NextResponse.json({ error: error.message }, { status: 500 });
+    if (rpcError) {
+      console.error("Error creating tables:", rpcError);
+      return NextResponse.json({ error: rpcError.message }, { status: 500 });
     }
 
     return NextResponse.json({

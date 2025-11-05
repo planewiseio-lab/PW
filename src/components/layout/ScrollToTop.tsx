@@ -35,7 +35,7 @@ export default function ScrollToTop() {
   return (
     <button
       onClick={scrollToTop}
-      className="fixed bottom-6 right-6 z-50 p-3 rounded-full shadow-lg transition-all duration-300 hover:scale-110"
+      className="fixed bottom-6 right-6 z-50 min-w-[44px] min-h-[44px] p-3 rounded-full shadow-lg transition-all duration-300 hover:scale-110 flex items-center justify-center"
       style={{ backgroundColor: "#178cf2" }}
       onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "#0f7ae5")}
       onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "#178cf2")}
@@ -46,6 +46,7 @@ export default function ScrollToTop() {
         fill="none"
         stroke="currentColor"
         viewBox="0 0 24 24"
+        aria-hidden="true"
       >
         <path
           strokeLinecap="round"

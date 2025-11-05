@@ -4,24 +4,30 @@ import {
   logStatusCorrection,
 } from "@/lib/flightStatusRules";
 import { withFlightBrowseAccess } from "@/lib/withActionAccess";
+import { getCache as getSupabaseCache, setCache as setSupabaseCache } from "@/lib/supabaseCache";
 
 const AERODATABOX_API_KEY =
   process.env.API_MARKET_KEY || process.env.AERODATABOX_API_KEY;
 const AERODATABOX_BASE_URL = process.env.API_MARKET_BASE_URL || "https://prod.api.market/api/v1/aedbx/aerodatabox";
 
-// Cache optimisé avec TTL et nettoyage automatique
-const cache = new Map<string, { data: any; timestamp: number; ttl: number }>();
+// Cache Supabase persistant (partagé entre toutes les instances serverless)
+// Utilise PostgreSQL au lieu d'un Map en mémoire pour fonctionner en serverless
 const pendingRequests = new Map<string, Promise<any>>();
 
-// Nettoyer le cache toutes les 10 minutes
-setInterval(() => {
-  const now = Date.now();
-  for (const [key, value] of cache.entries()) {
-    if (now - value.timestamp > value.ttl) {
-      cache.delete(key);
-    }
+// Fonction de cache Supabase (asynchrone)
+async function getCache(key: string): Promise<string | null> {
+  const cached = await getSupabaseCache(key);
+  if (cached) {
+    console.log(`[FlightAPI] Cache HIT from Supabase for ${key}`);
+    return cached;
   }
-}, 10 * 60 * 1000);
+  return null;
+}
+
+async function setCache(key: string, data: string, ttlSeconds: number): Promise<void> {
+  await setSupabaseCache(key, data, ttlSeconds);
+  console.log(`[FlightAPI] Cache SET in Supabase for ${key} (TTL: ${ttlSeconds}s)`);
+}
 
 // Fonction de calcul de distance Haversine
 function haversineKm(
@@ -79,24 +85,6 @@ function getTimezoneOffset(timezone: string): number {
   };
 
   return timezoneOffsets[timezone] || 0; // Default to UTC si timezone inconnu
-}
-
-// Fonction de cache
-function getCache(key: string): string | null {
-  const cached = cache.get(key);
-  if (cached && Date.now() - cached.timestamp < cached.ttl) {
-    return cached.data;
-  }
-  cache.delete(key);
-  return null;
-}
-
-function setCache(key: string, data: string, ttl: number): void {
-  cache.set(key, {
-    data,
-    timestamp: Date.now(),
-    ttl,
-  });
 }
 
 // Fonction pour appeler AeroDataBox avec timeout et déduplication
@@ -281,13 +269,13 @@ export const GET = withFlightBrowseAccess(
       const isHistoricalDate = dateLocal && new Date(dateLocal) < new Date();
       const cacheKey = `flight:${numberRaw}:${dateLocal || "today"}`;
 
-      // Vérifier le cache pour toutes les dates (avec TTL différent)
-      const cached = getCache(cacheKey);
+      // Vérifier le cache Supabase persistant (partagé entre toutes les instances serverless)
+      const cached = await getCache(cacheKey);
       if (cached) {
         console.log(`[FlightAPI] Cache HIT for ${cacheKey}`);
         const response = NextResponse.json(JSON.parse(cached));
         response.headers.set("X-Cache", "HIT");
-        response.headers.set("Cache-Control", "public, max-age=300"); // 5 minutes
+        response.headers.set("Cache-Control", "public, max-age=300, s-maxage=300"); // 5 minutes
         return response;
       }
 
@@ -561,14 +549,14 @@ export const GET = withFlightBrowseAccess(
 
       const textOut = JSON.stringify(payload);
 
-      // Cache optimisé avec TTL adaptatif
-      const ttl = isHistoricalDate ? 10 * 60 * 1000 : 2 * 60 * 1000; // 10min pour historique, 2min pour futur
-      setCache(cacheKey, textOut, ttl);
+      // Cache optimisé avec TTL adaptatif (en secondes pour Supabase cache)
+      const ttlSeconds = isHistoricalDate ? 10 * 60 : 2 * 60; // 10min pour historique, 2min pour futur (en secondes)
+      await setCache(cacheKey, textOut, ttlSeconds);
 
       const response = NextResponse.json(payload);
       response.headers.set(
         "Cache-Control",
-        `public, max-age=${Math.floor(ttl / 1000)}`
+        `public, max-age=${ttlSeconds}, s-maxage=${ttlSeconds}` // Ajouter s-maxage pour permettre le bfcache
       );
       response.headers.set("X-Cache", "MISS");
 

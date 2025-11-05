@@ -72,7 +72,7 @@ export async function middleware(request: NextRequest) {
         error.message?.includes("ETIMEDOUT");
       
       if (!isNetworkError) {
-        console.log(`[Middleware] 🔍 Error:`, error.message);
+      console.log(`[Middleware] 🔍 Error:`, error.message);
       }
     }
 
@@ -103,7 +103,7 @@ export async function middleware(request: NextRequest) {
       err?.cause?.code === "ECONNRESET";
     
     if (!isNetworkError) {
-      console.error("Error in middleware auth check:", err);
+    console.error("Error in middleware auth check:", err);
     }
   }
 

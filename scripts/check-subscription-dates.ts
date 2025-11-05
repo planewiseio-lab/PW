@@ -14,7 +14,7 @@ async function checkSubscriptionDates() {
   console.log("🔍 Checking subscription dates...");
 
   try {
-    const subscriptions = await prisma.subscription.findMany({
+    const subscriptions = await prisma.subscriptions.findMany({
       where: {
         plan: "FREE",
       },

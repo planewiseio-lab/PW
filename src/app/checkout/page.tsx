@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { createClient } from "@/lib/supabase/client";
@@ -39,7 +39,7 @@ const PLAN_DETAILS: Record<
   },
 };
 
-export default function CheckoutPage() {
+function CheckoutContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const planParam = searchParams.get("plan");
@@ -455,5 +455,20 @@ export default function CheckoutPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function CheckoutPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-white flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600 text-lg">Loading...</p>
+        </div>
+      </div>
+    }>
+      <CheckoutContent />
+    </Suspense>
   );
 }

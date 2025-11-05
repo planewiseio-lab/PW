@@ -6,14 +6,13 @@ import { Plan } from "@prisma/client";
 import { randomUUID } from "crypto";
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  apiVersion: "2024-12-18.acacia",
+  apiVersion: "2024-12-18.acacia" as any, // Version plus récente que les types Stripe
 });
 
 // Mapping des plans aux Price IDs Stripe
 const STRIPE_PRICE_IDS: Record<string, string> = {
   BASIC: process.env.STRIPE_PRICE_ID_BASIC || "price_basic_monthly",
   PRO: process.env.STRIPE_PRICE_ID_PRO || "price_pro_monthly",
-  BASIC: process.env.STRIPE_PRICE_ID_BASIC || "price_basic_monthly",
 };
 
 export async function POST(request: NextRequest) {

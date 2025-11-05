@@ -252,6 +252,7 @@ export const GET = withFlightHistoryAccess(
         headers: {
           "X-Cache": "MISS",
           "Cache-Control": "public, max-age=3600",
+          // Compression gérée automatiquement par Next.js via compress: true
         },
       });
     } catch (error) {

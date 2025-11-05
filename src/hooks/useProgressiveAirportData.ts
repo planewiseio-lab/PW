@@ -43,17 +43,19 @@ export function useProgressiveAirportData(code: string, dir: Direction) {
 
   const loadFlights = useCallback(
     async (offset = 0, limit = 20) => {
-      // Vérifier le cache d'abord
-      const cached = cache.get(cacheKey);
-      if (
-        cached &&
-        Date.now() - cached.timestamp < CACHE_DURATION &&
-        offset === 0
-      ) {
-        setFlights(cached.data.slice(0, limit));
-        setPagination(cached.pagination);
-        setLoaded(true);
-        return;
+      // Vérifier le cache d'abord seulement si on n'est pas en train de charger plus
+      if (offset === 0) {
+        const cached = cache.get(cacheKey);
+        if (
+          cached &&
+          Date.now() - cached.timestamp < CACHE_DURATION
+        ) {
+          setFlights(cached.data.slice(0, limit));
+          setPagination(cached.pagination);
+          setLoaded(true);
+          setLoading(false);
+          return;
+        }
       }
 
       const isLoadingMore = offset > 0;
@@ -158,8 +160,19 @@ export function useProgressiveAirportData(code: string, dir: Direction) {
 
   useEffect(() => {
     if (!code) return;
-    loadFlights(0, 20); // Charger les 20 premiers vols
-  }, [code, dir, loadFlights]);
+    // Réinitialiser les données quand on change de direction ou de code
+    setFlights([]);
+    setPagination(null);
+    setLoaded(false);
+    setError(null);
+    setLoading(true);
+    // Charger les nouveaux vols pour la nouvelle direction
+    // Utiliser setTimeout pour s'assurer que le state est bien réinitialisé
+    const timer = setTimeout(() => {
+      loadFlights(0, 20); // Charger les 20 premiers vols
+    }, 0);
+    return () => clearTimeout(timer);
+  }, [code, dir]); // Ne pas inclure loadFlights dans les dépendances pour éviter les re-renders
 
   return {
     flights,

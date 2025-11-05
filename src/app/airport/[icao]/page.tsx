@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, Suspense } from "react";
 import { useParams, useSearchParams, useRouter } from "next/navigation";
 import { useProgressiveAirportData } from "@/hooks/useProgressiveAirportData";
 import EnhancedFlightSkeleton from "@/components/EnhancedFlightSkeleton";
 import PullToRefresh from "@/components/PullToRefresh";
+import StructuredData from "@/components/StructuredData";
 
 type Direction = "departures" | "arrivals";
 
@@ -20,7 +21,7 @@ type FlightRow = {
   gate?: string;
 };
 
-export default function AirportBoardPage() {
+function AirportBoardContent() {
   const { icao } = useParams<{ icao: string }>();
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -205,8 +206,22 @@ export default function AirportBoardPage() {
     }
   }
 
+  // Données d'aéroport pour Structured Data
+  const airportData = useMemo(() => {
+    // Utiliser le code ICAO pour créer les données de base
+    // Les données complètes seront ajoutées via l'API si nécessaire
+    return {
+      icao: code,
+      iata: code.length === 4 ? code.substring(1) : code, // Approximation
+      name: `${code} Airport`,
+    };
+  }, [code]);
+
   return (
     <main className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8 py-6">
+      {/* Structured Data pour l'aéroport */}
+      {!loading && <StructuredData type="airport" data={airportData} />}
+      
       {/* Mobile: Flight Board Container */}
       <div className="block sm:hidden">
         <PullToRefresh onRefresh={refetch}>
@@ -1065,5 +1080,20 @@ export default function AirportBoardPage() {
         </div>
       </div>
     </main>
+  );
+}
+
+export default function AirportBoardPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-white flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600 text-lg">Loading...</p>
+        </div>
+      </div>
+    }>
+      <AirportBoardContent />
+    </Suspense>
   );
 }

@@ -404,7 +404,7 @@ export async function ensureMonthlyTopUp(userId: string): Promise<void> {
   if (subscription.plan !== Plan.FREE && subscription.stripeSubId) {
     try {
       const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-        apiVersion: "2024-12-18.acacia",
+        apiVersion: "2024-12-18.acacia" as any, // Version plus récente que les types Stripe
       });
 
       const stripeSubscription = await stripe.subscriptions.retrieve(

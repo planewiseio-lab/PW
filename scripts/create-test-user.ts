@@ -17,7 +17,7 @@ async function createTestUser(userId: string) {
 
   try {
     // Vérifier si l'utilisateur existe déjà
-    const existingSubscription = await prisma.subscription.findUnique({
+    const existingSubscription = await prisma.subscriptions.findUnique({
       where: { userId },
     });
 
@@ -29,7 +29,7 @@ async function createTestUser(userId: string) {
     }
 
     // Créer une subscription FREE
-    const subscription = await prisma.subscription.create({
+    const subscription = await prisma.subscriptions.create({
       data: {
         userId,
         plan: Plan.FREE,
@@ -39,7 +39,7 @@ async function createTestUser(userId: string) {
     });
 
     // Créer un solde de crédits initial (5 pour FREE)
-    const creditBalance = await prisma.creditBalance.create({
+    const creditBalance = await prisma.credit_balances.create({
       data: {
         userId,
         credits: 5,
@@ -47,7 +47,7 @@ async function createTestUser(userId: string) {
     });
 
     // Ajouter une entrée dans le ledger
-    await prisma.creditLedger.create({
+    await prisma.credit_ledger.create({
       data: {
         userId,
         delta: 5,

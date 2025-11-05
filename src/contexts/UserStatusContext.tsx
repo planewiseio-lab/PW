@@ -36,6 +36,56 @@ export function UserStatusProvider({ children }: { children: ReactNode }) {
     supabaseUrl !== "https://your-project.supabase.co" &&
     supabaseAnonKey !== "your-anon-key-here";
 
+  // Fonction helper pour créer une subscription Supabase
+  const createAuthSubscription = (supabaseClient: ReturnType<typeof createClient>) => {
+    return supabaseClient.auth.onAuthStateChange(async (event, session) => {
+      if (event === "SIGNED_OUT" || !session) {
+        setUser(null);
+        setStatus("guest");
+      } else {
+        setUser(session.user);
+
+        if (session.user) {
+          // Éviter les appels multiples simultanés
+          if (fetchingRef.current) return;
+          fetchingRef.current = true;
+
+          try {
+            const subscriptionResponse = await fetch("/api/user/subscription", {
+              credentials: "include",
+              cache: "no-store",
+            });
+
+            if (subscriptionResponse.ok) {
+              const data = await subscriptionResponse.json();
+              if (data.subscription) {
+                const plan = data.subscription.plan;
+                const renewsAt = data.subscription.renewsAt
+                  ? new Date(data.subscription.renewsAt)
+                  : null;
+                const now = new Date();
+
+                if (plan === "PRO" || plan === "BASIC") {
+                  setStatus(renewsAt && renewsAt > now ? "pro" : "subscribed");
+                } else {
+                  setStatus("subscribed");
+                }
+              } else {
+                setStatus("guest");
+              }
+            } else {
+              setStatus("guest");
+            }
+          } catch (err) {
+            setStatus("guest");
+          } finally {
+            fetchingRef.current = false;
+          }
+        }
+      }
+    });
+  };
+
   useEffect(() => {
     if (!isSupabaseConfigured) {
       setStatus("guest");
@@ -75,11 +125,7 @@ export function UserStatusProvider({ children }: { children: ReactNode }) {
                 const now = new Date();
 
                 if (plan === "PRO" || plan === "BASIC") {
-                  if (renewsAt && renewsAt > now) {
-                    setStatus("pro");
-                  } else {
-                    setStatus("subscribed");
-                  }
+                  setStatus(renewsAt && renewsAt > now ? "pro" : "subscribed");
                 } else {
                   setStatus("subscribed");
                 }
@@ -107,64 +153,56 @@ export function UserStatusProvider({ children }: { children: ReactNode }) {
 
     getUser();
 
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange(async (event, session) => {
-      if (event === "SIGNED_OUT" || !session) {
-        setUser(null);
-        setStatus("guest");
-      } else {
-        setUser(session.user);
+    // Créer la subscription initiale
+    const { data: { subscription } } = createAuthSubscription(supabase);
+    subscriptionRef.current = subscription;
 
-        if (session.user) {
-          // Éviter les appels multiples simultanés
-          if (fetchingRef.current) return;
-          fetchingRef.current = true;
+    // Nettoyer les subscriptions lors du pagehide pour permettre le bfcache
+    const handlePageHide = () => {
+      if (subscriptionRef.current) {
+        subscriptionRef.current.unsubscribe();
+        subscriptionRef.current = null;
+      }
+    };
 
-          try {
-            const subscriptionResponse = await fetch("/api/user/subscription", {
-              credentials: "include",
-              cache: "no-store",
-            });
-
-            if (subscriptionResponse.ok) {
-              const data = await subscriptionResponse.json();
-              if (data.subscription) {
-                const plan = data.subscription.plan;
-                const renewsAt = data.subscription.renewsAt
-                  ? new Date(data.subscription.renewsAt)
-                  : null;
-                const now = new Date();
-
-                if (plan === "PRO" || plan === "BASIC") {
-                  if (renewsAt && renewsAt > now) {
-                    setStatus("pro");
-                  } else {
-                    setStatus("subscribed");
-                  }
-                } else {
-                  setStatus("subscribed");
-                }
-              } else {
-                setStatus("guest");
-              }
-            } else {
-              setStatus("guest");
-            }
-          } catch (err) {
-            setStatus("guest");
-          } finally {
-            fetchingRef.current = false;
-          }
+    // Suspendre les WebSockets quand la page n'est pas visible pour permettre le bfcache
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "hidden") {
+        // Suspendre la subscription quand la page est cachée
+        if (subscriptionRef.current) {
+          subscriptionRef.current.unsubscribe();
+          subscriptionRef.current = null;
+        }
+      } else if (document.visibilityState === "visible") {
+        // Réactiver la subscription quand la page redevient visible
+        if (!subscriptionRef.current && isSupabaseConfigured) {
+          const supabaseClient = createClient();
+          const { data: { subscription: newSubscription } } = createAuthSubscription(supabaseClient);
+          subscriptionRef.current = newSubscription;
         }
       }
-    });
+    };
 
-    subscriptionRef.current = subscription;
+    // Réactiver la subscription lors du pageshow (retour du bfcache)
+    const handlePageShow = () => {
+      if (!subscriptionRef.current && isSupabaseConfigured) {
+        const supabaseClient = createClient();
+        const { data: { subscription: newSubscription } } = createAuthSubscription(supabaseClient);
+        subscriptionRef.current = newSubscription;
+      }
+    };
+
+    // Écouter les événements pour gérer le bfcache
+    window.addEventListener("pagehide", handlePageHide);
+    window.addEventListener("pageshow", handlePageShow);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
 
     return () => {
       subscription.unsubscribe();
       fetchingRef.current = false;
+      window.removeEventListener("pagehide", handlePageHide);
+      window.removeEventListener("pageshow", handlePageShow);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
   }, [isSupabaseConfigured]);
 

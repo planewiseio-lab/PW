@@ -14,7 +14,9 @@ export function withAircraftLookupAndImagesSmart<T = any>(
   return async (
     request: NextRequest,
     context?: any
-  ): Promise<NextResponse<T>> => {
+  ): Promise<NextResponse<T | { error: string; code: string; message?: string; required?: number; maxRequired?: number }>> => {
+    let userId: string | undefined;
+    
     try {
       // 1. Authentification Supabase
       const supabase = await createClient();
@@ -31,7 +33,7 @@ export function withAircraftLookupAndImagesSmart<T = any>(
         );
       }
 
-      const userId = user.id;
+      userId = user.id;
       const endpoint = request.nextUrl.pathname;
       const method = request.method;
 
@@ -68,7 +70,8 @@ export function withAircraftLookupAndImagesSmart<T = any>(
             console.log(`[AIRCRAFT+IMAGES-SMART] 🖼️ Images check for ${registration}: ${imageCount} images found`);
           }
         } catch (error) {
-          console.log(`[AIRCRAFT+IMAGES-SMART] ⚠️ Could not check images:`, error.message);
+          const errorMessage = error instanceof Error ? error.message : String(error);
+          console.log(`[AIRCRAFT+IMAGES-SMART] ⚠️ Could not check images:`, errorMessage);
         }
       }
 
@@ -152,7 +155,7 @@ export function withAircraftLookupAndImagesSmart<T = any>(
       return response;
     } catch (error) {
       if (error instanceof InsufficientCreditsError) {
-        console.log(`[AIRCRAFT+IMAGES-SMART] ❌ Insufficient credits for user: ${userId}`);
+        console.log(`[AIRCRAFT+IMAGES-SMART] ❌ Insufficient credits for user: ${userId || "unknown"}`);
         const baseCost = getCreditCost(ActionType.AIRCRAFT_LOOKUP); // Tier 1 = 1 credit
         const maxCost = baseCost * 2; // Max 2 credits if images are available
         return NextResponse.json(

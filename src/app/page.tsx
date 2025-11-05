@@ -6,6 +6,8 @@ import { useMemo, useState, useTransition, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import SectionDivider from "@/components/layout/SectionDivider";
 import { motion, AnimatePresence } from "framer-motion";
+import dynamic from "next/dynamic";
+import Image from "next/image";
 
 // Fonction pour gérer le scroll vers la section pricing
 function useHashScroll() {
@@ -22,6 +24,13 @@ function useHashScroll() {
     }
   }, []);
 }
+
+/* ==========================================================
+   Lazy Loading Components
+   ---------------------------------------------------------- */
+// Lazy load ShowcaseSection et PricingSection (non-critiques pour le rendu initial)
+// Note: dynamic() ne peut pas être utilisé avec des fonctions locales, donc on charge normalement
+// mais on peut optimiser avec React.lazy si nécessaire
 
 /* ==========================================================
    Types
@@ -94,7 +103,7 @@ function ShowcaseSection() {
           {/* Header avec registration et badge */}
           <div className="px-4 pt-6 pb-4 flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <h4 className="text-xl font-bold text-gray-900">C-FRSR</h4>
+              <h2 className="text-xl font-bold text-gray-900">C-FRSR</h2>
               <span className="px-2.5 py-1 bg-green-100 text-green-800 text-xs rounded-full font-medium">
                 Active
               </span>
@@ -107,70 +116,73 @@ function ShowcaseSection() {
           {/* Spécifications en deux colonnes */}
           <div className="px-4 py-6 grid grid-cols-2 gap-x-8 gap-y-3 text-sm pb-4">
             {/* Colonne gauche */}
-            <div className="space-y-1.5">
+            <dl className="space-y-1.5">
               <div className="flex justify-between">
-                <dt className="text-gray-500">Type:</dt>
+                <dt className="text-gray-700">Type:</dt>
                 <dd className="font-medium text-gray-900 text-right">Boeing 787-9</dd>
               </div>
               <div className="flex justify-between">
-                <dt className="text-gray-500">Manufacturer:</dt>
+                <dt className="text-gray-700">Manufacturer:</dt>
                 <dd className="font-medium text-gray-900 text-right">Boeing</dd>
               </div>
               <div className="flex justify-between">
-                <dt className="text-gray-500">Model:</dt>
+                <dt className="text-gray-700">Model:</dt>
                 <dd className="font-medium text-gray-900 text-right">B789</dd>
               </div>
               <div className="flex justify-between">
-                <dt className="text-gray-500">Model Code:</dt>
+                <dt className="text-gray-700">Model Code:</dt>
                 <dd className="font-medium text-gray-900 text-right">B787-9</dd>
               </div>
               <div className="flex justify-between">
-                <dt className="text-gray-500">Airline:</dt>
+                <dt className="text-gray-700">Airline:</dt>
                 <dd className="font-medium text-gray-900 text-right">Air Canada</dd>
               </div>
               <div className="flex justify-between">
-                <dt className="text-gray-500">Seats:</dt>
+                <dt className="text-gray-700">Seats:</dt>
                 <dd className="font-medium text-gray-900 text-right">298</dd>
               </div>
-            </div>
+            </dl>
             {/* Colonne droite */}
-            <div className="space-y-1.5">
+            <dl className="space-y-1.5">
               <div className="flex justify-between">
-                <dt className="text-gray-500">Year:</dt>
+                <dt className="text-gray-700">Year:</dt>
                 <dd className="font-medium text-gray-900 text-right">2017</dd>
               </div>
               <div className="flex justify-between">
-                <dt className="text-gray-500">Age:</dt>
+                <dt className="text-gray-700">Age:</dt>
                 <dd className="font-medium text-gray-900 text-right">8.5 years</dd>
               </div>
               <div className="flex justify-between">
-                <dt className="text-gray-500">First Flight:</dt>
+                <dt className="text-gray-700">First Flight:</dt>
                 <dd className="font-medium text-gray-900 text-right">2017-05-01</dd>
               </div>
               <div className="flex justify-between">
-                <dt className="text-gray-500">Delivery Date:</dt>
+                <dt className="text-gray-700">Delivery Date:</dt>
                 <dd className="font-medium text-gray-900 text-right">2017-05-12</dd>
               </div>
               <div className="flex justify-between">
-                <dt className="text-gray-500">Registration Date:</dt>
+                <dt className="text-gray-700">Registration Date:</dt>
                 <dd className="font-medium text-gray-900 text-right">2017-05-12</dd>
               </div>
               <div className="flex justify-between">
-                <dt className="text-gray-500">Engines:</dt>
+                <dt className="text-gray-700">Engines:</dt>
                 <dd className="font-medium text-gray-900 text-right">2 x Jet</dd>
               </div>
-            </div>
+            </dl>
           </div>
 
           {/* Grande image de l'avion */}
           <div className="px-4 pt-6 pb-2">
             <div className="relative w-full bg-gray-100 overflow-hidden rounded-lg" style={{ aspectRatio: "21/9", minHeight: "180px" }}>
-              <img
+              <Image
                 src="/Assets/frsr.jpg"
                 alt="C-FRSR"
-                className="w-full h-full object-cover"
+                fill
+                className="object-cover"
+                sizes="(max-width: 768px) 100vw, (max-width: 1200px) 80vw, 70vw"
+                priority
               />
-              <div className="absolute bottom-2 right-2 bg-black/50 text-white text-[10px] px-2 py-1 rounded backdrop-blur-sm">
+              <div className="absolute bottom-2 right-2 bg-black/50 text-white text-[10px] px-2 py-1 rounded backdrop-blur-sm z-10">
                 © Helmy oved via Wikimedia Commons
               </div>
             </div>
@@ -179,31 +191,39 @@ function ShowcaseSection() {
           {/* Miniatures galerie */}
           <div className="px-4 py-4 border-b border-gray-200 grid grid-cols-4 gap-2">
             <div className="relative w-full aspect-video bg-gray-100 rounded overflow-hidden cursor-pointer hover:opacity-80 transition">
-              <img
+              <Image
                 src="/Assets/frsr2.jpg"
                 alt="C-FRSR 2"
-                className="w-full h-full object-cover"
+                fill
+                className="object-cover"
+                sizes="(max-width: 768px) 25vw, 20vw"
               />
             </div>
             <div className="relative w-full aspect-video bg-gray-100 rounded overflow-hidden cursor-pointer hover:opacity-80 transition">
-              <img
+              <Image
                 src="/Assets/frsr3.jpg"
                 alt="C-FRSR 3"
-                className="w-full h-full object-cover"
+                fill
+                className="object-cover"
+                sizes="(max-width: 768px) 25vw, 20vw"
               />
             </div>
             <div className="relative w-full aspect-video bg-gray-100 rounded overflow-hidden cursor-pointer hover:opacity-80 transition">
-              <img
+              <Image
                 src="/Assets/frsr4.jpg"
                 alt="C-FRSR 4"
-                className="w-full h-full object-cover"
+                fill
+                className="object-cover"
+                sizes="(max-width: 768px) 25vw, 20vw"
               />
             </div>
             <div className="relative w-full aspect-video bg-gray-100 rounded overflow-hidden cursor-pointer hover:opacity-80 transition">
-              <img
+              <Image
                 src="/Assets/frsr5.jpg"
                 alt="C-FRSR 5"
-                className="w-full h-full object-cover"
+                fill
+                className="object-cover"
+                sizes="(max-width: 768px) 25vw, 20vw"
               />
             </div>
           </div>
@@ -240,7 +260,7 @@ function ShowcaseSection() {
         <div className="bg-white rounded-2xl border border-gray-200 shadow-sm flex-1 flex flex-col overflow-hidden">
           {/* Header */}
           <div className="px-4 pt-6 pb-4 border-b border-gray-200">
-            <h4 className="text-lg font-bold text-gray-900">Flight History</h4>
+            <h2 className="text-lg font-bold text-gray-900">Flight History</h2>
             <p className="text-sm text-gray-600 mt-1">
               Aircraft Registration: <span className="text-blue-600 font-semibold">C-FRSR</span>
             </p>
@@ -385,9 +405,9 @@ function ShowcaseSection() {
                     <path d="M10.894 2.553a1 1 0 00-1.788 0l-7 14a1 1 0 001.169 1.409l5-1.429A1 1 0 009 15.571V11a1 1 0 112 0v4.571a1 1 0 00.725.962l5 1.428a1 1 0 001.17-1.408l-7-14z" />
                   </svg>
                 </div>
-                <h4 className="text-xl font-bold text-blue-600">
+                <h3 className="text-xl font-bold text-blue-600">
                   Air Canada AC 6
-                </h4>
+                </h3>
               </div>
               <p className="text-sm text-gray-600 ml-10">Boeing 777 • C-FJZS</p>
             </div>
@@ -491,7 +511,7 @@ function ShowcaseSection() {
                     <path d="M10.894 2.553a1 1 0 00-1.788 0l-7 14a1 1 0 001.169 1.409l5-1.429A1 1 0 009 15.571V11a1 1 0 112 0v4.571a1 1 0 00.725.962l5 1.428a1 1 0 001.17-1.408l-7-14z" />
                   </svg>
                 </div>
-                <h5 className="font-semibold text-gray-900">Departure</h5>
+                <h4 className="font-semibold text-gray-900">Departure</h4>
               </div>
               <div className="space-y-2 text-sm">
                 <div>
@@ -521,7 +541,7 @@ function ShowcaseSection() {
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
                   </svg>
                 </div>
-                <h5 className="font-semibold text-gray-900">Arrival</h5>
+                <h4 className="font-semibold text-gray-900">Arrival</h4>
               </div>
               <div className="space-y-2 text-sm">
                 <div>
@@ -581,10 +601,13 @@ function ShowcaseSection() {
                 <svg className="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
                 </svg>
-                <h4 className="text-lg font-bold text-gray-900">Flight Board</h4>
+                <h2 className="text-lg font-bold text-gray-900">Flight Board</h2>
                 <span className="text-gray-600 text-sm ml-1">for</span>
-                <button className="px-3 py-1 bg-blue-600 text-white text-xs rounded-full font-medium flex items-center gap-1">
-                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <button 
+                  className="px-3 py-1 bg-blue-600 text-white text-xs rounded-full font-medium flex items-center gap-1 min-h-[44px]"
+                  aria-label="Select airport location: JFK"
+                >
+                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
                   </svg>
@@ -598,10 +621,16 @@ function ShowcaseSection() {
             </div>
             <div className="flex justify-end">
               <div className="flex gap-2">
-                <button className="px-4 py-1.5 bg-blue-600 text-white text-sm rounded-lg font-medium">
+                <button 
+                  className="px-4 py-1.5 bg-blue-600 text-white text-sm rounded-lg font-medium"
+                  aria-label="View departures"
+                >
                   Departures
                 </button>
-                <button className="px-4 py-1.5 text-gray-600 text-sm rounded-lg font-medium hover:bg-gray-100 border border-gray-200">
+                <button 
+                  className="px-4 py-1.5 text-gray-600 text-sm rounded-lg font-medium hover:bg-gray-100 border border-gray-200"
+                  aria-label="View arrivals"
+                >
                   Arrivals
                 </button>
               </div>
@@ -615,12 +644,16 @@ function ShowcaseSection() {
                 type="text"
                 placeholder="Search flights, airlines, destinations..."
                 className="w-full px-3 py-2 pr-8 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                aria-label="Search flights, airlines, destinations"
               />
               <svg className="w-4 h-4 text-gray-400 absolute right-3 top-1/2 -translate-y-1/2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
               </svg>
             </div>
-            <button className="px-4 py-2 bg-blue-600 text-white text-sm rounded-lg font-medium">
+            <button 
+              className="px-4 py-2 bg-blue-600 text-white text-sm rounded-lg font-medium"
+              aria-label="Open filters"
+            >
               Filters
             </button>
           </div>
@@ -730,7 +763,8 @@ function ShowcaseSection() {
                 (prev) => (prev - 1 + slides.length) % slides.length
               )
             }
-            className="absolute left-2 top-1/2 -translate-y-1/2 w-8 h-8 bg-white/95 hover:bg-white rounded-full shadow-lg border border-gray-200 flex items-center justify-center text-gray-600 hover:text-gray-900 transition opacity-80 hover:opacity-100 z-10"
+            className="absolute left-2 top-1/2 -translate-y-1/2 min-w-[44px] min-h-[44px] w-11 h-11 bg-white/95 hover:bg-white rounded-full shadow-lg border border-gray-200 flex items-center justify-center text-gray-700 hover:text-gray-900 transition opacity-80 hover:opacity-100 z-10"
+            aria-label="Previous slide"
           >
             ‹
           </button>
@@ -738,7 +772,8 @@ function ShowcaseSection() {
             onClick={() =>
               setCurrentSlide((prev) => (prev + 1) % slides.length)
             }
-            className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 bg-white/95 hover:bg-white rounded-full shadow-lg border border-gray-200 flex items-center justify-center text-gray-600 hover:text-gray-900 transition opacity-80 hover:opacity-100 z-10"
+            className="absolute right-2 top-1/2 -translate-y-1/2 min-w-[44px] min-h-[44px] w-11 h-11 bg-white/95 hover:bg-white rounded-full shadow-lg border border-gray-200 flex items-center justify-center text-gray-700 hover:text-gray-900 transition opacity-80 hover:opacity-100 z-10"
+            aria-label="Next slide"
           >
             ›
           </button>
@@ -750,12 +785,16 @@ function ShowcaseSection() {
             <button
               key={index}
               onClick={() => setCurrentSlide(index)}
-              className={`w-2 h-2 rounded-full transition ${
+              className={`min-w-[44px] min-h-[44px] rounded-full transition flex items-center justify-center ${
                 index === currentSlide
                   ? "bg-brand-600 w-8"
-                  : "bg-gray-300 hover:bg-gray-400"
+                  : "bg-gray-300 hover:bg-gray-400 w-2 h-2"
               }`}
-            />
+              aria-label={`Go to slide ${index + 1}`}
+              aria-current={index === currentSlide ? "true" : undefined}
+            >
+              {index === currentSlide && <span className="sr-only">Current slide</span>}
+            </button>
           ))}
         </div>
       </div>
@@ -1032,12 +1071,12 @@ export default function HomePage() {
 
       <SectionDivider className="my-8 sm:my-10" />
 
-      {/* Showcase */}
+      {/* Showcase - Chargé après le contenu principal */}
       <ShowcaseSection />
 
       <SectionDivider className="my-8 sm:my-10" />
 
-      {/* Pricing */}
+      {/* Pricing - Chargé après le contenu principal */}
       <PricingSection />
     </main>
   );

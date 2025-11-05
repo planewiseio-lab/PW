@@ -22,7 +22,7 @@ export async function refreshFreeCreditsDaily() {
     // On vérifie s'il y a eu un top-up pour n'importe quel utilisateur FREE aujourd'hui
     const existingTopUp = await prisma.credit_ledger.findFirst({
       where: {
-        reason: CreditReason.DAILY_TOPUP,
+        reason: CreditReason.MONTHLY_TOPUP,
         metadata: {
           path: ["source"],
           equals: "daily_cron",
@@ -104,7 +104,7 @@ export async function refreshFreeCreditsDaily() {
               id: crypto.randomUUID(),
               userId: user.userId,
               delta: creditsToAdd,
-              reason: CreditReason.DAILY_TOPUP,
+              reason: CreditReason.MONTHLY_TOPUP,
               metadata: {
                 source: "daily_cron",
                 plan: "FREE",

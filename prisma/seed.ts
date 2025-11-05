@@ -45,7 +45,7 @@ async function main() {
 
   for (const user of users) {
     // Create subscription
-    const subscription = await prisma.subscription.upsert({
+    const subscription = await prisma.subscriptions.upsert({
       where: { userId: user.id },
       update: {},
       create: {
@@ -57,7 +57,7 @@ async function main() {
     });
 
     // Create credit balance
-    await prisma.creditBalance.upsert({
+    await prisma.credit_balances.upsert({
       where: { userId: user.id },
       update: {},
       create: {
@@ -69,7 +69,7 @@ async function main() {
     // Create some sample ledger entries
     if (user.credits > 0) {
       // Initial credit grant
-      await prisma.creditLedger.create({
+      await prisma.credit_ledger.create({
         data: {
           userId: user.id,
           delta: user.credits,
@@ -90,7 +90,7 @@ async function main() {
         const actionType = usageActions[i % usageActions.length];
 
         // Create usage event
-        await prisma.usageEvent.create({
+        await prisma.usage_events.create({
           data: {
             userId: user.id,
             actionType,
@@ -100,7 +100,7 @@ async function main() {
         });
 
         // Create ledger entry for usage
-        await prisma.creditLedger.create({
+        await prisma.credit_ledger.create({
           data: {
             userId: user.id,
             delta: -1,

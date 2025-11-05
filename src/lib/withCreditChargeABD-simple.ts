@@ -154,8 +154,10 @@ export function withCreditChargeABD(
       }
     } catch (error) {
       if (error instanceof InsufficientCreditsError) {
+        // userId might not be available at this point, use "unknown" if not available
+        const errorMessage = error instanceof Error ? error.message : String(error);
         console.warn(
-          `[ABD] ❌ Insufficient credits for user: ${error.userId} on ${request.nextUrl.pathname}`
+          `[ABD] ❌ Insufficient credits on ${request.nextUrl.pathname}: ${errorMessage}`
         );
         const cost = getCreditCost(actionType);
         return NextResponse.json(

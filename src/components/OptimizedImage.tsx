@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useCallback } from "react";
+import Image from "next/image";
 
 interface OptimizedImageProps {
   src: string;
@@ -9,6 +10,11 @@ interface OptimizedImageProps {
   placeholder?: string;
   onLoad?: () => void;
   onError?: () => void;
+  width?: number;
+  height?: number;
+  fill?: boolean;
+  priority?: boolean;
+  sizes?: string;
 }
 
 export default function OptimizedImage({
@@ -18,6 +24,11 @@ export default function OptimizedImage({
   placeholder,
   onLoad,
   onError,
+  width,
+  height,
+  fill = false,
+  priority = false,
+  sizes,
 }: OptimizedImageProps) {
   const [isLoading, setIsLoading] = useState(true);
   const [hasError, setHasError] = useState(false);
@@ -33,11 +44,15 @@ export default function OptimizedImage({
     onError?.();
   }, [onError]);
 
+  // Déterminer si l'image est externe (nécessite unloader)
+  const isExternal = src.startsWith("http://") || src.startsWith("https://");
+  const imageSrc = isExternal ? src : src;
+
   return (
     <div className={`relative overflow-hidden ${className}`}>
       {/* Placeholder pendant le chargement */}
       {isLoading && (
-        <div className="absolute inset-0 bg-gray-200 animate-pulse flex items-center justify-center">
+        <div className="absolute inset-0 bg-gray-200 animate-pulse flex items-center justify-center z-10">
           {placeholder ? (
             <span className="text-gray-400 text-sm">{placeholder}</span>
           ) : (
@@ -58,18 +73,22 @@ export default function OptimizedImage({
         </div>
       )}
 
-      {/* Image réelle */}
+      {/* Image réelle avec next/image */}
       {!hasError && (
-        <img
-          src={src}
+        <Image
+          src={imageSrc}
           alt={alt}
           onLoad={handleLoad}
           onError={handleError}
+          width={fill ? undefined : width || 800}
+          height={fill ? undefined : height || 600}
+          fill={fill}
+          priority={priority}
+          sizes={sizes || "(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"}
           className={`transition-opacity duration-300 ${
             isLoading ? "opacity-0" : "opacity-100"
           } ${className}`}
-          loading="lazy"
-          decoding="async"
+          unoptimized={isExternal} // Désactiver l'optimisation pour les images externes si nécessaire
         />
       )}
 

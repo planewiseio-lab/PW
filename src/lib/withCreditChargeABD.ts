@@ -18,7 +18,7 @@ export function withCreditChargeABD<T = any>(
   return async (
     request: NextRequest,
     context?: any
-  ): Promise<NextResponse<T>> => {
+  ): Promise<NextResponse<T | { error: string; code: string; message?: string; credits?: number; requiredCredits?: number }>> => {
     try {
       // 1. Authentification Supabase
       const supabase = await createClient();

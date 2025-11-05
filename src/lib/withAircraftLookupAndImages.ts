@@ -14,6 +14,7 @@ export function withAircraftLookupAndImages<T = any>(
     request: NextRequest,
     context?: any
   ): Promise<NextResponse<T>> => {
+    let userId: string | undefined;
     try {
       // 1. Authentification Supabase
       const supabase = await createClient();
@@ -27,10 +28,10 @@ export function withAircraftLookupAndImages<T = any>(
         return NextResponse.json(
           { error: "Unauthorized", code: "AUTH_REQUIRED" },
           { status: 401 }
-        );
+        ) as NextResponse<T>;
       }
 
-      const userId = user.id;
+      userId = user.id;
       const endpoint = request.nextUrl.pathname;
       const method = request.method;
 
@@ -94,7 +95,7 @@ export function withAircraftLookupAndImages<T = any>(
       return response;
     } catch (error) {
       if (error instanceof InsufficientCreditsError) {
-        console.log(`[AIRCRAFT+IMAGES] ❌ Insufficient credits for user: ${userId}`);
+        console.log(`[AIRCRAFT+IMAGES] ❌ Insufficient credits for user: ${userId || "unknown"}`);
         return NextResponse.json(
           {
             error: "Insufficient credits",
@@ -103,14 +104,14 @@ export function withAircraftLookupAndImages<T = any>(
             required: 2,
           },
           { status: 402 }
-        );
+        ) as NextResponse<T>;
       }
 
       console.error("[AIRCRAFT+IMAGES] ❌ Error:", error);
       return NextResponse.json(
         { error: "Internal server error", code: "INTERNAL_ERROR" },
         { status: 500 }
-      );
+      ) as NextResponse<T>;
     }
   };
 }

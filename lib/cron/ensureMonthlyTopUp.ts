@@ -11,7 +11,7 @@ export async function runMonthlyTopUpCron() {
   try {
     // Find all active subscriptions that need renewal
     const now = new Date();
-    const subscriptions = await prisma.subscription.findMany({
+    const subscriptions = await prisma.subscriptions.findMany({
       where: {
         status: "ACTIVE",
         renewsAt: {

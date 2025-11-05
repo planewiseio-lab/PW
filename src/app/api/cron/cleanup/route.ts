@@ -53,12 +53,12 @@ export async function POST(request: NextRequest) {
     const startTime = Date.now();
     const report = {
       timestamp: new Date().toISOString(),
-      cache: { deleted: 0, error: null },
-      apiRequests: { deleted: 0, error: null },
-      usageEvents: { deleted: 0, error: null },
-      tokens: { deleted: 0, error: null },
-      sessions: { deleted: 0, error: null },
-      refreshTokens: { deleted: 0, error: null },
+      cache: { deleted: 0, error: null as string | null },
+      apiRequests: { deleted: 0, error: null as string | null },
+      usageEvents: { deleted: 0, error: null as string | null },
+      tokens: { deleted: 0, error: null as string | null },
+      sessions: { deleted: 0, error: null as string | null },
+      refreshTokens: { deleted: 0, error: null as string | null },
       duration: 0,
     };
 

@@ -102,7 +102,7 @@ export function AdUnitInArticle({ className }: { className?: string }) {
     <div className={`flex justify-center my-6 ${className || ""}`}>
       <AdSense
         adSlot={process.env.NEXT_PUBLIC_ADSENSE_IN_ARTICLE_SLOT || ""}
-        adFormat="fluid"
+        adFormat="auto"
         responsive={true}
         className="min-h-[90px] w-full"
       />

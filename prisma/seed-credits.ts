@@ -35,7 +35,7 @@ async function seedCreditsSystem() {
 
   for (const user of testUsers) {
     // Create subscription
-    await prisma.subscription.upsert({
+    await prisma.subscriptions.upsert({
       where: { userId: user.userId },
       update: {
         plan: user.plan,
@@ -51,14 +51,14 @@ async function seedCreditsSystem() {
     });
 
     // Create credit balance
-    await prisma.creditBalance.upsert({
+    await prisma.credit_balances.upsert({
       where: { userId: user.userId },
       update: { credits: user.credits },
       create: { userId: user.userId, credits: user.credits },
     });
 
     // Create initial ledger entry
-    await prisma.creditLedger.create({
+    await prisma.credit_ledger.create({
       data: {
         userId: user.userId,
         delta: user.credits,
@@ -95,7 +95,7 @@ async function seedCreditsSystem() {
   ];
 
   for (const event of usageEvents) {
-    await prisma.usageEvent.create({
+    await prisma.usage_events.create({
       data: event,
     });
   }

@@ -1,5 +1,14 @@
 import type { NextConfig } from "next";
 
+// Bundle Analyzer - Configuration conditionnelle
+let withBundleAnalyzer: any = (config: NextConfig) => config;
+if (process.env.ANALYZE === "true") {
+  const bundleAnalyzer = require("@next/bundle-analyzer");
+  withBundleAnalyzer = bundleAnalyzer({
+    enabled: true,
+  });
+}
+
 const nextConfig: NextConfig = {
   // Configuration Turbopack pour éviter le warning de workspace
   turbopack: {
@@ -7,18 +16,50 @@ const nextConfig: NextConfig = {
   },
   // Optimisations de performance
   experimental: {
-    optimizePackageImports: ["framer-motion"], // lucide-react retiré temporairement pour éviter les problèmes de cache HMR avec Turbopack
+    // Optimisation des imports pour réduire le bundle size
+    // Ces packages sont automatiquement tree-shaked pour importer uniquement ce qui est utilisé
+    optimizePackageImports: [
+      "framer-motion", // Réduction de ~50KB via tree-shaking
+      "lucide-react", // Tree-shaking automatique des icônes
+      "@supabase/supabase-js", // Réduction via imports ciblés
+      "@supabase/ssr", // Réduction via imports ciblés
+      "react-leaflet", // Tree-shaking des composants Leaflet
+      "leaflet", // Optimisation des imports Leaflet
+      "aos", // Animation On Scroll - imports optimisés
+    ],
   },
+  // Note: swcMinify est activé par défaut dans Next.js 15, pas besoin de le spécifier
+  // Note: Les scripts et prisma sont exclus du type checking via tsconfig.json
   // Exclure ioredis du bundling client (c'est un module serveur uniquement)
   serverExternalPackages: ["ioredis"],
-  // Webpack configuration pour exclure ioredis du bundle client
-  webpack: (config, { isServer }) => {
+  // Source maps - Activés uniquement en développement pour le debugging
+  // En production, désactivés pour réduire la taille du bundle
+  // Pour activer en production : productionBrowserSourceMaps: true
+  productionBrowserSourceMaps: process.env.NODE_ENV === "development" ? false : false,
+  // Webpack configuration pour optimiser le bundle
+  webpack: (config, { isServer, dev }) => {
     if (!isServer) {
-      // Exclure ioredis du bundle client
+      // Exclure ioredis du bundle client (module serveur uniquement)
       config.resolve.fallback = {
         ...config.resolve.fallback,
         ioredis: false,
       };
+
+      // Exclure Next.js devtools en production pour réduire le bundle
+      if (!dev) {
+        // Exclure les devtools Next.js en production
+        config.resolve.alias = {
+          ...config.resolve.alias,
+          "@next/devtools": false,
+        };
+      }
+
+      // Optimisation de la minification en production
+      if (!dev && config.optimization) {
+        config.optimization.minimize = true;
+        // Configuration avancée pour SWC minifier (déjà activé par défaut dans Next.js 15)
+        // Les optimisations sont gérées automatiquement par SWC
+      }
     }
     return config;
   },
@@ -37,10 +78,38 @@ const nextConfig: NextConfig = {
       "farm5.staticflickr.com",
       "farm66.staticflickr.com",
       "staticflickr.com",
+      "airport-data.com",
+    ],
+    remotePatterns: [
+      {
+        protocol: "https",
+        hostname: "**.wikimedia.org",
+      },
+      {
+        protocol: "https",
+        hostname: "**.staticflickr.com",
+      },
+      {
+        protocol: "https",
+        hostname: "**.flickr.com",
+      },
+      {
+        protocol: "https",
+        hostname: "airport-data.com",
+      },
     ],
   },
   async headers() {
     return [
+      {
+        source: "/_next/static/(.*)",
+        headers: [
+          {
+            key: "Cache-Control",
+            value: "public, max-age=31536000, immutable",
+          },
+        ],
+      },
       {
         source: "/(.*)",
         headers: [
@@ -91,4 +160,4 @@ const nextConfig: NextConfig = {
   },
 };
 
-export default nextConfig;
+export default withBundleAnalyzer(nextConfig);

@@ -1,11 +1,31 @@
 import { NextResponse } from "next/server";
 import { correctFlightStatus } from "@/lib/flightStatusRules";
 import { withAirportBrowseAccess } from "@/lib/withActionAccess";
-import { getAirport, getFlightsRelative, getFlightsRelativeCachedOnly } from "@/services/abdClient";
+import { getAirport, getFlightsRelative, getFlightsRelativeBoth, getFlightsRelativeCachedOnly } from "@/services/abdClient";
 import { normalizeAirportInfo, normalizeFids } from "@/utils/abdNormalizers";
+import { getCache as getSupabaseCache, setCache as setSupabaseCache } from "@/lib/supabaseCache";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+
+// Cache Supabase persistant pour les vols normalisés (partagé entre toutes les instances serverless)
+// TTL: 60 secondes (même que getFlightsRelative)
+async function getNormalizedFlightsCache(key: string): Promise<any[] | null> {
+  const cached = await getSupabaseCache(key);
+  if (cached) {
+    try {
+      return JSON.parse(cached);
+    } catch (e) {
+      console.error("[AirportAPI] Failed to parse cached normalized flights:", e);
+      return null;
+    }
+  }
+  return null;
+}
+
+async function setNormalizedFlightsCache(key: string, flights: any[], ttlSeconds: number): Promise<void> {
+  await setSupabaseCache(key, JSON.stringify(flights), ttlSeconds);
+}
 
 type Direction = "departures" | "arrivals";
 
@@ -59,15 +79,52 @@ export const GET = withAirportBrowseAccess(
     const limit = Number(url.searchParams.get("limit")) || 20;
     const offset = Number(url.searchParams.get("offset")) || 0;
 
+    // Clé de cache pour les vols normalisés (partagée entre toutes les instances serverless)
+    // On utilise une clé unique pour les deux directions pour optimiser
+    const normalizedCacheKeyBoth = `airport:normalized:${code.toUpperCase()}:both:${hoursBefore}:${hoursAfter}`;
+    const normalizedCacheKey = `airport:normalized:${code.toUpperCase()}:${dir}:${hoursBefore}:${hoursAfter}`;
+    const NORMALIZED_CACHE_TTL_SECONDS = 5 * 60; // 5 minutes (300 secondes)
+
     try {
-      const { data } = await getFlightsRelative(
-        code,
-        dir,
-        hoursBefore,
-        hoursAfter,
-        { timeoutMs: 3000, retry: 1, cacheTtlSeconds: 60 }
-      );
-      const allFlights = normalizeFids(data, dir);
+      // Vérifier d'abord le cache des vols normalisés pour la direction demandée
+      let allFlights = await getNormalizedFlightsCache(normalizedCacheKey);
+      
+      if (!allFlights) {
+        // Vérifier si on a déjà récupéré les deux directions en cache
+        const cachedBoth = await getNormalizedFlightsCache(normalizedCacheKeyBoth);
+        
+        if (cachedBoth && cachedBoth.departures && cachedBoth.arrivals) {
+          // Utiliser les données déjà en cache pour les deux directions
+          allFlights = dir === "departures" ? cachedBoth.departures : cachedBoth.arrivals;
+          console.log(`[AirportAPI] Using cached normalized flights for ${code} ${dir} from both cache (${allFlights.length} flights)`);
+        } else {
+          // Pas dans le cache, récupérer les DEUX (departures et arrivals) en un seul appel API
+          console.log(`[AirportAPI] Fetching both departures and arrivals for ${code} in one API call`);
+          const { data } = await getFlightsRelativeBoth(
+            code,
+            hoursBefore,
+            hoursAfter,
+            { timeoutMs: 3000, retry: 1, cacheTtlSeconds: 5 * 60 } // 5 minutes (300 secondes)
+          );
+          
+          // Normaliser les deux directions séparément
+          const departures = normalizeFids(data, "departures");
+          const arrivals = normalizeFids(data, "arrivals");
+          
+          // Mettre en cache les deux directions ensemble
+          await setNormalizedFlightsCache(normalizedCacheKeyBoth, { departures, arrivals }, NORMALIZED_CACHE_TTL_SECONDS);
+          
+          // Mettre aussi en cache individuellement pour compatibilité
+          await setNormalizedFlightsCache(`airport:normalized:${code.toUpperCase()}:departures:${hoursBefore}:${hoursAfter}`, departures, NORMALIZED_CACHE_TTL_SECONDS);
+          await setNormalizedFlightsCache(`airport:normalized:${code.toUpperCase()}:arrivals:${hoursBefore}:${hoursAfter}`, arrivals, NORMALIZED_CACHE_TTL_SECONDS);
+          
+          // Utiliser la direction demandée
+          allFlights = dir === "departures" ? departures : arrivals;
+          console.log(`[AirportAPI] Fetched and cached both directions for ${code}: ${departures.length} departures, ${arrivals.length} arrivals`);
+        }
+      } else {
+        console.log(`[AirportAPI] Using cached normalized flights for ${code} ${dir} (${allFlights.length} flights)`);
+      }
 
       // Appliquer la pagination côté serveur
       const paginatedFlights = allFlights.slice(offset, offset + limit);
@@ -94,11 +151,31 @@ export const GET = withAirportBrowseAccess(
       );
     } catch (e: any) {
       // Fallback: tenter un cache récent pour éviter 504
-      const cached = await getFlightsRelativeCachedOnly(code, dir, hoursBefore, hoursAfter);
-      if (cached) {
-        const allFlights = normalizeFids(cached, dir);
+      // Vérifier d'abord le cache des vols normalisés
+      let allFlights = await getNormalizedFlightsCache(normalizedCacheKey);
+      
+      if (!allFlights) {
+        // Vérifier si on a déjà récupéré les deux directions en cache
+        const cachedBoth = await getNormalizedFlightsCache(normalizedCacheKeyBoth);
+        if (cachedBoth && cachedBoth.departures && cachedBoth.arrivals) {
+          allFlights = dir === "departures" ? cachedBoth.departures : cachedBoth.arrivals;
+        } else {
+          // Si pas dans le cache normalisé, essayer le cache brut
+          const cached = await getFlightsRelativeCachedOnly(code, dir, hoursBefore, hoursAfter);
+          if (cached) {
+            allFlights = normalizeFids(cached, dir);
+            // Mettre en cache les vols normalisés pour les requêtes suivantes
+            await setNormalizedFlightsCache(normalizedCacheKey, allFlights, NORMALIZED_CACHE_TTL_SECONDS);
+          }
+        }
+      }
+      
+      if (allFlights) {
+        // Appliquer la pagination même pour le cache stale
+        const paginatedFlights = allFlights.slice(offset, offset + limit);
+        const hasMore = offset + limit < allFlights.length;
         return NextResponse.json(
-          { flights: allFlights, pagination: { total: allFlights.length, limit, offset, hasMore: false }, stale: true },
+          { flights: paginatedFlights, pagination: { total: allFlights.length, limit, offset, hasMore }, stale: true },
           { headers: { "X-Cache": "STALE" } }
         );
       }

@@ -1,12 +1,12 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, Suspense } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useRouter, useSearchParams } from "next/navigation";
 import { motion } from "framer-motion";
 import PasswordRequirements from "@/components/PasswordRequirements";
 
-export default function ResetPasswordPage() {
+function ResetPasswordContent() {
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -427,6 +427,18 @@ export default function ResetPasswordPage() {
         </motion.div>
       </div>
     </div>
+  );
+}
+
+export default function ResetPasswordPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center bg-white">
+        <div className="animate-pulse text-gray-400">Loading...</div>
+      </div>
+    }>
+      <ResetPasswordContent />
+    </Suspense>
   );
 }
 

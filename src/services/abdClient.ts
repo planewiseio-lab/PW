@@ -142,6 +142,31 @@ export async function getAirportCachedOnly(code: string) {
     try { return JSON.parse(cached); } catch { return null; }
 }
 
+// Fonction pour récupérer les deux (departures et arrivals) en un seul appel
+export async function getFlightsRelativeBoth(code: string, beforeHours: number, afterHours: number, opts: AbdClientOptions = {}) {
+	const ttl = opts.cacheTtlSeconds ?? 300; // 5 minutes par défaut
+	const codeType = code.trim().length === 4 ? "icao" : "iata";
+	const cacheKey = `abd:fids:${codeType}:${code.toUpperCase()}:both:${beforeHours}:${afterHours}`;
+	return cachedJson(cacheKey, async () => {
+		const params = new URLSearchParams();
+		// Ne pas spécifier direction pour obtenir les deux
+		params.set("withCancelled", "true");
+		params.set("withCodeshared", "true");
+		params.set("withLocation", "true");
+		params.set("withCargoOnly", "false");
+		params.set("withPrivateOnly", "false");
+		params.set("withLeg", "false");
+		params.set("withAircraftImage", "false");
+		params.set("withVirtual", "false");
+		params.set("withTimeSummaries", "false");
+		params.set("hoursBeforeNow", String(beforeHours));
+		params.set("hoursAfterNow", String(afterHours));
+		const path = `/flights/airports/${codeType}/${encodeURIComponent(code)}`;
+		const { data, latencyMs } = await getJsonWithRetry(path, params, opts);
+		return { data, metrics: { latencyMs } };
+	}, ttl);
+}
+
 export async function getFlightsRelative(code: string, direction: "departures"|"arrivals", beforeHours: number, afterHours: number, opts: AbdClientOptions = {}) {
 	const ttl = opts.cacheTtlSeconds ?? 60;
 	const codeType = code.trim().length === 4 ? "icao" : "iata";

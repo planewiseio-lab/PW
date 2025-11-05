@@ -1,24 +1,32 @@
 import { NextResponse } from "next/server";
 import { withCreditChargeABD } from "@/lib/withCreditChargeABD";
 import { ActionType } from "@prisma/client";
+import { getCache as getSupabaseCache, setCache as setSupabaseCache } from "@/lib/supabaseCache";
 
 const AERODATABOX_BASE_URL = process.env.API_MARKET_BASE_URL || "https://prod.api.market/api/v1/aedbx/aerodatabox";
 const AERODATABOX_API_KEY =
   process.env.API_MARKET_KEY || process.env.AERODATABOX_API_KEY;
 
-// Cache TTL
-const FLIGHTS_TTL_MS = 1000 * 60 * 60 * 2; // 2 hours
+// Cache TTL (en secondes pour Supabase cache)
+const FLIGHTS_TTL_SECONDS = 2 * 60 * 60; // 2 hours
 
-// In-memory cache
-const cache = new Map<string, { data: any; exp: number }>();
-const getCache = <T = any>(k: string): T | null => {
-  const v = cache.get(k);
-  if (v && v.exp > Date.now()) return v.data as T;
-  cache.delete(k);
+// Cache Supabase persistant (partagé entre toutes les instances serverless)
+async function getCache<T = any>(k: string): Promise<T | null> {
+  const cached = await getSupabaseCache(k);
+  if (cached) {
+    try {
+      return JSON.parse(cached) as T;
+    } catch (e) {
+      console.error("[Cache] Failed to parse cached value:", e);
+      return null;
+    }
+  }
   return null;
-};
-const setCache = (k: string, data: any, ttl: number) =>
-  cache.set(k, { data, exp: Date.now() + ttl });
+}
+
+async function setCache(k: string, data: any, ttlSeconds: number): Promise<void> {
+  await setSupabaseCache(k, JSON.stringify(data), ttlSeconds);
+}
 
 // Helper function to convert date to ISO string
 function toISOZ(date: Date): string {
@@ -136,12 +144,17 @@ export const GET = withFlightHistoryAccess(
     const cacheKey = `flights:${registration}:${days}:${fromDate}:${toDate}`;
 
     if (!forceRefresh) {
-      const cached = getCache(cacheKey);
+      const cached = await getCache(cacheKey);
       if (cached) {
+        console.log(`[AircraftFlights] Cache HIT for ${cacheKey}`);
         return NextResponse.json(cached, {
-          headers: { "X-Cache": "HIT" },
+          headers: {
+            "X-Cache": "HIT",
+            "Cache-Control": "public, max-age=300, s-maxage=300", // 5 minutes pour permettre le bfcache
+          },
         });
       }
+      console.log(`[AircraftFlights] Cache MISS for ${cacheKey}`);
     }
 
     try {
@@ -221,10 +234,14 @@ export const GET = withFlightHistoryAccess(
             }));
 
             const result = { flights: transformedFlights };
-            setCache(cacheKey, result, FLIGHTS_TTL_MS);
+            await setCache(cacheKey, result, FLIGHTS_TTL_SECONDS);
 
             return NextResponse.json(result, {
-              headers: { "X-Cache": "MISS", "X-Filtered": "codeshare,reg" },
+              headers: {
+                "X-Cache": "MISS",
+                "X-Filtered": "codeshare,reg",
+                "Cache-Control": "public, max-age=300, s-maxage=300", // 5 minutes pour permettre le bfcache
+              },
             });
           }
         } catch (parseError) {
@@ -240,8 +257,13 @@ export const GET = withFlightHistoryAccess(
         (last.status === 400 || last.status === 404 || last.status === 204)
       ) {
         const result = { flights: [], message: "No flights found" };
-        setCache(cacheKey, result, 1000 * 60 * 10); // Cache empty results for 10 minutes
-        return NextResponse.json(result, { status: 404 });
+        await setCache(cacheKey, result, 10 * 60); // Cache empty results for 10 minutes (en secondes)
+        return NextResponse.json(result, {
+          status: 404,
+          headers: {
+            "Cache-Control": "public, max-age=300, s-maxage=300", // 5 minutes pour permettre le bfcache
+          },
+        });
       }
 
       return NextResponse.json(

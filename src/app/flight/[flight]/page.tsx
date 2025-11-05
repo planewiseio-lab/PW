@@ -1,10 +1,11 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, Suspense } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import FlightCard from "@/components/FlightCard";
 import { motion, AnimatePresence } from "framer-motion";
 import { fetchFlightData } from "@/lib/flightRequestDeduplication";
+import StructuredData from "@/components/StructuredData";
 
 // Skeleton for flight detail page
 function FlightDetailSkeleton() {
@@ -102,7 +103,7 @@ interface FlightData {
   lastUpdated: string;
 }
 
-export default function FlightPage() {
+function FlightPageContent() {
   const params = useParams();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -137,21 +138,45 @@ export default function FlightPage() {
         abortControllerRef.current.signal
       );
 
+      console.log("[FlightPage] Received data:", {
+        hasData: !!data,
+        hasError: !!data?.error,
+        hasFlights: !!data?.flights,
+        flightsLength: Array.isArray(data?.flights) ? data.flights.length : 0,
+        hasNumber: !!data?.number,
+        hasAirline: !!data?.airline,
+        hasAircraft: !!data?.aircraft,
+        hasDeparture: !!data?.departure,
+        dataKeys: data ? Object.keys(data) : [],
+      });
+
+      // Vérifier si les données sont valides
       if (data && !data.error) {
-        // Vérifier si on a des vols ou si c'est un payload vide
+        // Vérifier si on a un tableau de vols
         if (data.flights && Array.isArray(data.flights) && data.flights.length > 0) {
-          // Si on a des vols, utiliser le premier vol
-          setFlightData(data.flights[0] || data);
-        } else if (data.number && (data.airline || data.aircraft || data.departure)) {
-          // Si c'est un objet de vol unique (ancien format)
+          // Si on a un tableau de vols, utiliser le premier vol
+          console.log("[FlightPage] Using flight from flights array");
+          setFlightData(data.flights[0]);
+        } else if (
+          // Vérifier si c'est un objet de vol unique (format actuel de l'API)
+          // L'API retourne directement un objet vol avec number, airline, aircraft, departure, arrival
+          data.number ||
+          (data.airline && typeof data.airline === 'object') ||
+          (data.aircraft && typeof data.aircraft === 'object') ||
+          (data.departure && typeof data.departure === 'object') ||
+          (data.arrival && typeof data.arrival === 'object')
+        ) {
+          console.log("[FlightPage] Using direct flight object");
           setFlightData(data);
         } else {
           // Pas de vol trouvé, mais ce n'est pas une erreur - afficher le message approprié
+          console.log("[FlightPage] No flight data found in response");
           setFlightData(null);
           setError(null); // Pas d'erreur, juste pas de données
         }
       } else {
         // Il y a une vraie erreur dans la réponse
+        console.log("[FlightPage] Error in response:", data?.error);
         setError(data?.error || "No flight data found for the selected date");
         setFlightData(null);
       }
@@ -179,6 +204,8 @@ export default function FlightPage() {
 
   // Handle URL parameter changes and load flight data
   useEffect(() => {
+    let isMounted = true;
+    
     const dateFromUrl = searchParams.get("date");
     const finalDate =
       dateFromUrl && dateFromUrl !== searchDate ? dateFromUrl : searchDate;
@@ -188,23 +215,33 @@ export default function FlightPage() {
     }
 
     if (flightNumber) {
-      // Small delay to avoid requests that are too fast
-      const timer = setTimeout(() => {
-        loadFlightData(flightNumber, finalDate);
-      }, 100);
-
-      return () => clearTimeout(timer);
+      // Charger immédiatement pour améliorer le LCP
+      loadFlightData(flightNumber, finalDate).catch((err) => {
+        if (!isMounted) return;
+        if (err.name !== "AbortError") {
+          console.error("[FlightPage] Error loading flight data:", err);
+        }
+      });
     }
-  }, [flightNumber, searchParams, searchDate]);
 
-  // Clean up ongoing requests on unmount
-  useEffect(() => {
-    return () => {
+    // Nettoyer les WebSockets lors du pagehide pour permettre le bfcache
+    const handlePageHide = () => {
+      // Nettoyer les requêtes en cours
       if (abortControllerRef.current) {
         abortControllerRef.current.abort();
       }
     };
-  }, []);
+
+    window.addEventListener("pagehide", handlePageHide);
+
+    return () => {
+      isMounted = false;
+      window.removeEventListener("pagehide", handlePageHide);
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+    };
+  }, [flightNumber, searchParams, searchDate]);
 
   const handleDateChange = (newDate: string) => {
     setSearchDate(newDate);
@@ -283,14 +320,40 @@ export default function FlightPage() {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -20 }}
-              transition={{ delay: 0.3 }}
+              transition={{ delay: 0.1 }}
               className="space-y-6"
             >
+              <StructuredData
+                type="flight"
+                data={{
+                  number: flightData.number,
+                  departure: flightData.departure,
+                  arrival: flightData.arrival,
+                  aircraft: flightData.aircraft,
+                  airline: flightData.airline,
+                }}
+              />
+              {/* FlightCard - LCP element - Rendu immédiatement sans delay */}
               <FlightCard flightData={flightData} />
             </motion.div>
           )}
         </AnimatePresence>
       </div>
     </div>
+  );
+}
+
+export default function FlightPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-white flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600 text-lg">Loading...</p>
+        </div>
+      </div>
+    }>
+      <FlightPageContent />
+    </Suspense>
   );
 }

@@ -274,6 +274,7 @@ export default function FlightCard({ flightData }: FlightCardProps) {
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.2 }}
       className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden"
     >
       {/* En-tête du vol */}
@@ -340,9 +341,9 @@ export default function FlightCard({ flightData }: FlightCardProps) {
                   <path d="M10.894 2.553a1 1 0 00-1.788 0l-7 14a1 1 0 001.169 1.409l5-1.429A1 1 0 009 15.571V11a1 1 0 112 0v4.571a1 1 0 00.725.962l5 1.428a1 1 0 001.17-1.408l-7-14z" />
                 </svg>
               </div>
-              <h3 className="font-semibold text-gray-900 text-center">
+              <h2 className="font-semibold text-gray-900 text-center text-lg">
                 {flightData?.departure?.airport?.iata || "---"}
-              </h3>
+              </h2>
               <p className="text-sm text-gray-600 text-center">
                 {flightData?.departure?.airport?.name || "Unknown"}
               </p>
@@ -405,9 +406,9 @@ export default function FlightCard({ flightData }: FlightCardProps) {
                   />
                 </svg>
               </div>
-              <h3 className="font-semibold text-gray-900 text-center">
+              <h2 className="font-semibold text-gray-900 text-center text-lg">
                 {flightData?.arrival?.airport?.iata || "---"}
-              </h3>
+              </h2>
               <p className="text-sm text-gray-600 text-center">
                 {flightData?.arrival?.airport?.name || "Unknown"}
               </p>
@@ -431,9 +432,9 @@ export default function FlightCard({ flightData }: FlightCardProps) {
                     <path d="M10.894 2.553a1 1 0 00-1.788 0l-7 14a1 1 0 001.169 1.409l5-1.429A1 1 0 009 15.571V11a1 1 0 112 0v4.571a1 1 0 00.725.962l5 1.428a1 1 0 001.17-1.408l-7-14z" />
                   </svg>
                 </div>
-                <h3 className="font-semibold text-gray-900 text-sm text-center">
+                <h2 className="font-semibold text-gray-900 text-sm text-center">
                   {flightData?.departure?.airport?.iata || "---"}
-                </h3>
+                </h2>
                 <p className="text-xs text-gray-600 truncate text-center">
                   {flightData?.departure?.airport?.city || ""}
                 </p>
@@ -488,9 +489,9 @@ export default function FlightCard({ flightData }: FlightCardProps) {
                     />
                   </svg>
                 </div>
-                <h3 className="font-semibold text-gray-900 text-sm text-center">
+                <h2 className="font-semibold text-gray-900 text-sm text-center">
                   {flightData?.arrival?.airport?.iata || "---"}
-                </h3>
+                </h2>
                 <p className="text-xs text-gray-600 truncate text-center">
                   {flightData?.arrival?.airport?.city || ""}
                 </p>
@@ -508,9 +509,9 @@ export default function FlightCard({ flightData }: FlightCardProps) {
           <div className="space-y-6">
             {/* Aircraft */}
             <div>
-              <h3 className="text-sm font-medium text-gray-500 mb-2">
+              <p className="text-sm font-medium text-gray-500 mb-2">
                 Aircraft
-              </h3>
+              </p>
               <p className="text-lg font-semibold text-gray-900">
                 {flightData?.aircraft?.model || "Unknown Aircraft"}
               </p>
@@ -518,9 +519,9 @@ export default function FlightCard({ flightData }: FlightCardProps) {
 
             {/* Registration (cliquable) */}
             <div>
-              <h3 className="text-sm font-medium text-gray-500 mb-2">
+              <p className="text-sm font-medium text-gray-500 mb-2">
                 Registration
-              </h3>
+              </p>
               <a
                 href={`/aircraft/${flightData?.aircraft?.registration || ""}`}
                 className="text-lg font-semibold text-blue-600 hover:text-blue-700 transition cursor-pointer"
@@ -531,9 +532,9 @@ export default function FlightCard({ flightData }: FlightCardProps) {
 
             {/* Distance */}
             <div>
-              <h3 className="text-sm font-medium text-gray-500 mb-2">
+              <p className="text-sm font-medium text-gray-500 mb-2">
                 Distance
-              </h3>
+              </p>
               <p className="text-lg font-semibold text-gray-900">
                 {flightData.distance && flightData.distance > 0
                   ? `${flightData.distance.toLocaleString()} km`
@@ -546,7 +547,7 @@ export default function FlightCard({ flightData }: FlightCardProps) {
           <div className="space-y-6">
             {/* From (cliquable) */}
             <div>
-              <h3 className="text-sm font-medium text-gray-500 mb-2">From</h3>
+              <p className="text-sm font-medium text-gray-500 mb-2">From</p>
               <a
                 href={`/airport/${flightData?.departure?.airport?.iata || ""}`}
                 className="text-lg font-semibold text-blue-600 hover:text-blue-700 transition cursor-pointer"
@@ -558,7 +559,7 @@ export default function FlightCard({ flightData }: FlightCardProps) {
 
             {/* To (cliquable) */}
             <div>
-              <h3 className="text-sm font-medium text-gray-500 mb-2">To</h3>
+              <p className="text-sm font-medium text-gray-500 mb-2">To</p>
               <a
                 href={`/airport/${flightData?.arrival?.airport?.iata || ""}`}
                 className="text-lg font-semibold text-blue-600 hover:text-blue-700 transition cursor-pointer"
@@ -574,7 +575,7 @@ export default function FlightCard({ flightData }: FlightCardProps) {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
           {/* Départ */}
           <div className="bg-gray-50 rounded-xl p-4 md:p-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+            <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
               <div className="w-6 h-6 bg-blue-100 rounded-full flex items-center justify-center">
                 <svg
                   className="w-4 h-4 text-blue-600"
@@ -585,26 +586,26 @@ export default function FlightCard({ flightData }: FlightCardProps) {
                 </svg>
               </div>
               Departure
-            </h3>
+              </h2>
             <div className="space-y-3">
               <div className="flex justify-between">
-                <span className="text-sm text-gray-500">Scheduled:</span>
-                <span className="text-sm font-medium">
+                <span className="text-sm text-gray-700 font-medium">Scheduled:</span>
+                <span className="text-sm font-semibold text-gray-900">
                   {formatTime(flightData.departure.scheduledTimeLocal)}
                 </span>
               </div>
               {flightData.departure.estimatedTimeLocal && (
                 <div className="flex justify-between">
-                  <span className="text-sm text-gray-500">Estimated:</span>
-                  <span className="text-sm font-medium text-blue-600">
+                  <span className="text-sm text-gray-700 font-medium">Estimated:</span>
+                  <span className="text-sm font-semibold text-blue-700">
                     {formatTime(flightData.departure.estimatedTimeLocal)}
                   </span>
                 </div>
               )}
               {flightData.departure.actualTimeLocal && (
                 <div className="flex justify-between">
-                  <span className="text-sm text-gray-500">Actual:</span>
-                  <span className="text-sm font-medium text-green-600">
+                  <span className="text-sm text-gray-700 font-medium">Actual:</span>
+                  <span className="text-sm font-semibold text-green-700">
                     {formatTime(flightData.departure.actualTimeLocal)}
                   </span>
                 </div>
@@ -630,7 +631,7 @@ export default function FlightCard({ flightData }: FlightCardProps) {
 
           {/* Arrivée */}
           <div className="bg-gray-50 rounded-xl p-4 md:p-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+            <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
               <div className="w-6 h-6 bg-green-100 rounded-full flex items-center justify-center">
                 <svg
                   className="w-4 h-4 text-green-600"
@@ -645,26 +646,26 @@ export default function FlightCard({ flightData }: FlightCardProps) {
                 </svg>
               </div>
               Arrival
-            </h3>
+            </h2>
             <div className="space-y-3">
               <div className="flex justify-between">
-                <span className="text-sm text-gray-500">Scheduled:</span>
-                <span className="text-sm font-medium">
+                <span className="text-sm text-gray-700 font-medium">Scheduled:</span>
+                <span className="text-sm font-semibold text-gray-900">
                   {formatTime(flightData.arrival.scheduledTimeLocal)}
                 </span>
               </div>
               {flightData.arrival.estimatedTimeLocal && (
                 <div className="flex justify-between">
-                  <span className="text-sm text-gray-500">Estimated:</span>
-                  <span className="text-sm font-medium text-blue-600">
+                  <span className="text-sm text-gray-700 font-medium">Estimated:</span>
+                  <span className="text-sm font-semibold text-blue-700">
                     {formatTime(flightData.arrival.estimatedTimeLocal)}
                   </span>
                 </div>
               )}
               {flightData.arrival.actualTimeLocal && (
                 <div className="flex justify-between">
-                  <span className="text-sm text-gray-500">Actual:</span>
-                  <span className="text-sm font-medium text-green-600">
+                  <span className="text-sm text-gray-700 font-medium">Actual:</span>
+                  <span className="text-sm font-semibold text-green-700">
                     {formatTime(flightData.arrival.actualTimeLocal)}
                   </span>
                 </div>

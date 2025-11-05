@@ -39,7 +39,7 @@ export function withGuestQuota<T = any>(
   return async (
     request: NextRequest,
     ...args: any[]
-  ): Promise<NextResponse<T>> => {
+  ): Promise<NextResponse<T | { error: string; code: string; message: string; remaining: number; guestRemaining: number; guestUsed: number; guestLimit: number; guestTtl: number; requiresAuth: boolean; upgradeUrl: string }>> => {
     try {
       // 1. Récupérer l'IP client
       const clientIp = getClientIp(request);
@@ -187,14 +187,14 @@ export function withGuestQuotaCheck<T = any>(
   return async (
     request: NextRequest,
     ...args: any[]
-  ): Promise<NextResponse<T>> => {
+  ): Promise<NextResponse<T | { error: string; code: string; message: string; remaining: number; guestRemaining: number; guestUsed: number; guestLimit: number; guestTtl: number; requiresAuth: boolean; upgradeUrl: string }>> => {
     try {
       const clientIp = getClientIp(request);
       const quotaExceeded = await isGuestQuotaExceeded(clientIp);
 
       if (quotaExceeded) {
         // Récupérer les stats du quota pour inclure les détails dans la réponse
-        let stats: { used: number; remaining: number; limit: number } | null = null;
+        let stats: { used: number; remaining: number; limit: number; ttl?: number } | null = null;
         try {
           const { getGuestQuotaStats } = await import("./guestQuota");
           stats = await getGuestQuotaStats(clientIp);
@@ -203,6 +203,7 @@ export function withGuestQuotaCheck<T = any>(
           // Utiliser les valeurs par défaut si getGuestQuotaStats échoue
         }
 
+        const ttlValue = stats?.ttl ?? 0;
         return NextResponse.json(
           {
             error: "GUEST_QUOTA_EXCEEDED",
@@ -213,6 +214,7 @@ export function withGuestQuotaCheck<T = any>(
             guestRemaining: 0,
             guestUsed: stats?.used ?? GUEST_QUOTA_LIMIT,
             guestLimit: GUEST_QUOTA_LIMIT,
+            guestTtl: ttlValue, // TTL en secondes jusqu'à la réinitialisation
             requiresAuth: true,
             upgradeUrl:
               "/login?redirect=" + encodeURIComponent(request.nextUrl.pathname),
