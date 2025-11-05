@@ -93,71 +93,11 @@ export function UserStatusProvider({ children }: { children: ReactNode }) {
       return;
     }
 
-    const supabase = createClient();
+    // Déferrer le chargement de Supabase sur mobile pour améliorer le TBT
+    const isMobile = typeof window !== "undefined" && window.innerWidth < 768;
+    const delay = isMobile ? 2000 : 0; // Délai de 2s sur mobile pour permettre le rendu initial
 
-    const getUser = async () => {
-      // Éviter les appels multiples simultanés
-      if (fetchingRef.current) return;
-      fetchingRef.current = true;
-
-      try {
-        const {
-          data: { user },
-        } = await supabase.auth.getUser();
-
-        setUser(user);
-
-        if (user) {
-          // Vérifier si l'utilisateur a une souscription active et le plan
-          try {
-            const subscriptionResponse = await fetch("/api/user/subscription", {
-              credentials: "include",
-              cache: "no-store",
-            });
-
-            if (subscriptionResponse.ok) {
-              const data = await subscriptionResponse.json();
-              if (data.subscription) {
-                const plan = data.subscription.plan;
-                const renewsAt = data.subscription.renewsAt
-                  ? new Date(data.subscription.renewsAt)
-                  : null;
-                const now = new Date();
-
-                if (plan === "PRO" || plan === "BASIC") {
-                  setStatus(renewsAt && renewsAt > now ? "pro" : "subscribed");
-                } else {
-                  setStatus("subscribed");
-                }
-              } else {
-                setStatus("guest");
-              }
-            } else {
-              setStatus("guest");
-            }
-          } catch (subErr) {
-            console.error("[UserStatusProvider] Error fetching subscription:", subErr);
-            setStatus("guest");
-          }
-        } else {
-          setStatus("guest");
-        }
-      } catch (err) {
-        console.error("[UserStatusProvider] Error getting user:", err);
-        setStatus("guest");
-      } finally {
-        setLoading(false);
-        fetchingRef.current = false;
-      }
-    };
-
-    getUser();
-
-    // Créer la subscription initiale
-    const { data: { subscription } } = createAuthSubscription(supabase);
-    subscriptionRef.current = subscription;
-
-    // Nettoyer les subscriptions lors du pagehide pour permettre le bfcache
+    // Définir les handlers au niveau du useEffect pour qu'ils soient accessibles dans le nettoyage
     const handlePageHide = () => {
       if (subscriptionRef.current) {
         subscriptionRef.current.unsubscribe();
@@ -192,13 +132,84 @@ export function UserStatusProvider({ children }: { children: ReactNode }) {
       }
     };
 
-    // Écouter les événements pour gérer le bfcache
-    window.addEventListener("pagehide", handlePageHide);
-    window.addEventListener("pageshow", handlePageShow);
-    document.addEventListener("visibilitychange", handleVisibilityChange);
+    const timeoutId = setTimeout(() => {
+      const supabase = createClient();
 
+      const getUser = async () => {
+        // Éviter les appels multiples simultanés
+        if (fetchingRef.current) return;
+        fetchingRef.current = true;
+
+        try {
+          const {
+            data: { user },
+          } = await supabase.auth.getUser();
+
+          setUser(user);
+
+          if (user) {
+            // Vérifier si l'utilisateur a une souscription active et le plan
+            try {
+              const subscriptionResponse = await fetch("/api/user/subscription", {
+                credentials: "include",
+                cache: "no-store",
+              });
+
+              if (subscriptionResponse.ok) {
+                const data = await subscriptionResponse.json();
+                if (data.subscription) {
+                  const plan = data.subscription.plan;
+                  const renewsAt = data.subscription.renewsAt
+                    ? new Date(data.subscription.renewsAt)
+                    : null;
+                  const now = new Date();
+
+                  if (plan === "PRO" || plan === "BASIC") {
+                    setStatus(renewsAt && renewsAt > now ? "pro" : "subscribed");
+                  } else {
+                    setStatus("subscribed");
+                  }
+                } else {
+                  setStatus("guest");
+                }
+              } else {
+                setStatus("guest");
+              }
+            } catch (subErr) {
+              console.error("[UserStatusProvider] Error fetching subscription:", subErr);
+              setStatus("guest");
+            }
+          } else {
+            setStatus("guest");
+          }
+        } catch (err) {
+          console.error("[UserStatusProvider] Error getting user:", err);
+          setStatus("guest");
+        } finally {
+          setLoading(false);
+          fetchingRef.current = false;
+        }
+      };
+
+      getUser();
+
+      // Créer la subscription initiale
+      const { data: { subscription } } = createAuthSubscription(supabase);
+      subscriptionRef.current = subscription;
+
+      // Écouter les événements pour gérer le bfcache
+      window.addEventListener("pagehide", handlePageHide);
+      window.addEventListener("pageshow", handlePageShow);
+      document.addEventListener("visibilitychange", handleVisibilityChange);
+    }, delay);
+
+    // Nettoyage du useEffect
     return () => {
-      subscription.unsubscribe();
+      clearTimeout(timeoutId);
+      if (subscriptionRef.current) {
+        subscriptionRef.current.unsubscribe();
+        subscriptionRef.current = null;
+      }
       fetchingRef.current = false;
       window.removeEventListener("pagehide", handlePageHide);
       window.removeEventListener("pageshow", handlePageShow);

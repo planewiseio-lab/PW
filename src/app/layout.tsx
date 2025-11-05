@@ -2,7 +2,6 @@ import "./globals.css";
 import type { Metadata } from "next";
 import Head from "next/head";
 import AOSInit from "@/components/AOSInit";
-import AuthButton from "@/components/AuthButton";
 import dynamic from "next/dynamic";
 
 // Lazy load SearchHeader pour réduire le bundle initial
@@ -52,6 +51,11 @@ const FreeCreditsExceededModal = dynamic(
 const CookieConsent = dynamic(() => import("@/components/CookieConsent"));
 
 const GoogleAnalytics = dynamic(() => import("@/components/GoogleAnalytics"));
+
+// Lazy load AuthButton sur mobile pour éviter le chargement de Supabase auth
+const AuthButton = dynamic(() => import("@/components/AuthButton"), {
+  ssr: true, // SSR pour le SEO
+});
 
 import ErrorBoundary from "@/components/ErrorBoundary";
 import PWASetup from "@/components/PWASetup";

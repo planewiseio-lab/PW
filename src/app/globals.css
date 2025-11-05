@@ -31,6 +31,57 @@
   pointer-events: none !important;
 }
 
+/* Masquer l'icône de calendrier native sur mobile pour les champs date */
+@media (max-width: 768px) {
+  input[type="date"]::-webkit-calendar-picker-indicator {
+    display: none !important;
+    -webkit-appearance: none !important;
+    appearance: none !important;
+    opacity: 0 !important;
+    position: absolute !important;
+    width: 0 !important;
+    height: 0 !important;
+    pointer-events: none !important;
+    background: none !important;
+    cursor: default !important;
+  }
+  
+  input[type="date"]::-webkit-calendar-picker-indicator::before {
+    content: "" !important;
+    display: none !important;
+  }
+  
+  input[type="date"]::-webkit-inner-spin-button {
+    display: none !important;
+    -webkit-appearance: none !important;
+    appearance: none !important;
+  }
+  
+  input[type="date"]::-webkit-outer-spin-button {
+    display: none !important;
+    -webkit-appearance: none !important;
+    appearance: none !important;
+  }
+  
+  input[type="date"] {
+    -webkit-appearance: none !important;
+    appearance: none !important;
+    position: relative;
+  }
+  
+  /* Cibler spécifiquement le champ date mobile */
+  #flight-date-picker-mobile::-webkit-calendar-picker-indicator {
+    display: none !important;
+    opacity: 0 !important;
+    width: 0 !important;
+    height: 0 !important;
+    pointer-events: none !important;
+    background: transparent !important;
+    -webkit-appearance: none !important;
+    appearance: none !important;
+  }
+}
+
 /* === Boutons primaires avec la même couleur que Login === */
 .btn-primary-sm {
   @apply text-white px-3 py-1.5 text-sm font-medium rounded-lg transition-colors duration-200;

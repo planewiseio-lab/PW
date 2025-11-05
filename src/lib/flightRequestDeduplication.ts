@@ -15,12 +15,33 @@ const REQUEST_TIMEOUT = 10 * 60 * 1000; // 10 minutes pour nettoyer les requête
 // Cache des réponses
 const responseCache = new Map<string, { data: any; timestamp: number }>();
 
-// Nettoyer les requêtes orphelines
+// Fonction pour vérifier si une réponse est valide
+function isValidFlightResponse(data: any): boolean {
+  if (!data) return false;
+  const hasFlightsArray = Array.isArray(data.flights);
+  const isEmptyFlightsArray = hasFlightsArray && data.flights.length === 0;
+  const hasValidFlightData = data && (
+    data.airline || 
+    data.departure || 
+    data.arrival ||
+    (hasFlightsArray && data.flights.length > 0)
+  );
+  return hasValidFlightData && !isEmptyFlightsArray;
+}
+
+// Nettoyer les requêtes orphelines et les caches vides
 setInterval(() => {
   const now = Date.now();
+  // Nettoyer les requêtes orphelines
   for (const [key, request] of pendingRequests.entries()) {
     if (now - request.timestamp > REQUEST_TIMEOUT) {
       pendingRequests.delete(key);
+    }
+  }
+  // Nettoyer les caches vides ou expirés
+  for (const [key, cached] of responseCache.entries()) {
+    if (now - cached.timestamp > CACHE_DURATION || !isValidFlightResponse(cached.data)) {
+      responseCache.delete(key);
     }
   }
 }, 5 * 60 * 1000); // Nettoyer toutes les 5 minutes
@@ -34,8 +55,19 @@ export async function fetchFlightData(
 
   // Vérifier le cache d'abord
   const cached = responseCache.get(cacheKey);
-  if (cached && Date.now() - cached.timestamp < CACHE_DURATION) {
-    return cached.data;
+  if (cached) {
+    const isExpired = Date.now() - cached.timestamp >= CACHE_DURATION;
+    const isValid = isValidFlightResponse(cached.data);
+    
+    // Si le cache est expiré ou invalide, le supprimer
+    if (isExpired || !isValid) {
+      console.log(`[FlightRequestDeduplication] Cache ${isExpired ? 'expired' : 'invalid'} for ${cacheKey}, removing and calling API`);
+      responseCache.delete(cacheKey);
+    } else {
+      // Cache valide et non expiré, l'utiliser
+      console.log(`[FlightRequestDeduplication] Using cached response for ${cacheKey}`);
+      return cached.data;
+    }
   }
 
   // Vérifier si une requête est déjà en cours
@@ -98,11 +130,16 @@ export async function fetchFlightData(
         throw new Error(data.error);
       }
 
-      // Mettre en cache la réponse
-      responseCache.set(cacheKey, {
-        data,
-        timestamp: Date.now(),
-      });
+      // Mettre en cache seulement si c'est un payload valide (pas une réponse vide)
+      if (isValidFlightResponse(data)) {
+        responseCache.set(cacheKey, {
+          data,
+          timestamp: Date.now(),
+        });
+        console.log(`[FlightRequestDeduplication] Cached valid response for ${cacheKey}`);
+      } else {
+        console.log(`[FlightRequestDeduplication] Not caching empty/invalid response for ${cacheKey}`);
+      }
 
       return data;
     } finally {

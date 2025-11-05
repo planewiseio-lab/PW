@@ -55,6 +55,15 @@ interface FlightCardProps {
 }
 
 export default function FlightCard({ flightData }: FlightCardProps) {
+  // Vérifier que flightData est valide
+  if (!flightData || (!flightData.departure && !flightData.arrival)) {
+    return (
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 text-center">
+        <p className="text-gray-600">Flight data is incomplete or unavailable.</p>
+      </div>
+    );
+  }
+
   const [currentTime, setCurrentTime] = useState(new Date());
   const [realTimeProgress, setRealTimeProgress] = useState(0);
 
@@ -72,17 +81,31 @@ export default function FlightCard({ flightData }: FlightCardProps) {
     try {
       const now = currentTime.getTime();
 
+      // Vérifier que departure et arrival existent
+      if (!flightData?.departure || !flightData?.arrival) {
+        return getProgressPercentage();
+      }
+
       // Heure de départ (actual ou scheduled)
       const departureTime = flightData.departure.actualTimeLocal
         ? new Date(flightData.departure.actualTimeLocal).getTime()
-        : new Date(flightData.departure.scheduledTimeLocal).getTime();
+        : flightData.departure.scheduledTimeLocal
+        ? new Date(flightData.departure.scheduledTimeLocal).getTime()
+        : null;
 
       // Heure d'arrivée (actual, estimated, ou scheduled)
       const arrivalTime = flightData.arrival.actualTimeLocal
         ? new Date(flightData.arrival.actualTimeLocal).getTime()
         : flightData.arrival.estimatedTimeLocal
         ? new Date(flightData.arrival.estimatedTimeLocal).getTime()
-        : new Date(flightData.arrival.scheduledTimeLocal).getTime();
+        : flightData.arrival.scheduledTimeLocal
+        ? new Date(flightData.arrival.scheduledTimeLocal).getTime()
+        : null;
+
+      // Si on n'a pas de temps de départ ou d'arrivée, utiliser le fallback
+      if (!departureTime || !arrivalTime) {
+        return getProgressPercentage();
+      }
 
       // Vérifier le statut du vol
       const status = (flightData?.status || "").toLowerCase();
@@ -92,7 +115,7 @@ export default function FlightCard({ flightData }: FlightCardProps) {
         status === "arrived*";
 
       // Si le vol n'a pas encore décollé
-      if (now < departureTime) {
+      if (departureTime && now < departureTime) {
         return 0;
       }
 
@@ -102,25 +125,28 @@ export default function FlightCard({ flightData }: FlightCardProps) {
       }
 
       // Si l'heure d'arrivée réelle est passée (pas juste estimée), considérer comme arrivé
-      if (flightData.arrival.actualTimeLocal && now >= new Date(flightData.arrival.actualTimeLocal).getTime()) {
+      if (flightData.arrival?.actualTimeLocal && now >= new Date(flightData.arrival.actualTimeLocal).getTime()) {
         return 100;
       }
 
       // Si l'heure estimée est passée mais le statut est encore "EnRoute", 
       // limiter à 95% pour montrer que le vol est presque arrivé mais pas encore officiellement
-      if (now >= arrivalTime && (status === "enroute" || status === "in flight")) {
+      if (arrivalTime && now >= arrivalTime && (status === "enroute" || status === "in flight")) {
         return 95;
       }
 
       // Calculer le pourcentage de progression normal
-      const totalDuration = arrivalTime - departureTime;
-      const elapsed = now - departureTime;
-      const percentage = Math.min(
-        Math.max((elapsed / totalDuration) * 100, 0),
-        100
-      );
+      if (departureTime && arrivalTime) {
+        const totalDuration = arrivalTime - departureTime;
+        const elapsed = now - departureTime;
+        const percentage = Math.min(
+          Math.max((elapsed / totalDuration) * 100, 0),
+          100
+        );
+        return Math.round(percentage);
+      }
 
-      return Math.round(percentage);
+      return getProgressPercentage();
     } catch (error) {
       console.log("Error calculating real-time progress:", error);
       // Fallback sur le statut si le calcul échoue
@@ -165,6 +191,11 @@ export default function FlightCard({ flightData }: FlightCardProps) {
     try {
       const now = currentTime.getTime();
       
+      // Vérifier que arrival existe
+      if (!flightData?.arrival) {
+        return "N/A";
+      }
+      
       // Vérifier d'abord le statut réel du vol
       const status = (flightData?.status || "").toLowerCase();
       const isArrived = 
@@ -190,7 +221,13 @@ export default function FlightCard({ flightData }: FlightCardProps) {
         ? new Date(flightData.arrival.actualTimeLocal).getTime()
         : flightData.arrival.estimatedTimeLocal
         ? new Date(flightData.arrival.estimatedTimeLocal).getTime()
-        : new Date(flightData.arrival.scheduledTimeLocal).getTime();
+        : flightData.arrival.scheduledTimeLocal
+        ? new Date(flightData.arrival.scheduledTimeLocal).getTime()
+        : null;
+
+      if (!arrivalTime) {
+        return "N/A";
+      }
 
       const timeRemaining = arrivalTime - now;
 
@@ -279,7 +316,8 @@ export default function FlightCard({ flightData }: FlightCardProps) {
     >
       {/* En-tête du vol */}
       <div className="bg-gradient-to-r from-blue-50 to-indigo-50 p-6 border-b border-gray-200">
-        <div className="flex items-center justify-between">
+        {/* Desktop Layout */}
+        <div className="hidden md:flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="w-12 h-12 bg-blue-600 rounded-lg flex items-center justify-center">
               <svg
@@ -321,6 +359,28 @@ export default function FlightCard({ flightData }: FlightCardProps) {
             <p className="text-xs text-gray-500 mt-1 hidden md:block">
               Last updated {formatTime(flightData.lastUpdated)}
             </p>
+          </div>
+        </div>
+
+        {/* Mobile Layout - Réorganisé */}
+        <div className="md:hidden text-center space-y-2">
+          <h1 className="text-xl font-bold text-gray-900">
+            {flightData?.airline?.name || "Unknown Airline"}
+          </h1>
+          <h2 className="text-lg font-semibold text-blue-600">
+            {flightData.number}
+          </h2>
+          <p className="text-sm text-gray-600">
+            {(flightData?.aircraft?.model || "Unknown Aircraft")} • {flightData?.aircraft?.registration || "N/A"}
+          </p>
+          <div>
+            <span
+              className={`inline-block px-3 py-1 rounded-full text-sm font-medium border ${getStatusColor(
+                flightData.status
+              )}`}
+            >
+              {flightData.status}
+            </span>
           </div>
         </div>
       </div>
@@ -420,8 +480,8 @@ export default function FlightCard({ flightData }: FlightCardProps) {
 
           {/* Mobile Layout */}
           <div className="md:hidden">
-            {/* Route mobile */}
-            <div className="flex items-center justify-between mb-4">
+            {/* Aéroports avec SVG et flèche */}
+            <div className="flex items-center justify-center gap-3 mb-4">
               <div className="text-center flex-1">
                 <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center mb-2 mx-auto">
                   <svg
@@ -432,48 +492,29 @@ export default function FlightCard({ flightData }: FlightCardProps) {
                     <path d="M10.894 2.553a1 1 0 00-1.788 0l-7 14a1 1 0 001.169 1.409l5-1.429A1 1 0 009 15.571V11a1 1 0 112 0v4.571a1 1 0 00.725.962l5 1.428a1 1 0 001.17-1.408l-7-14z" />
                   </svg>
                 </div>
-                <h2 className="font-semibold text-gray-900 text-sm text-center">
+                <h2 className="font-semibold text-gray-900 text-base">
                   {flightData?.departure?.airport?.iata || "---"}
                 </h2>
-                <p className="text-xs text-gray-600 truncate text-center">
-                  {flightData?.departure?.airport?.city || ""}
-                </p>
-                <p className="text-xs text-gray-500 truncate text-center mt-1">
-                  {flightData?.departure?.airport?.name || "Unknown"}
+                <p className="text-xs text-gray-600 mt-1">
+                  {flightData?.departure?.airport?.name || ""}
                 </p>
               </div>
-
-              <div className="flex-1 mx-4">
-                <div className="w-full bg-gray-200 rounded-full h-2 relative overflow-hidden">
-                  <motion.div
-                    className="bg-gradient-to-r from-blue-500 via-blue-400 to-green-500 h-2 rounded-full relative"
-                    initial={{ width: 0 }}
-                    animate={{ width: `${progressPercentage}%` }}
-                    transition={{ duration: 0.8, ease: "easeOut" }}
-                  >
-                    <motion.div
-                      className="absolute inset-0 bg-gradient-to-r from-transparent via-white to-transparent opacity-30"
-                      animate={{ x: ["-100%", "100%"] }}
-                      transition={{
-                        duration: 2,
-                        repeat: Infinity,
-                        ease: "linear",
-                        delay: 0.5,
-                      }}
-                    />
-                  </motion.div>
-                </div>
-                <div className="text-center mt-1">
-                  <span className="text-xs font-medium text-blue-600">
-                    {progressPercentage}%
-                  </span>
-                  {progressPercentage > 0 && progressPercentage < 100 && (
-                    <div className="text-xs text-gray-400">
-                      {getEstimatedTimeRemaining()}
-                    </div>
-                  )}
-                </div>
-              </div>
+              
+              {/* Flèche de gauche à droite */}
+              <svg
+                className="w-6 h-6 text-gray-400 flex-shrink-0"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+                aria-hidden="true"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M13 7l5 5m0 0l-5 5m5-5H6"
+                />
+              </svg>
 
               <div className="text-center flex-1">
                 <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center mb-2 mx-auto">
@@ -489,15 +530,47 @@ export default function FlightCard({ flightData }: FlightCardProps) {
                     />
                   </svg>
                 </div>
-                <h2 className="font-semibold text-gray-900 text-sm text-center">
+                <h2 className="font-semibold text-gray-900 text-base">
                   {flightData?.arrival?.airport?.iata || "---"}
                 </h2>
-                <p className="text-xs text-gray-600 truncate text-center">
-                  {flightData?.arrival?.airport?.city || ""}
-                </p>
-                <p className="text-xs text-gray-500 truncate text-center mt-1">
-                  {flightData?.arrival?.airport?.name || "Unknown"}
-                </p>
+                {flightData?.arrival?.airport?.name && (
+                  <p className="text-xs text-gray-600 mt-1">
+                    {flightData.arrival.airport.name}
+                  </p>
+                )}
+              </div>
+            </div>
+
+            {/* Progress bar sous les aéroports */}
+            <div className="mb-4">
+              <div className="w-full bg-gray-200 rounded-full h-2 relative overflow-hidden">
+                <motion.div
+                  className="bg-gradient-to-r from-blue-500 via-blue-400 to-green-500 h-2 rounded-full relative"
+                  initial={{ width: 0 }}
+                  animate={{ width: `${progressPercentage}%` }}
+                  transition={{ duration: 0.8, ease: "easeOut" }}
+                >
+                  <motion.div
+                    className="absolute inset-0 bg-gradient-to-r from-transparent via-white to-transparent opacity-30"
+                    animate={{ x: ["-100%", "100%"] }}
+                    transition={{
+                      duration: 2,
+                      repeat: Infinity,
+                      ease: "linear",
+                      delay: 0.5,
+                    }}
+                  />
+                </motion.div>
+              </div>
+              <div className="text-center mt-1">
+                <span className="text-xs font-medium text-blue-600">
+                  {progressPercentage}%
+                </span>
+                {progressPercentage > 0 && progressPercentage < 100 && (
+                  <div className="text-xs text-gray-400">
+                    {getEstimatedTimeRemaining()}
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -588,13 +661,15 @@ export default function FlightCard({ flightData }: FlightCardProps) {
               Departure
               </h2>
             <div className="space-y-3">
-              <div className="flex justify-between">
-                <span className="text-sm text-gray-700 font-medium">Scheduled:</span>
-                <span className="text-sm font-semibold text-gray-900">
-                  {formatTime(flightData.departure.scheduledTimeLocal)}
-                </span>
-              </div>
-              {flightData.departure.estimatedTimeLocal && (
+              {flightData?.departure?.scheduledTimeLocal && (
+                <div className="flex justify-between">
+                  <span className="text-sm text-gray-700 font-medium">Scheduled:</span>
+                  <span className="text-sm font-semibold text-gray-900">
+                    {formatTime(flightData.departure.scheduledTimeLocal)}
+                  </span>
+                </div>
+              )}
+              {flightData?.departure?.estimatedTimeLocal && (
                 <div className="flex justify-between">
                   <span className="text-sm text-gray-700 font-medium">Estimated:</span>
                   <span className="text-sm font-semibold text-blue-700">
@@ -602,7 +677,7 @@ export default function FlightCard({ flightData }: FlightCardProps) {
                   </span>
                 </div>
               )}
-              {flightData.departure.actualTimeLocal && (
+              {flightData?.departure?.actualTimeLocal && (
                 <div className="flex justify-between">
                   <span className="text-sm text-gray-700 font-medium">Actual:</span>
                   <span className="text-sm font-semibold text-green-700">
@@ -610,7 +685,7 @@ export default function FlightCard({ flightData }: FlightCardProps) {
                   </span>
                 </div>
               )}
-              {flightData.departure.gate && (
+              {flightData?.departure?.gate && (
                 <div className="flex justify-between">
                   <span className="text-sm text-gray-500">Gate:</span>
                   <span className="text-sm font-medium">
@@ -618,12 +693,19 @@ export default function FlightCard({ flightData }: FlightCardProps) {
                   </span>
                 </div>
               )}
-              {flightData.departure.terminal && (
+              {flightData?.departure?.terminal && (
                 <div className="flex justify-between">
                   <span className="text-sm text-gray-500">Terminal:</span>
                   <span className="text-sm font-medium">
                     {flightData.departure.terminal}
                   </span>
+                </div>
+              )}
+              {!flightData?.departure?.scheduledTimeLocal && 
+               !flightData?.departure?.estimatedTimeLocal && 
+               !flightData?.departure?.actualTimeLocal && (
+                <div className="text-sm text-gray-500 text-center">
+                  No departure information available
                 </div>
               )}
             </div>
@@ -648,13 +730,15 @@ export default function FlightCard({ flightData }: FlightCardProps) {
               Arrival
             </h2>
             <div className="space-y-3">
-              <div className="flex justify-between">
-                <span className="text-sm text-gray-700 font-medium">Scheduled:</span>
-                <span className="text-sm font-semibold text-gray-900">
-                  {formatTime(flightData.arrival.scheduledTimeLocal)}
-                </span>
-              </div>
-              {flightData.arrival.estimatedTimeLocal && (
+              {flightData?.arrival?.scheduledTimeLocal && (
+                <div className="flex justify-between">
+                  <span className="text-sm text-gray-700 font-medium">Scheduled:</span>
+                  <span className="text-sm font-semibold text-gray-900">
+                    {formatTime(flightData.arrival.scheduledTimeLocal)}
+                  </span>
+                </div>
+              )}
+              {flightData?.arrival?.estimatedTimeLocal && (
                 <div className="flex justify-between">
                   <span className="text-sm text-gray-700 font-medium">Estimated:</span>
                   <span className="text-sm font-semibold text-blue-700">
@@ -662,7 +746,7 @@ export default function FlightCard({ flightData }: FlightCardProps) {
                   </span>
                 </div>
               )}
-              {flightData.arrival.actualTimeLocal && (
+              {flightData?.arrival?.actualTimeLocal && (
                 <div className="flex justify-between">
                   <span className="text-sm text-gray-700 font-medium">Actual:</span>
                   <span className="text-sm font-semibold text-green-700">
@@ -670,7 +754,7 @@ export default function FlightCard({ flightData }: FlightCardProps) {
                   </span>
                 </div>
               )}
-              {flightData.arrival.gate && (
+              {flightData?.arrival?.gate && (
                 <div className="flex justify-between">
                   <span className="text-sm text-gray-500">Gate:</span>
                   <span className="text-sm font-medium">
@@ -678,7 +762,7 @@ export default function FlightCard({ flightData }: FlightCardProps) {
                   </span>
                 </div>
               )}
-              {flightData.arrival.terminal && (
+              {flightData?.arrival?.terminal && (
                 <div className="flex justify-between">
                   <span className="text-sm text-gray-500">Terminal:</span>
                   <span className="text-sm font-medium">

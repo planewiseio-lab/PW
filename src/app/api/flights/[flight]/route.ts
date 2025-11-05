@@ -139,7 +139,8 @@ async function callAero(
         const text = await response.text();
 
         // Logger la requête API (seulement pour la première tentative)
-        if (url === url1) {
+        // Ne pas tracker les réponses 204 (No Content) car elles ne consomment pas d'appel API
+        if (url === url1 && response.status !== 204) {
           const responseTime = Date.now() - startTime;
           const { logApiRequest } = await import("@/lib/apiTracker");
 
@@ -275,63 +276,167 @@ export const GET = withFlightBrowseAccess(
       // Vérifier le cache Supabase persistant (partagé entre toutes les instances serverless)
       const cached = await getCache(cacheKey);
       if (cached) {
-        console.log(`[FlightAPI] Cache HIT for ${cacheKey}`);
-        const response = NextResponse.json(JSON.parse(cached));
-        response.headers.set("X-Cache", "HIT");
-        // Déterminer le TTL du cache HIT en fonction de l'âge du vol
-        const cachedPayload = JSON.parse(cached);
-        const cachedRequestedDate = dateLocal ? new Date(dateLocal) : new Date();
-        const cachedIsOlderThan24h = dateLocal && (now.getTime() - cachedRequestedDate.getTime()) > 24 * 60 * 60 * 1000;
-        const cachedTtlSeconds = cachedIsOlderThan24h ? 7 * 24 * 60 * 60 : 30 * 60;
-        response.headers.set("Cache-Control", `public, max-age=${cachedTtlSeconds}, s-maxage=${cachedTtlSeconds}`);
-        return response;
+        try {
+          const cachedPayload = JSON.parse(cached);
+          
+          // Vérifier si c'est un placeholder de déduplication (marqueur temporaire)
+          if (cachedPayload && cachedPayload.__pending === true) {
+            console.log(`[FlightAPI] Request already in progress for ${cacheKey}, waiting...`);
+            // Attendre que la requête en cours se termine (max 5 secondes)
+            for (let i = 0; i < 50; i++) {
+              await new Promise(resolve => setTimeout(resolve, 100));
+              const retryCache = await getCache(cacheKey);
+              if (retryCache) {
+                const retryPayload = JSON.parse(retryCache);
+                // Si c'est toujours en pending après 5s, continuer quand même
+                if (retryPayload.__pending !== true || i >= 49) {
+                  if (retryPayload.__pending !== true) {
+                    // Le résultat est maintenant disponible, l'utiliser
+                    const hasFlightsArray = Array.isArray(retryPayload.flights);
+                    const isEmptyFlightsArray = hasFlightsArray && retryPayload.flights.length === 0;
+                    const hasValidFlightData = retryPayload && (
+                      retryPayload.airline || 
+                      retryPayload.departure || 
+                      retryPayload.arrival ||
+                      (hasFlightsArray && retryPayload.flights.length > 0)
+                    );
+                    
+                    if (hasValidFlightData && !isEmptyFlightsArray) {
+                      console.log(`[FlightAPI] Cache HIT (after waiting) for ${cacheKey}`);
+                      const response = NextResponse.json(retryPayload);
+                      response.headers.set("X-Cache", "HIT");
+                      const cachedRequestedDate = dateLocal ? new Date(dateLocal) : new Date();
+                      const cachedIsOlderThan24h = dateLocal && (now.getTime() - cachedRequestedDate.getTime()) > 24 * 60 * 60 * 1000;
+                      const cachedTtlSeconds = cachedIsOlderThan24h ? 7 * 24 * 60 * 60 : 30 * 60;
+                      response.headers.set("Cache-Control", `public, max-age=${cachedTtlSeconds}, s-maxage=${cachedTtlSeconds}`);
+                      return response;
+                    }
+                  }
+                  break;
+                }
+              }
+            }
+            // Si on arrive ici, on continue avec l'appel API (timeout ou résultat invalide)
+          } else {
+            // Ne pas utiliser le cache si c'est une réponse vide (flights: [] ou tableau vide)
+            // Vérifier si c'est un payload valide avec des données de vol (airline, departure, etc.)
+            const hasFlightsArray = Array.isArray(cachedPayload.flights);
+            const isEmptyFlightsArray = hasFlightsArray && cachedPayload.flights.length === 0;
+            const hasValidFlightData = cachedPayload && (
+              cachedPayload.airline || 
+              cachedPayload.departure || 
+              cachedPayload.arrival ||
+              (hasFlightsArray && cachedPayload.flights.length > 0)
+            );
+            
+            // Utiliser le cache seulement si c'est un payload valide (pas une réponse vide)
+            if (hasValidFlightData && !isEmptyFlightsArray) {
+              console.log(`[FlightAPI] Cache HIT for ${cacheKey}`);
+              const response = NextResponse.json(cachedPayload);
+              response.headers.set("X-Cache", "HIT");
+              // Déterminer le TTL du cache HIT en fonction de l'âge du vol
+              const cachedRequestedDate = dateLocal ? new Date(dateLocal) : new Date();
+              const cachedIsOlderThan24h = dateLocal && (now.getTime() - cachedRequestedDate.getTime()) > 24 * 60 * 60 * 1000;
+              const cachedTtlSeconds = cachedIsOlderThan24h ? 7 * 24 * 60 * 60 : 30 * 60;
+              response.headers.set("Cache-Control", `public, max-age=${cachedTtlSeconds}, s-maxage=${cachedTtlSeconds}`);
+              return response;
+            } else {
+              console.log(`[FlightAPI] Cache contains empty response (flights: [] or no valid data), ignoring cache and calling API`);
+            }
+          }
+        } catch (e) {
+          console.log(`[FlightAPI] Failed to parse cached response, ignoring cache:`, e);
+        }
+      }
+
+      // Si pas de cache, mettre un placeholder de déduplication pour éviter les appels dupliqués
+      const lockKey = `${cacheKey}:__lock`;
+      const existingLock = await getCache(lockKey);
+      if (!existingLock) {
+        // Mettre un placeholder de déduplication (TTL court : 5 secondes)
+        await setCache(lockKey, JSON.stringify({ __pending: true }), 5);
+        console.log(`[FlightAPI] Set deduplication lock for ${cacheKey}`);
+      } else {
+        console.log(`[FlightAPI] Another request is already processing ${cacheKey}, will wait and retry cache`);
+        // Attendre un peu et réessayer le cache
+        await new Promise(resolve => setTimeout(resolve, 200));
+        const retryCache = await getCache(cacheKey);
+        if (retryCache) {
+          const retryPayload = JSON.parse(retryCache);
+          if (retryPayload.__pending !== true) {
+            const hasFlightsArray = Array.isArray(retryPayload.flights);
+            const isEmptyFlightsArray = hasFlightsArray && retryPayload.flights.length === 0;
+            const hasValidFlightData = retryPayload && (
+              retryPayload.airline || 
+              retryPayload.departure || 
+              retryPayload.arrival ||
+              (hasFlightsArray && retryPayload.flights.length > 0)
+            );
+            
+            if (hasValidFlightData && !isEmptyFlightsArray) {
+              console.log(`[FlightAPI] Cache HIT (after lock wait) for ${cacheKey}`);
+              const response = NextResponse.json(retryPayload);
+              response.headers.set("X-Cache", "HIT");
+              const cachedRequestedDate = dateLocal ? new Date(dateLocal) : new Date();
+              const cachedIsOlderThan24h = dateLocal && (now.getTime() - cachedRequestedDate.getTime()) > 24 * 60 * 60 * 1000;
+              const cachedTtlSeconds = cachedIsOlderThan24h ? 7 * 24 * 60 * 60 : 30 * 60;
+              response.headers.set("Cache-Control", `public, max-age=${cachedTtlSeconds}, s-maxage=${cachedTtlSeconds}`);
+              return response;
+            }
+          }
+        }
       }
 
       console.log(`[FlightAPI] Cache MISS for ${cacheKey} - calling API`);
 
-      // SOLUTION OPTIMALE: Une seule requête à AeroDataBox
+      // SOLUTION OPTIMALE: Une seule requête à AeroDataBox avec le numéro exact
+      // Ne pas générer de variations car L et I sont des lettres différentes
       let candidates: string[] = [];
 
       if (dateLocal) {
-        candidates = [
+        // Essayer d'abord avec la date exacte
+        candidates.push(
           `/flights/number/${encodeURIComponent(
             numberRaw
           )}/${encodeURIComponent(
             dateLocal
-          )}?withLocation=true&withCodeshared=true&withCancelled=true&limit=25`,
-        ];
-      } else {
-        candidates = [
+          )}?withLocation=true&withCodeshared=true&withCancelled=true&limit=25`
+        );
+        
+        // Si aucune variation ne fonctionne avec la date, essayer sans date
+        // (pour récupérer le vol le plus récent disponible)
+        candidates.push(
           `/flights/number/${encodeURIComponent(
             numberRaw
-          )}?withLocation=true&withCodeshared=true&withCancelled=true&limit=25`,
-        ];
+          )}?withLocation=true&withCodeshared=true&withCancelled=true&limit=25`
+        );
+      } else {
+        // Essayer sans date
+        candidates.push(
+          `/flights/number/${encodeURIComponent(
+            numberRaw
+          )}?withLocation=true&withCodeshared=true&withCancelled=true&limit=25`
+        );
       }
 
       // Collecter TOUS les résultats de tous les candidats pour filtrer ensuite
       const allFlights: any[] = [];
+      let foundExactMatch = false; // Flag pour arrêter si on trouve un vol avec la date exacte
 
       for (const pathPart of candidates) {
+        // Si on a déjà trouvé un vol avec la date exacte, arrêter la recherche
+        if (foundExactMatch && dateLocal) {
+          console.log(`[FlightAPI] Exact match found, skipping remaining variations`);
+          break;
+        }
+
         const resp = await callAero(pathPart);
         console.log(`[AeroDataBox] ${resp.status} ${resp.url}`);
 
-        if (resp.ok) {
-          try {
-            const data = JSON.parse(resp.text);
-            const flights = Array.isArray(data)
-              ? data
-              : Array.isArray(data?.data)
-              ? data.data
-              : [];
-            console.log(
-              `[FlightAPI] Found ${flights.length} flights from ${pathPart}`
-            );
-            allFlights.push(...flights);
-          } catch (e) {
-            console.log(
-              `[FlightAPI] Failed to parse response from ${pathPart}: ${e}`
-            );
-          }
+        // Si 204 (pas de contenu), continuer sans erreur et sans parser
+        if (resp.status === 204) {
+          console.log(`[FlightAPI] No content (204) for ${pathPart}, continuing`);
+          continue;
         }
 
         // Si 5xx, arrêter
@@ -342,14 +447,62 @@ export const GET = withFlightBrowseAccess(
           );
         }
 
-        // Si 204 (pas de contenu), continuer sans erreur
-        if (resp.status === 204) {
-          continue;
+        if (resp.ok) {
+          try {
+            // Vérifier que resp.text n'est pas vide avant de parser
+            if (!resp.text || resp.text.trim().length === 0) {
+              console.log(`[FlightAPI] Empty response body for ${pathPart}`);
+              continue;
+            }
+            const data = JSON.parse(resp.text);
+            const flights = Array.isArray(data)
+              ? data
+              : Array.isArray(data?.data)
+              ? data.data
+              : [];
+            console.log(
+              `[FlightAPI] Found ${flights.length} flights from ${pathPart}`
+            );
+            
+            // Si on a une date et qu'on trouve un vol, vérifier si c'est un match exact
+            if (dateLocal && flights.length > 0) {
+              const exactMatch = flights.find((flight: any) => {
+                const depLocalTime =
+                  flight.departure?.scheduledTime?.local ||
+                  flight.departure?.revisedTime?.local ||
+                  flight.dep?.scheduledTime?.local ||
+                  flight.dep?.revisedTime?.local;
+                if (!depLocalTime) return false;
+                const depLocalDate = depLocalTime.match(/^\d{4}-\d{2}-\d{2}/)?.[0];
+                return depLocalDate === dateLocal;
+              });
+              
+              if (exactMatch) {
+                foundExactMatch = true;
+                console.log(`[FlightAPI] ✅ Found exact date match from ${pathPart}`);
+              }
+            }
+            
+            allFlights.push(...flights);
+            
+            // Si on a trouvé des vols et qu'on n'a pas de date spécifique, arrêter
+            if (!dateLocal && allFlights.length > 0) {
+              console.log(`[FlightAPI] Found flights without date filter, stopping search`);
+              break;
+            }
+          } catch (e) {
+            console.log(
+              `[FlightAPI] Failed to parse response from ${pathPart}: ${e}`
+            );
+            // Continuer même si le parsing échoue (peut être une réponse vide)
+            continue;
+          }
         }
       }
 
       if (allFlights.length === 0) {
         // Retourner un payload vide 200 plutôt qu'un 404 pour éviter erreurs UI
+        console.log(`[FlightAPI] No flights found for ${numberRaw} on ${dateLocal || "today"}`);
         return NextResponse.json({ number: numberRaw, flights: [] });
       }
 
@@ -422,20 +575,29 @@ export const GET = withFlightBrowseAccess(
             `[FlightAPI] ✅ Found flight matching date ${dateLocal}: reg=${f.aircraft?.reg}`
           );
         } else {
-          // Si aucun vol ne correspond à la date exacte, logger et prendre le premier
+          // Si aucun vol ne correspond à la date exacte, utiliser le premier vol disponible
+          // (c'est souvent le cas pour les dates futures où l'API retourne le vol le plus récent)
           console.log(
             `[FlightAPI] ⚠️ No flight matches date ${dateLocal}, using first result`
           );
           flights.forEach((flight: any, idx: number) => {
             const depLocalTime =
               flight.departure?.scheduledTime?.local ||
-              flight.dep?.scheduledTime?.local;
-            const depLocalDate = depLocalTime?.split("T")[0] || "Unknown";
-            const reg = flight.aircraft?.reg || "Unknown";
+              flight.departure?.revisedTime?.local ||
+              flight.dep?.scheduledTime?.local ||
+              flight.dep?.revisedTime?.local;
+            const depLocalDate = depLocalTime?.match(/^\d{4}-\d{2}-\d{2}/)?.[0] || depLocalTime?.split("T")[0] || "Unknown";
+            const reg = flight.aircraft?.reg || flight.aircraft?.registration || "Unknown";
             console.log(
               `[FlightAPI] Flight ${idx}: date=${depLocalDate}, reg=${reg}`
             );
           });
+          // Utiliser le premier vol même si la date ne correspond pas exactement
+          // (utile pour les dates futures ou les vols récurrents)
+          f = flights[0];
+          console.log(
+            `[FlightAPI] Using first available flight: reg=${f.aircraft?.reg || f.aircraft?.registration}`
+          );
         }
       }
 
@@ -557,12 +719,45 @@ export const GET = withFlightBrowseAccess(
 
       const textOut = JSON.stringify(payload);
 
+      // Ne pas mettre en cache les réponses vides (pas de données de vol valides)
+      const hasValidData = payload && (
+        payload.airline || 
+        payload.departure || 
+        payload.arrival
+      );
+
       // Cache optimisé avec TTL adaptatif (en secondes pour Supabase cache)
       // Vol plus vieux de 24h → 7 jours, sinon → 30min
       const ttlSeconds = isOlderThan24h 
         ? 7 * 24 * 60 * 60  // 7 jours pour les vols plus vieux de 24h
         : 30 * 60;           // 30min pour les vols futurs ou récents (< 24h)
-      await setCache(cacheKey, textOut, ttlSeconds);
+      
+      // Ne mettre en cache que si on a des données valides
+      if (hasValidData) {
+        await setCache(cacheKey, textOut, ttlSeconds);
+        console.log(`[FlightAPI] Cached flight data for ${cacheKey} (TTL: ${ttlSeconds}s)`);
+        
+        // Retirer le verrou de déduplication maintenant que le résultat est en cache
+        const lockKey = `${cacheKey}:__lock`;
+        try {
+          // Supprimer le verrou en mettant une valeur expirée (TTL 0)
+          await setSupabaseCache(lockKey, "", 0);
+          console.log(`[FlightAPI] Removed deduplication lock for ${cacheKey}`);
+        } catch (e) {
+          // Ignorer les erreurs de suppression du verrou (non critique)
+          console.log(`[FlightAPI] Failed to remove lock (non-critical):`, e);
+        }
+      } else {
+        console.log(`[FlightAPI] Not caching empty response for ${cacheKey}`);
+        
+        // Retirer quand même le verrou même si on ne cache pas
+        const lockKey = `${cacheKey}:__lock`;
+        try {
+          await setSupabaseCache(lockKey, "", 0);
+        } catch (e) {
+          // Ignorer
+        }
+      }
 
       const response = NextResponse.json(payload);
       response.headers.set(

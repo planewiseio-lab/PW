@@ -350,7 +350,7 @@ function AircraftImage({
         />
         {/* Attribution */}
         {photographer && (
-          <div className="absolute bottom-2 right-2 px-2 py-1 bg-black/50 text-white text-[10px] rounded backdrop-blur-sm">
+          <div className="absolute bottom-1 right-1 md:bottom-2 md:right-2 px-1 py-0.5 md:px-2 md:py-1 bg-black/40 md:bg-black/50 text-white text-[8px] md:text-[10px] rounded backdrop-blur-sm opacity-70 md:opacity-100">
             {source === "Wikimedia Commons"
               ? `© ${photographer} via Wikimedia Commons`
               : `© ${photographer}`}
@@ -401,7 +401,7 @@ function AircraftCard({
     if (!photographer) return null;
 
     return (
-      <div className="absolute bottom-2 right-2 px-2 py-1 bg-black/50 text-white text-[10px] rounded backdrop-blur-sm">
+      <div className="absolute bottom-1 right-1 md:bottom-2 md:right-2 px-1 py-0.5 md:px-2 md:py-1 bg-black/40 md:bg-black/50 text-white text-[8px] md:text-[10px] rounded backdrop-blur-sm opacity-70 md:opacity-100">
         {source === "Wikimedia Commons"
           ? `© ${photographer} via Wikimedia Commons`
           : `© ${photographer}`}
@@ -907,9 +907,9 @@ function AircraftCard({
                   unoptimized={img.url.startsWith("http://") || img.url.startsWith("https://")}
                   loading="lazy"
                 />
-                {/* Attribution for thumbnails */}
+                {/* Attribution for thumbnails - Hidden on mobile, visible on desktop */}
                 {img.author && (
-                  <div className="absolute bottom-1 right-1 px-1 py-0.5 bg-black/50 text-white text-[8px] rounded backdrop-blur-sm">
+                  <div className="hidden md:block absolute bottom-1 right-1 px-1 py-0.5 bg-black/50 text-white text-[8px] rounded backdrop-blur-sm">
                     {img.source === "Wikimedia Commons"
                       ? `© ${img.author} (Commons)`
                       : `© ${img.author}`}

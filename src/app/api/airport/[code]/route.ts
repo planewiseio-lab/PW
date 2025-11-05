@@ -10,7 +10,7 @@ export const dynamic = "force-dynamic";
 
 // Cache Supabase persistant pour les vols normalisés (partagé entre toutes les instances serverless)
 // TTL: 60 secondes (même que getFlightsRelative)
-async function getNormalizedFlightsCache(key: string): Promise<any[] | null> {
+async function getNormalizedFlightsCache(key: string): Promise<any[] | { departures: any[]; arrivals: any[] } | null> {
   const cached = await getSupabaseCache(key);
   if (cached) {
     try {
@@ -23,7 +23,7 @@ async function getNormalizedFlightsCache(key: string): Promise<any[] | null> {
   return null;
 }
 
-async function setNormalizedFlightsCache(key: string, flights: any[], ttlSeconds: number): Promise<void> {
+async function setNormalizedFlightsCache(key: string, flights: any[] | { departures: any[]; arrivals: any[] }, ttlSeconds: number): Promise<void> {
   await setSupabaseCache(key, JSON.stringify(flights), ttlSeconds);
 }
 
@@ -87,13 +87,19 @@ export const GET = withAirportBrowseAccess(
 
     try {
       // Vérifier d'abord le cache des vols normalisés pour la direction demandée
-      let allFlights = await getNormalizedFlightsCache(normalizedCacheKey);
+      let allFlights: any[] | null = null;
+      const cached = await getNormalizedFlightsCache(normalizedCacheKey);
+      
+      // Si le cache contient un tableau, l'utiliser directement
+      if (cached && Array.isArray(cached)) {
+        allFlights = cached;
+      }
       
       if (!allFlights) {
         // Vérifier si on a déjà récupéré les deux directions en cache
         const cachedBoth = await getNormalizedFlightsCache(normalizedCacheKeyBoth);
         
-        if (cachedBoth && cachedBoth.departures && cachedBoth.arrivals) {
+        if (cachedBoth && !Array.isArray(cachedBoth) && cachedBoth.departures && cachedBoth.arrivals) {
           // Utiliser les données déjà en cache pour les deux directions
           allFlights = dir === "departures" ? cachedBoth.departures : cachedBoth.arrivals;
           console.log(`[AirportAPI] Using cached normalized flights for ${code} ${dir} from both cache (${allFlights.length} flights)`);
@@ -122,7 +128,7 @@ export const GET = withAirportBrowseAccess(
           allFlights = dir === "departures" ? departures : arrivals;
           console.log(`[AirportAPI] Fetched and cached both directions for ${code}: ${departures.length} departures, ${arrivals.length} arrivals`);
         }
-      } else {
+      } else if (allFlights && Array.isArray(allFlights)) {
         console.log(`[AirportAPI] Using cached normalized flights for ${code} ${dir} (${allFlights.length} flights)`);
       }
 
@@ -152,12 +158,18 @@ export const GET = withAirportBrowseAccess(
     } catch (e: any) {
       // Fallback: tenter un cache récent pour éviter 504
       // Vérifier d'abord le cache des vols normalisés
-      let allFlights = await getNormalizedFlightsCache(normalizedCacheKey);
+      let allFlights: any[] | null = null;
+      const cached = await getNormalizedFlightsCache(normalizedCacheKey);
+      
+      // Si le cache contient un tableau, l'utiliser directement
+      if (cached && Array.isArray(cached)) {
+        allFlights = cached;
+      }
       
       if (!allFlights) {
         // Vérifier si on a déjà récupéré les deux directions en cache
         const cachedBoth = await getNormalizedFlightsCache(normalizedCacheKeyBoth);
-        if (cachedBoth && cachedBoth.departures && cachedBoth.arrivals) {
+        if (cachedBoth && !Array.isArray(cachedBoth) && cachedBoth.departures && cachedBoth.arrivals) {
           allFlights = dir === "departures" ? cachedBoth.departures : cachedBoth.arrivals;
         } else {
           // Si pas dans le cache normalisé, essayer le cache brut

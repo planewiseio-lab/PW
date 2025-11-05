@@ -59,7 +59,7 @@ export default function SearchHeader() {
 
   const onSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    const v = q.trim();
+    const v = q.trim().toUpperCase();
     if (!v) return;
 
     startTransition(() => {
@@ -300,17 +300,18 @@ export default function SearchHeader() {
                 /* Mode Flight : barre fusionnée avec numéro de vol et date */
                 <div
                   className="
-          group flex items-center gap-2
+          group flex items-center gap-1.5
           rounded-2xl border border-gray-200 bg-white/80 backdrop-blur-sm
-          px-3 py-2 shadow-sm
+          px-2 py-2 shadow-sm
           focus-within:ring-2 focus-within:ring-blue-500/25
+          overflow-hidden
         "
                 >
                   {/* Icône de recherche */}
-                  <span className="pl-2 text-gray-400 shrink-0">
+                  <span className="text-gray-400 shrink-0">
                     <svg
-                      width="20"
-                      height="20"
+                      width="18"
+                      height="18"
                       viewBox="0 0 24 24"
                       fill="none"
                       className="block"
@@ -333,13 +334,13 @@ export default function SearchHeader() {
                     placeholder="Flight number"
                     className="
             flex-1 bg-transparent border-0 outline-none
-            px-2 py-3 text-[17px] placeholder:text-gray-400
+            px-1 py-2 text-[16px] placeholder:text-gray-400
             min-w-0
           "
                   />
 
                   {/* Séparateur vertical */}
-                  <div className="w-px h-6 bg-gray-300 shrink-0"></div>
+                  <div className="w-px h-5 bg-gray-300 shrink-0"></div>
 
                   {/* Champ date */}
                   <label htmlFor="flight-date-picker-mobile" className="sr-only">
@@ -353,34 +354,81 @@ export default function SearchHeader() {
                     aria-label="Flight date"
                     className="
             bg-transparent border-0 outline-none
-            text-[16px] text-gray-700
-            w-32 shrink-0
+            text-[12px] text-gray-700
+            w-20 shrink-0 px-0.5
+            relative
           "
+                    style={{
+                      WebkitAppearance: "none",
+                      appearance: "none",
+                      colorScheme: "light",
+                    }}
                   />
 
-                  {/* Bouton Search */}
+                  {/* Bouton Search - icône uniquement sur mobile */}
                   <button
                     type="submit"
                     disabled={isPending}
-                    className="btn-primary-md shrink-0 rounded-xl shadow hover:brightness-110 mr-1 disabled:opacity-60 disabled:cursor-not-allowed"
+                    className="shrink-0 rounded-full bg-[#178cf2] text-white shadow hover:brightness-110 transition-all duration-200 hover:scale-105 disabled:opacity-60 disabled:cursor-not-allowed p-2 min-w-[44px] min-h-[44px] w-11 h-11 flex items-center justify-center"
+                    aria-label="Search"
                   >
-                    {isPending ? "Searching…" : "Search"}
+                    {isPending ? (
+                      <svg
+                        className="animate-spin h-5 w-5 text-white"
+                        xmlns="http://www.w3.org/2000/svg"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        aria-hidden
+                      >
+                        <circle
+                          className="opacity-25"
+                          cx="12"
+                          cy="12"
+                          r="10"
+                          stroke="currentColor"
+                          strokeWidth="4"
+                        ></circle>
+                        <path
+                          className="opacity-75"
+                          fill="currentColor"
+                          d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                        ></path>
+                      </svg>
+                    ) : (
+                      <svg
+                        width="20"
+                        height="20"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        className="text-white"
+                        aria-hidden
+                      >
+                        <path
+                          d="M21 21l-4.35-4.35M11 18a7 7 0 1 1 0-14 7 7 0 0 1 0 14Z"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        />
+                      </svg>
+                    )}
                   </button>
                 </div>
               ) : (
                 /* Mode normal (Aircraft/Airport) : barre simple */
                 <div
                   className="
-          group flex items-center gap-2
+          group flex items-center gap-1.5
           rounded-2xl border border-gray-200 bg-white/80 backdrop-blur-sm
-          px-3 py-2 shadow-sm
+          px-2 py-2 shadow-sm
           focus-within:ring-2 focus-within:ring-blue-500/25
+          overflow-hidden
         "
                 >
-                  <span className="pl-2 text-gray-400 shrink-0">
+                  <span className="text-gray-400 shrink-0">
                     <svg
-                      width="20"
-                      height="20"
+                      width="18"
+                      height="18"
                       viewBox="0 0 24 24"
                       fill="none"
                       className="block"
@@ -402,16 +450,57 @@ export default function SearchHeader() {
                     placeholder={placeholder}
                     className="
             flex-1 bg-transparent border-0 outline-none
-            px-2 py-3 text-[17px] placeholder:text-gray-400
+            px-1 py-2 text-[16px] placeholder:text-gray-400
+            min-w-0
           "
                   />
 
                   <button
                     type="submit"
                     disabled={isPending}
-                    className="btn-primary-md shrink-0 rounded-xl shadow hover:brightness-110 mr-1 disabled:opacity-60 disabled:cursor-not-allowed"
+                    className="shrink-0 rounded-full bg-[#178cf2] text-white shadow hover:brightness-110 transition-all duration-200 hover:scale-105 disabled:opacity-60 disabled:cursor-not-allowed p-2 min-w-[44px] min-h-[44px] w-11 h-11 flex items-center justify-center"
+                    aria-label="Search"
                   >
-                    {isPending ? "Searching…" : "Search"}
+                    {isPending ? (
+                      <svg
+                        className="animate-spin h-5 w-5 text-white"
+                        xmlns="http://www.w3.org/2000/svg"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        aria-hidden
+                      >
+                        <circle
+                          className="opacity-25"
+                          cx="12"
+                          cy="12"
+                          r="10"
+                          stroke="currentColor"
+                          strokeWidth="4"
+                        ></circle>
+                        <path
+                          className="opacity-75"
+                          fill="currentColor"
+                          d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                        ></path>
+                      </svg>
+                    ) : (
+                      <svg
+                        width="20"
+                        height="20"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        className="text-white"
+                        aria-hidden
+                      >
+                        <path
+                          d="M21 21l-4.35-4.35M11 18a7 7 0 1 1 0-14 7 7 0 0 1 0 14Z"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        />
+                      </svg>
+                    )}
                   </button>
                 </div>
               )}

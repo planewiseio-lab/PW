@@ -37,6 +37,7 @@ function getTier(endpoint: string): string {
 
 /**
  * Logger une requête API vers AeroDataBox dans Supabase
+ * Ne tracke PAS les réponses 204 (No Content) car elles ne consomment pas d'appel API
  */
 export async function logApiRequest(
   endpoint: string,
@@ -45,6 +46,12 @@ export async function logApiRequest(
   responseTime: number,
   userId?: string | null
 ) {
+  // Ne pas tracker les réponses 204 (No Content) car elles ne consomment pas d'appel API
+  if (statusCode === 204) {
+    console.log(`[API Tracker] Skipping log for 204 response (no content): ${endpoint}`);
+    return;
+  }
+
   try {
     await supabaseAdmin.from("api_requests").insert({
       user_id: userId || null,

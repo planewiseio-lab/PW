@@ -80,10 +80,10 @@ export default function AircraftHistoryPage() {
   useEffect(() => {
     let isMounted = true;
     let supabaseClient: ReturnType<typeof createClient> | null = null;
-    
+
     // Ne pas bloquer le rendu initial - afficher le contenu immédiatement
     setAuthLoading(false);
-    
+
     const checkAuth = async () => {
       try {
         supabaseClient = createClient();
@@ -108,7 +108,7 @@ export default function AircraftHistoryPage() {
 
     // Vérifier l'authentification en arrière-plan sans bloquer le rendu
     checkAuth();
-    
+
     // Nettoyer les WebSockets Supabase lors du pagehide pour permettre le bfcache
     const handlePageHide = () => {
       // Supabase nettoie automatiquement les WebSockets lors du pagehide
@@ -120,7 +120,7 @@ export default function AircraftHistoryPage() {
     };
 
     window.addEventListener("pagehide", handlePageHide);
-    
+
     return () => {
       isMounted = false;
       window.removeEventListener("pagehide", handlePageHide);
@@ -170,9 +170,12 @@ export default function AircraftHistoryPage() {
     const updateData = () => {
       if (!isMounted) return;
       setFlightHistory(processedData);
-      
+
       // Auto-extend range on first load if empty
-      if (!autoTriedRef.current && (!processedData.flights || processedData.flights.length === 0)) {
+      if (
+        !autoTriedRef.current &&
+        (!processedData.flights || processedData.flights.length === 0)
+      ) {
         const idx = fallbackDays.indexOf(days);
         if (idx > -1 && idx < fallbackDays.length - 1) {
           autoTriedRef.current = true; // avoid loops
@@ -180,7 +183,7 @@ export default function AircraftHistoryPage() {
           setDays(fallbackDays[idx + 1]);
         }
       }
-      
+
       if (processedData.flights && processedData.flights.length > 0) {
         const totalFlights = processedData.flights.length;
         const totalDistance = processedData.flights.reduce(
@@ -198,7 +201,7 @@ export default function AircraftHistoryPage() {
           countries.add(depCountry);
           countries.add(arrCountry);
         });
-        
+
         if (isMounted) {
           setStats({
             totalFlights,
@@ -208,7 +211,7 @@ export default function AircraftHistoryPage() {
           });
         }
       }
-      
+
       // Stop auto-extending spinner once we have tried extension
       if (autoTriedRef.current && isMounted) {
         timeoutId = setTimeout(() => {
@@ -221,9 +224,11 @@ export default function AircraftHistoryPage() {
 
     // Utiliser requestIdleCallback si disponible pour éviter de bloquer le main thread
     let cleanup: (() => void) | null = null;
-    
+
     if (typeof window !== "undefined" && "requestIdleCallback" in window) {
-      const idleCallbackId = (window as any).requestIdleCallback(updateData, { timeout: 1000 });
+      const idleCallbackId = (window as any).requestIdleCallback(updateData, {
+        timeout: 1000,
+      });
       cleanup = () => {
         isMounted = false;
         if (timeoutId) {
@@ -244,9 +249,9 @@ export default function AircraftHistoryPage() {
         cancelAnimationFrame(rafId);
       };
     }
-    
+
     return cleanup;
-    
+
     return () => {
       isMounted = false;
       if (timeoutId) {
@@ -257,17 +262,17 @@ export default function AircraftHistoryPage() {
 
   useEffect(() => {
     let isMounted = true;
-    
+
     // Ne pas afficher l'erreur si c'est GUEST_QUOTA_EXCEEDED
     // Le modal s'affichera automatiquement
     if (!isMounted) return;
-    
+
     if (fetchError && fetchError.includes("GUEST_QUOTA_EXCEEDED")) {
       setError(null);
     } else {
       setError(fetchError);
     }
-    
+
     return () => {
       isMounted = false;
     };
@@ -378,11 +383,16 @@ export default function AircraftHistoryPage() {
             </p>
             <p className="text-sm text-gray-500 mb-6">
               Please log in to access the flight history for aircraft{" "}
-              <span className="font-semibold text-blue-600">{registration}</span>.
+              <span className="font-semibold text-blue-600">
+                {registration}
+              </span>
+              .
             </p>
             <div className="flex gap-4 justify-center">
               <Link
-                href={`/login?redirect=${encodeURIComponent(`/aircraft/${registration}/history`)}`}
+                href={`/login?redirect=${encodeURIComponent(
+                  `/aircraft/${registration}/history`
+                )}`}
                 className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition font-medium"
               >
                 Log In
@@ -493,7 +503,7 @@ export default function AircraftHistoryPage() {
       <div className="max-w-6xl mx-auto px-4">
         {/* Header - Rendu immédiatement sans animation pour améliorer le LCP */}
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6">
-          <div className="flex items-center justify-between mb-4">
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-4 gap-4">
             <div>
               <h1 className="text-2xl font-bold text-gray-900">
                 Flight History
@@ -507,7 +517,7 @@ export default function AircraftHistoryPage() {
             </div>
             <Link
               href={`/aircraft/${registration}`}
-              className="bg-gray-100 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-200 transition"
+              className="bg-gray-100 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-200 transition w-full md:w-auto text-center md:text-left"
             >
               ← Back to Aircraft
             </Link>
@@ -529,9 +539,7 @@ export default function AircraftHistoryPage() {
                       ? Math.round(stats.totalDistance).toLocaleString()
                       : "N/A"}
                   </div>
-                  <div className="text-sm text-green-700">
-                    km Flown ({days} days)
-                  </div>
+                  <div className="text-sm text-green-700">km Flown</div>
                 </div>
                 <div className="bg-purple-50 rounded-lg p-4 text-center">
                   <div className="text-2xl font-bold text-purple-600">
@@ -569,8 +577,8 @@ export default function AircraftHistoryPage() {
             )}
           </div>
 
-          {/* Days selector */}
-          <div className="flex items-center gap-4">
+          {/* Days selector - Masqué sur mobile, visible sur desktop */}
+          <div className="hidden md:flex items-center gap-4">
             <span className="text-sm text-gray-600">Show last:</span>
             <div className="flex gap-2">
               {daysOptions.map((day) => (
@@ -590,6 +598,13 @@ export default function AircraftHistoryPage() {
               ))}
             </div>
           </div>
+
+          {/* Texte discret pour mobile en fin de bulle */}
+          <div className="md:hidden text-center mt-4">
+            <span className="text-xs text-gray-400">
+              Last shown {days} days
+            </span>
+          </div>
         </div>
 
         {/* Flight History - Dimensions fixes pour éviter les layout shifts */}
@@ -606,7 +621,9 @@ export default function AircraftHistoryPage() {
                   formatDate={formatDate}
                   formatDuration={formatDuration}
                   getStatusColor={getStatusColor}
-                  onFlightClick={() => router.push(`/flight/${flight.number}?date=${flight.date}`)}
+                  onFlightClick={() =>
+                    router.push(`/flight/${flight.number}?date=${flight.date}`)
+                  }
                 />
               ))}
             </div>
@@ -635,7 +652,8 @@ export default function AircraftHistoryPage() {
               </h2>
               {/* Message LCP - Rendu immédiatement avec le texte statique */}
               <p className="text-gray-600 mb-4">
-                No flights found for aircraft {registration} in the last {days} days.
+                No flights found for aircraft {registration} in the last {days}{" "}
+                days.
               </p>
               <div className="flex gap-2 justify-center">
                 {fallbackDaysOptions.map((day) => (
@@ -658,206 +676,199 @@ export default function AircraftHistoryPage() {
 }
 
 // Composant mémorisé pour chaque vol pour réduire les re-renders et optimiser le DOM
-const FlightCard = memo(({
-  flight,
-  formatDateTime,
-  formatDate,
-  formatDuration,
-  getStatusColor,
-  onFlightClick,
-}: {
-  flight: FlightHistory;
-  formatDateTime: (dateTime: string) => string;
-  formatDate: (dateTime: string) => string;
-  formatDuration: (duration?: number) => string;
-  getStatusColor: (status: string) => string;
-  onFlightClick: () => void;
-}) => {
-  return (
-    <div
-      className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 cursor-pointer group hover:shadow-md transition-shadow min-h-[200px]"
-      onClick={onFlightClick}
-      style={{ contain: "layout style paint" }}
-    >
-      <div className="flex items-center justify-between mb-4 min-h-[60px]">
-        <div className="flex items-center gap-3 min-w-0 flex-1">
-          <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center flex-shrink-0">
-            <svg
-              className="w-5 h-5 text-blue-600"
-              fill="currentColor"
-              viewBox="0 0 20 20"
-              aria-hidden="true"
-            >
-              <path d="M10.894 2.553a1 1 0 00-1.788 0l-7 14a1 1 0 001.169 1.409l5-1.429A1 1 0 009 15.571V11a1 1 0 112 0v4.571a1 1 0 00.725.962l5 1.428a1 1 0 001.17-1.408l-7-14z" />
-            </svg>
-          </div>
-          <div className="min-w-0 flex-1">
-            <h3 className="text-lg font-semibold text-gray-900 truncate min-h-[24px]">
-              {flight.airline.name} {flight.number}
-            </h3>
-            <p className="text-sm text-gray-600 min-h-[20px]">
-              {formatDate(flight.departure.scheduledTime)}
-            </p>
-          </div>
-        </div>
-        <span
-          className={`px-3 py-1 rounded-full text-sm font-medium border flex-shrink-0 ${getStatusColor(
-            flight.status
-          )}`}
-        >
-          {flight.status}
-        </span>
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {/* Departure */}
-        <div className="bg-gray-50 rounded-lg p-4">
-          <h4 className="text-sm font-medium text-gray-500 mb-2">
-            Departure
-          </h4>
-          <div className="space-y-2">
-            <div className="flex items-center gap-2 min-w-0">
-              <Link
-                href={`/airport/${flight.departure.airport.iata}`}
-                onClick={(e) => e.stopPropagation()}
-                className="text-lg font-semibold text-blue-600 hover:text-blue-700 transition cursor-pointer flex-shrink-0"
+const FlightCard = memo(
+  ({
+    flight,
+    formatDateTime,
+    formatDate,
+    formatDuration,
+    getStatusColor,
+    onFlightClick,
+  }: {
+    flight: FlightHistory;
+    formatDateTime: (dateTime: string) => string;
+    formatDate: (dateTime: string) => string;
+    formatDuration: (duration?: number) => string;
+    getStatusColor: (status: string) => string;
+    onFlightClick: () => void;
+  }) => {
+    return (
+      <div
+        className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 cursor-pointer group hover:shadow-md transition-shadow min-h-[200px]"
+        onClick={onFlightClick}
+        style={{ contain: "layout style paint" }}
+      >
+        <div className="flex items-center justify-between mb-4 min-h-[60px]">
+          <div className="flex items-center gap-3 min-w-0 flex-1">
+            <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center flex-shrink-0">
+              <svg
+                className="w-5 h-5 text-blue-600"
+                fill="currentColor"
+                viewBox="0 0 20 20"
+                aria-hidden="true"
               >
-                {flight.departure.airport.iata}
-              </Link>
-              <span className="text-sm text-gray-600 truncate">
-                {flight.departure.airport.name}
-              </span>
+                <path d="M10.894 2.553a1 1 0 00-1.788 0l-7 14a1 1 0 001.169 1.409l5-1.429A1 1 0 009 15.571V11a1 1 0 112 0v4.571a1 1 0 00.725.962l5 1.428a1 1 0 001.17-1.408l-7-14z" />
+              </svg>
             </div>
-            <div className="text-sm text-gray-600 truncate">
-              {flight.departure.airport.city}
+            <div className="min-w-0 flex-1">
+              <h3 className="text-lg font-semibold text-gray-900 min-h-[24px]">
+                <span className="block md:inline">{flight.airline.name}</span>
+                <span className="block md:inline md:ml-2">{flight.number}</span>
+              </h3>
+              <p className="text-sm text-gray-600 min-h-[20px]">
+                {formatDate(flight.departure.scheduledTime)}
+              </p>
             </div>
-            <div className="text-sm">
-              <span className="text-gray-500">Scheduled:</span>{" "}
-              <span className="font-medium">
-                {formatDateTime(flight.departure.scheduledTime)}
-              </span>
-            </div>
-            {flight.departure.actualTime && (
-              <div className="text-sm">
-                <span className="text-gray-500">Actual:</span>{" "}
-                <span className="font-medium text-green-600">
-                  {formatDateTime(flight.departure.actualTime)}
-                </span>
-              </div>
-            )}
-            {flight.departure.terminal && (
-              <div className="text-sm">
-                <span className="text-gray-500">Terminal:</span>{" "}
-                <span className="font-medium">
-                  {flight.departure.terminal}
-                </span>
-              </div>
-            )}
-            {flight.departure.gate && (
-              <div className="text-sm">
-                <span className="text-gray-500">Gate:</span>{" "}
-                <span className="font-medium">
-                  {flight.departure.gate}
-                </span>
-              </div>
-            )}
           </div>
-        </div>
-
-        {/* Arrival */}
-        <div className="bg-gray-50 rounded-lg p-4">
-          <h4 className="text-sm font-medium text-gray-500 mb-2">
-            Arrival
-          </h4>
-          <div className="space-y-2">
-            <div className="flex items-center gap-2 min-w-0">
-              <Link
-                href={`/airport/${flight.arrival.airport.iata}`}
-                onClick={(e) => e.stopPropagation()}
-                className="text-lg font-semibold text-blue-600 hover:text-blue-700 transition cursor-pointer flex-shrink-0"
-              >
-                {flight.arrival.airport.iata}
-              </Link>
-              <span className="text-sm text-gray-600 truncate">
-                {flight.arrival.airport.name}
-              </span>
-            </div>
-            <div className="text-sm text-gray-600 truncate">
-              {flight.arrival.airport.city}
-            </div>
-            <div className="text-sm">
-              <span className="text-gray-500">Scheduled:</span>{" "}
-              <span className="font-medium">
-                {formatDateTime(flight.arrival.scheduledTime)}
-              </span>
-            </div>
-            {flight.arrival.actualTime && (
-              <div className="text-sm">
-                <span className="text-gray-500">Actual:</span>{" "}
-                <span className="font-medium text-green-600">
-                  {formatDateTime(flight.arrival.actualTime)}
-                </span>
-              </div>
-            )}
-            {flight.arrival.terminal && (
-              <div className="text-sm">
-                <span className="text-gray-500">Terminal:</span>{" "}
-                <span className="font-medium">
-                  {flight.arrival.terminal}
-                </span>
-              </div>
-            )}
-            {flight.arrival.gate && (
-              <div className="text-sm">
-                <span className="text-gray-500">Gate:</span>{" "}
-                <span className="font-medium">
-                  {flight.arrival.gate}
-                </span>
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
-
-      {/* Flight Details */}
-      <div className="mt-4 pt-4 border-t border-gray-200">
-        <div className="flex items-center justify-between text-sm text-gray-600 flex-wrap gap-2">
-          <div className="flex items-center gap-4 flex-wrap">
-            {flight.distance &&
-            flight.distance > 0 &&
-            Math.round(flight.distance) > 0 ? (
-              <span>
-                <span className="font-medium">Distance:</span>{" "}
-                {Math.round(flight.distance).toLocaleString()} km
-              </span>
-            ) : null}
-            {flight.duration && flight.duration > 0 ? (
-              <span>
-                <span className="font-medium">Duration:</span>{" "}
-                {formatDuration(flight.duration)}
-              </span>
-            ) : null}
-            {(!flight.distance || flight.distance <= 0) &&
-            (!flight.duration || flight.duration <= 0) ? (
-              <span className="text-gray-400">
-                No additional details
-              </span>
-            ) : null}
-          </div>
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              onFlightClick();
-            }}
-            className="text-blue-600 hover:text-blue-700 font-medium group-hover:underline"
-            aria-label="View flight details"
+          <span
+            className={`px-3 py-1 rounded-full text-sm font-medium border flex-shrink-0 ${getStatusColor(
+              flight.status
+            )}`}
           >
-            View Details →
-          </button>
+            {flight.status}
+          </span>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {/* Departure */}
+          <div className="bg-gray-50 rounded-lg p-4">
+            <h4 className="text-sm font-medium text-gray-500 mb-2">
+              Departure
+            </h4>
+            <div className="space-y-2">
+              <div className="flex items-center gap-2 min-w-0">
+                <Link
+                  href={`/airport/${flight.departure.airport.iata}`}
+                  onClick={(e) => e.stopPropagation()}
+                  className="text-lg font-semibold text-blue-600 hover:text-blue-700 transition cursor-pointer flex-shrink-0"
+                >
+                  {flight.departure.airport.iata}
+                </Link>
+                <span className="text-sm text-gray-600 truncate">
+                  {flight.departure.airport.name}
+                </span>
+              </div>
+              <div className="text-sm text-gray-600 truncate">
+                {flight.departure.airport.city}
+              </div>
+              <div className="text-sm">
+                <span className="text-gray-500">Scheduled:</span>{" "}
+                <span className="font-medium">
+                  {formatDateTime(flight.departure.scheduledTime)}
+                </span>
+              </div>
+              {flight.departure.actualTime && (
+                <div className="text-sm">
+                  <span className="text-gray-500">Actual:</span>{" "}
+                  <span className="font-medium text-green-600">
+                    {formatDateTime(flight.departure.actualTime)}
+                  </span>
+                </div>
+              )}
+              {flight.departure.terminal && (
+                <div className="text-sm">
+                  <span className="text-gray-500">Terminal:</span>{" "}
+                  <span className="font-medium">
+                    {flight.departure.terminal}
+                  </span>
+                </div>
+              )}
+              {flight.departure.gate && (
+                <div className="text-sm">
+                  <span className="text-gray-500">Gate:</span>{" "}
+                  <span className="font-medium">{flight.departure.gate}</span>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Arrival */}
+          <div className="bg-gray-50 rounded-lg p-4">
+            <h4 className="text-sm font-medium text-gray-500 mb-2">Arrival</h4>
+            <div className="space-y-2">
+              <div className="flex items-center gap-2 min-w-0">
+                <Link
+                  href={`/airport/${flight.arrival.airport.iata}`}
+                  onClick={(e) => e.stopPropagation()}
+                  className="text-lg font-semibold text-blue-600 hover:text-blue-700 transition cursor-pointer flex-shrink-0"
+                >
+                  {flight.arrival.airport.iata}
+                </Link>
+                <span className="text-sm text-gray-600 truncate">
+                  {flight.arrival.airport.name}
+                </span>
+              </div>
+              <div className="text-sm text-gray-600 truncate">
+                {flight.arrival.airport.city}
+              </div>
+              <div className="text-sm">
+                <span className="text-gray-500">Scheduled:</span>{" "}
+                <span className="font-medium">
+                  {formatDateTime(flight.arrival.scheduledTime)}
+                </span>
+              </div>
+              {flight.arrival.actualTime && (
+                <div className="text-sm">
+                  <span className="text-gray-500">Actual:</span>{" "}
+                  <span className="font-medium text-green-600">
+                    {formatDateTime(flight.arrival.actualTime)}
+                  </span>
+                </div>
+              )}
+              {flight.arrival.terminal && (
+                <div className="text-sm">
+                  <span className="text-gray-500">Terminal:</span>{" "}
+                  <span className="font-medium">{flight.arrival.terminal}</span>
+                </div>
+              )}
+              {flight.arrival.gate && (
+                <div className="text-sm">
+                  <span className="text-gray-500">Gate:</span>{" "}
+                  <span className="font-medium">{flight.arrival.gate}</span>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Flight Details */}
+        <div className="mt-4 pt-4 border-t border-gray-200">
+          <div className="flex items-center justify-between text-sm text-gray-600 flex-wrap gap-2">
+            <div className="flex items-center gap-4 flex-wrap">
+              {flight.distance &&
+              flight.distance > 0 &&
+              Math.round(flight.distance) > 0 ? (
+                <span>
+                  <span className="font-medium">Distance:</span>{" "}
+                  {Math.round(flight.distance).toLocaleString()} km
+                </span>
+              ) : null}
+              {flight.duration && flight.duration > 0 ? (
+                <span>
+                  <span className="font-medium">Duration:</span>{" "}
+                  {formatDuration(flight.duration)}
+                </span>
+              ) : null}
+              {(!flight.distance || flight.distance <= 0) &&
+              (!flight.duration || flight.duration <= 0) ? (
+                <span className="text-gray-400">No additional details</span>
+              ) : null}
+            </div>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onFlightClick();
+              }}
+              className="text-blue-600 hover:text-blue-700 font-medium group-hover:underline"
+              aria-label="View flight details"
+            >
+              View Details →
+            </button>
+          </div>
         </div>
       </div>
-    </div>
-  );
-});
+    );
+  }
+);
 
 FlightCard.displayName = "FlightCard";
