@@ -8,7 +8,7 @@ const AERODATABOX_API_KEY =
   process.env.API_MARKET_KEY || process.env.AERODATABOX_API_KEY;
 
 // Cache TTL (en secondes pour Supabase cache)
-const FLIGHTS_TTL_SECONDS = 2 * 60 * 60; // 2 hours
+const FLIGHTS_TTL_SECONDS = 8 * 60 * 60; // 8 hours
 
 // Cache Supabase persistant (partagé entre toutes les instances serverless)
 async function getCache<T = any>(k: string): Promise<T | null> {
@@ -240,7 +240,7 @@ export const GET = withFlightHistoryAccess(
               headers: {
                 "X-Cache": "MISS",
                 "X-Filtered": "codeshare,reg",
-                "Cache-Control": "public, max-age=300, s-maxage=300", // 5 minutes pour permettre le bfcache
+                "Cache-Control": "public, max-age=28800, s-maxage=28800", // 8 heures
               },
             });
           }

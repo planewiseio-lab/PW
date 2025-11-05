@@ -122,7 +122,7 @@ async function cachedJson(key: string, fn: () => Promise<any>, ttlSeconds: numbe
 }
 
 export async function getAirport(code: string, opts: AbdClientOptions = {}) {
-	const ttl = opts.cacheTtlSeconds ?? 300;
+	const ttl = opts.cacheTtlSeconds ?? 3600; // 1 heure par défaut (augmenté de 5min à 1h car le coût de stockage est faible)
 	const codeType = code.trim().length === 4 ? "icao" : "iata";
 	const cacheKey = `abd:airport:${codeType}:${code.toUpperCase()}`;
 	return cachedJson(cacheKey, async () => {
@@ -144,7 +144,7 @@ export async function getAirportCachedOnly(code: string) {
 
 // Fonction pour récupérer les deux (departures et arrivals) en un seul appel
 export async function getFlightsRelativeBoth(code: string, beforeHours: number, afterHours: number, opts: AbdClientOptions = {}) {
-	const ttl = opts.cacheTtlSeconds ?? 300; // 5 minutes par défaut
+	const ttl = opts.cacheTtlSeconds ?? 60 * 60; // 1 heure par défaut (3600 secondes)
 	const codeType = code.trim().length === 4 ? "icao" : "iata";
 	const cacheKey = `abd:fids:${codeType}:${code.toUpperCase()}:both:${beforeHours}:${afterHours}`;
 	return cachedJson(cacheKey, async () => {

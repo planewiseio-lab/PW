@@ -83,7 +83,7 @@ export const GET = withAirportBrowseAccess(
     // On utilise une clé unique pour les deux directions pour optimiser
     const normalizedCacheKeyBoth = `airport:normalized:${code.toUpperCase()}:both:${hoursBefore}:${hoursAfter}`;
     const normalizedCacheKey = `airport:normalized:${code.toUpperCase()}:${dir}:${hoursBefore}:${hoursAfter}`;
-    const NORMALIZED_CACHE_TTL_SECONDS = 5 * 60; // 5 minutes (300 secondes)
+    const NORMALIZED_CACHE_TTL_SECONDS = 60 * 60; // 1 heure (3600 secondes)
 
     try {
       // Vérifier d'abord le cache des vols normalisés pour la direction demandée
@@ -104,7 +104,7 @@ export const GET = withAirportBrowseAccess(
             code,
             hoursBefore,
             hoursAfter,
-            { timeoutMs: 3000, retry: 1, cacheTtlSeconds: 5 * 60 } // 5 minutes (300 secondes)
+            { timeoutMs: 3000, retry: 1, cacheTtlSeconds: 60 * 60 } // 1 heure (3600 secondes)
           );
           
           // Normaliser les deux directions séparément
@@ -142,8 +142,8 @@ export const GET = withAirportBrowseAccess(
         },
         {
           headers: {
-            "Cache-Control":
-              "public, s-maxage=120, stale-while-revalidate=300, max-age=60",
+                    "Cache-Control":
+                      "public, s-maxage=3600, stale-while-revalidate=7200, max-age=3600", // 1 heure
             Vary: "Accept-Encoding",
             "X-Cache": "MISS",
           },
@@ -191,7 +191,7 @@ export const GET = withAirportBrowseAccess(
 // TIER 1: Airport information endpoint
 async function getAirportInfo(code: string, _apiKey: string) {
   try {
-    const { data } = await getAirport(code, { timeoutMs: 2500, retry: 1, cacheTtlSeconds: 300 });
+    const { data } = await getAirport(code, { timeoutMs: 2500, retry: 1, cacheTtlSeconds: 3600 }); // 1 heure (augmenté de 5min à 1h car le coût de stockage est faible)
     const airportInfo = normalizeAirportInfo(data);
     return NextResponse.json(
       { airport: airportInfo },

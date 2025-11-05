@@ -266,7 +266,10 @@ export const GET = withFlightBrowseAccess(
       }
 
       // Clé de cache optimisée (sans timestamp pour permettre le cache)
-      const isHistoricalDate = dateLocal && new Date(dateLocal) < new Date();
+      const now = new Date();
+      const requestedDate = dateLocal ? new Date(dateLocal) : now;
+      const isHistoricalDate = dateLocal && requestedDate < now;
+      const isOlderThan24h = isHistoricalDate && (now.getTime() - requestedDate.getTime()) > 24 * 60 * 60 * 1000;
       const cacheKey = `flight:${numberRaw}:${dateLocal || "today"}`;
 
       // Vérifier le cache Supabase persistant (partagé entre toutes les instances serverless)
@@ -275,7 +278,12 @@ export const GET = withFlightBrowseAccess(
         console.log(`[FlightAPI] Cache HIT for ${cacheKey}`);
         const response = NextResponse.json(JSON.parse(cached));
         response.headers.set("X-Cache", "HIT");
-        response.headers.set("Cache-Control", "public, max-age=300, s-maxage=300"); // 5 minutes
+        // Déterminer le TTL du cache HIT en fonction de l'âge du vol
+        const cachedPayload = JSON.parse(cached);
+        const cachedRequestedDate = dateLocal ? new Date(dateLocal) : new Date();
+        const cachedIsOlderThan24h = dateLocal && (now.getTime() - cachedRequestedDate.getTime()) > 24 * 60 * 60 * 1000;
+        const cachedTtlSeconds = cachedIsOlderThan24h ? 7 * 24 * 60 * 60 : 30 * 60;
+        response.headers.set("Cache-Control", `public, max-age=${cachedTtlSeconds}, s-maxage=${cachedTtlSeconds}`);
         return response;
       }
 
@@ -550,13 +558,16 @@ export const GET = withFlightBrowseAccess(
       const textOut = JSON.stringify(payload);
 
       // Cache optimisé avec TTL adaptatif (en secondes pour Supabase cache)
-      const ttlSeconds = isHistoricalDate ? 10 * 60 : 2 * 60; // 10min pour historique, 2min pour futur (en secondes)
+      // Vol plus vieux de 24h → 7 jours, sinon → 30min
+      const ttlSeconds = isOlderThan24h 
+        ? 7 * 24 * 60 * 60  // 7 jours pour les vols plus vieux de 24h
+        : 30 * 60;           // 30min pour les vols futurs ou récents (< 24h)
       await setCache(cacheKey, textOut, ttlSeconds);
 
       const response = NextResponse.json(payload);
       response.headers.set(
         "Cache-Control",
-        `public, max-age=${ttlSeconds}, s-maxage=${ttlSeconds}` // Ajouter s-maxage pour permettre le bfcache
+        `public, max-age=${ttlSeconds}, s-maxage=${ttlSeconds}` // TTL adaptatif: 7 jours pour vols > 24h, 30min pour vols futurs/récents
       );
       response.headers.set("X-Cache", "MISS");
 

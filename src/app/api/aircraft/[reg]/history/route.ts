@@ -1,29 +1,32 @@
 import { NextRequest, NextResponse } from "next/server";
 import { withCreditChargeABD } from "@/lib/withCreditChargeABD";
 import { ActionType } from "@prisma/client";
+import { getCache as getSupabaseCache, setCache as setSupabaseCache } from "@/lib/supabaseCache";
 
 const AERODATABOX_API_KEY =
   process.env.API_MARKET_KEY || process.env.AERODATABOX_API_KEY;
 const AERODATABOX_BASE_URL = process.env.API_MARKET_BASE_URL || "https://prod.api.market/api/v1/aedbx/aerodatabox";
 
-// Cache pour l'historique des vols
-const cache = new Map<string, { data: any; timestamp: number; ttl: number }>();
+// Cache TTL (en secondes pour Supabase cache)
+const HISTORY_TTL_SECONDS = 8 * 60 * 60; // 8 heures (28800 secondes)
 
-function getCache(key: string): any | null {
-  const cached = cache.get(key);
-  if (cached && Date.now() - cached.timestamp < cached.ttl) {
-    return cached.data;
+// Cache Supabase persistant (partagé entre toutes les instances serverless)
+async function getCache(key: string): Promise<any | null> {
+  const cached = await getSupabaseCache(key);
+  if (cached) {
+    try {
+      return JSON.parse(cached);
+    } catch (e) {
+      console.error("[Cache] Failed to parse cached value:", e);
+      return null;
+    }
   }
-  cache.delete(key);
   return null;
 }
 
-function setCache(key: string, data: any, ttl: number): void {
-  cache.set(key, {
-    data,
-    timestamp: Date.now(),
-    ttl,
-  });
+async function setCache(key: string, data: any, ttlSeconds: number): Promise<void> {
+  await setSupabaseCache(key, JSON.stringify(data), ttlSeconds);
+  console.log(`[Cache] stored flight history for ${ttlSeconds}s`);
 }
 
 // Fonction pour appeler AeroDataBox avec timeout
@@ -150,17 +153,19 @@ export const GET = withFlightHistoryAccess(
 
       const cacheKey = `flight-history:${reg}:${fromDate}:${toDate}:${limit}`;
 
-      // Vérifier le cache (1 heure)
-      const cached = getCache(cacheKey);
+      // Vérifier le cache Supabase persistant (partagé entre toutes les instances serverless)
+      const cached = await getCache(cacheKey);
       if (cached) {
-        console.log(`[CACHE] hit flight history ${reg}`);
+        console.log(`[CACHE] hit flight history ${reg} from Supabase`);
         return NextResponse.json(cached, {
           headers: {
             "X-Cache": "HIT",
-            "Cache-Control": "public, max-age=3600",
+            "Cache-Control": "public, max-age=28800, s-maxage=28800", // 8 heures
           },
         });
       }
+
+      console.log(`[CACHE] miss flight history ${reg} - calling API`);
 
       // Construire l'URL de l'API AeroDataBox
       const apiPath = `/flights/Reg/${encodeURIComponent(
@@ -244,14 +249,14 @@ export const GET = withFlightHistoryAccess(
         timestamp: new Date().toISOString(),
       };
 
-      // Mettre en cache
-      setCache(cacheKey, result, 60 * 60 * 1000); // 1 heure
-      console.log(`[CACHE] stored flight history ${reg} for 1h`);
+      // Mettre en cache Supabase persistant (partagé entre toutes les instances serverless)
+      await setCache(cacheKey, result, HISTORY_TTL_SECONDS); // 8 heures (28800 secondes)
+      console.log(`[CACHE] stored flight history ${reg} in Supabase for 8h`);
 
       return NextResponse.json(result, {
         headers: {
           "X-Cache": "MISS",
-          "Cache-Control": "public, max-age=3600",
+          "Cache-Control": "public, max-age=28800, s-maxage=28800", // 8 heures
           // Compression gérée automatiquement par Next.js via compress: true
         },
       });

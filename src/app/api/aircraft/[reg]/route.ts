@@ -15,7 +15,7 @@ const AERODATABOX_BASE_URL = process.env.API_MARKET_BASE_URL || "https://prod.ap
 
 // --- Cache Supabase (persiste entre redémarrages)
 
-const AIRCRAFT_TTL_SECONDS = 24 * 60 * 60; // 24h en secondes
+const AIRCRAFT_TTL_SECONDS = 7 * 24 * 60 * 60; // 7 jours en secondes
 
 async function getCache(key: string): Promise<string | null> {
   return await getSupabaseCache(key);
@@ -278,7 +278,7 @@ export const GET = withAircraftAccess(
       if (resp.ok) {
         const body = resp.text && resp.text.trim() ? resp.text : "{}";
         await setCache(cacheKey, body, AIRCRAFT_TTL_SECONDS);
-        console.log(`[CACHE] stored aircraft ${reg} for 24h`);
+        console.log(`[CACHE] stored aircraft ${reg} for 7 days`);
         return new NextResponse(body, {
           status: 200,
           headers: {
