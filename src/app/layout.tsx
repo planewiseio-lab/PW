@@ -79,6 +79,7 @@ import { AdSection } from "@/components/ads/AdWrapper";
 import { UserStatusProvider } from "@/contexts/UserStatusContext";
 import { Comfortaa } from "next/font/google";
 import Script from "next/script";
+import { Analytics } from "@vercel/analytics/react";
 
 export const comfortaa = Comfortaa({
   subsets: ["latin"],
@@ -249,6 +250,8 @@ export default function RootLayout({
           <FreeCreditsExceededModal />
           {/* Google Analytics - Chargé uniquement si consentement accepté */}
           <GoogleAnalytics />
+          {/* Vercel Analytics */}
+          <Analytics />
           {/* Cookie Consent Banner */}
           <CookieConsent />
         </UserStatusProvider>
