@@ -53,6 +53,7 @@ function CheckoutContent() {
   const [currentSubscription, setCurrentSubscription] = useState<{
     plan: string;
     status: string;
+    renewsAt?: string;
   } | null>(null);
 
   // Charger Stripe au montage
@@ -296,6 +297,18 @@ function CheckoutContent() {
 
   const planDetails = PLAN_DETAILS[plan];
 
+  // Calculer si on doit afficher l'avertissement
+  const shouldShowWarning =
+    currentSubscription &&
+    (currentSubscription.plan === "BASIC" ||
+      currentSubscription.plan === "PRO") &&
+    (currentSubscription.status === "ACTIVE" ||
+      currentSubscription.status === "CANCELED") &&
+    currentSubscription.renewsAt &&
+    new Date(currentSubscription.renewsAt) > new Date();
+
+  const isSamePlan = currentSubscription?.plan === plan;
+
   return (
     <div className="min-h-screen bg-gray-50 py-12 px-4">
       <div className="max-w-4xl mx-auto">
@@ -353,53 +366,70 @@ function CheckoutContent() {
               Payment Information
             </h2>
 
-            {/* Avertissement si l'utilisateur a déjà un plan actif */}
-            {currentSubscription &&
-              (currentSubscription.plan === "BASIC" ||
-                currentSubscription.plan === "PRO") &&
-              currentSubscription.plan !== plan &&
-              currentSubscription.status === "ACTIVE" && (
-                <motion.div
-                  initial={{ opacity: 0, y: -10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  className="bg-yellow-50 border-2 border-yellow-400 text-yellow-800 px-4 py-4 rounded-lg mb-6"
-                >
-                  <div className="flex items-start gap-3">
-                    <svg
-                      className="w-5 h-5 text-yellow-600 flex-shrink-0 mt-0.5"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
-                      />
-                    </svg>
-                    <div>
-                      <h3 className="font-semibold text-yellow-900 mb-1">
-                        Important: Plan Change Warning
-                      </h3>
-                      <p className="text-sm text-yellow-800">
-                        You currently have an active{" "}
-                        <strong>{currentSubscription.plan}</strong> plan. If you
-                        proceed with this subscription:
-                      </p>
-                      <ul className="text-sm text-yellow-800 mt-2 space-y-1 list-disc list-inside">
-                        <li>
-                          Your current <strong>{currentSubscription.plan}</strong>{" "}
-                          plan will be <strong>replaced</strong> immediately
-                        </li>
-                        <li>
-                          Your credit balance will be <strong>replaced</strong> with the credits offered by the selected plan
-                        </li>
-                      </ul>
-                    </div>
+            {/* Avertissement si l'utilisateur a déjà un plan actif ou canceled */}
+            {shouldShowWarning && currentSubscription && (
+              <motion.div
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="bg-yellow-50 border-2 border-yellow-400 text-yellow-800 px-4 py-4 rounded-lg mb-6"
+              >
+                <div className="flex items-start gap-3">
+                  <svg
+                    className="w-5 h-5 text-yellow-600 flex-shrink-0 mt-0.5"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+                    />
+                  </svg>
+                  <div>
+                    <h3 className="font-semibold text-yellow-900 mb-1">
+                      {isSamePlan
+                        ? "Important: You Already Have This Plan"
+                        : "Important: Plan Change Warning"}
+                    </h3>
+                    <p className="text-sm text-yellow-800">
+                      You currently have a{" "}
+                      <strong>{currentSubscription.plan}</strong> plan
+                      {currentSubscription.status === "CANCELED"
+                        ? " (canceled, but still active until period end)"
+                        : " (active)"}
+                      . If you proceed with this subscription:
+                    </p>
+                    <ul className="text-sm text-yellow-800 mt-2 space-y-1 list-disc list-inside">
+                      {isSamePlan ? (
+                        <>
+                          <li>
+                            You are trying to subscribe to the same plan you
+                            already have. This will{" "}
+                            <strong>restart your subscription</strong> and
+                            reset your billing cycle.
+                          </li>
+                          <li>
+                            Your remaining credits will be <strong>replaced</strong> with the credits offered by the package
+                          </li>
+                        </>
+                      ) : (
+                        <>
+                          <li>
+                            Your current <strong>{currentSubscription.plan}</strong>{" "}
+                            plan will be <strong>replaced</strong> immediately
+                          </li>
+                          <li>
+                            Your credit balance will be <strong>replaced</strong> with the credits offered by the selected plan
+                          </li>
+                        </>
+                      )}
+                    </ul>
                   </div>
-                </motion.div>
-              )}
+                </div>
+              </motion.div>
+            )}
 
             {error && (
               <motion.div
