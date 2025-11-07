@@ -49,6 +49,7 @@
     "@supabase/supabase-js": "^2.76.1",
     "@upstash/redis": "^1.35.6",
     "aos": "^2.3.4",
+    "clsx": "^2.1.1",
     "dotenv": "^17.2.3",
     "framer-motion": "^12.23.22",
     "leaflet": "^1.9.4",
@@ -58,7 +59,8 @@
     "react": "19.1.0",
     "react-dom": "19.1.0",
     "react-leaflet": "^5.0.0",
-    "stripe": "^16.12.0"
+    "stripe": "^16.12.0",
+    "tailwind-merge": "^3.3.1"
   },
   "devDependencies": {
     "@chromatic-com/storybook": "^4.1.1",

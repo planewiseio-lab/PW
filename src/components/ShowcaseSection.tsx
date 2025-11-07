@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import Image from "next/image";
 
@@ -23,6 +23,8 @@ function useIsMobile() {
 export default function ShowcaseSection() {
   const [currentSlide, setCurrentSlide] = useState(0);
   const [isHovered, setIsHovered] = useState(false);
+  const [maxCardHeight, setMaxCardHeight] = useState<number | null>(null);
+  const cardRefs = useRef<(HTMLDivElement | null)[]>([]);
   const isMobile = useIsMobile();
 
   const slides = useMemo(() => {
@@ -158,7 +160,11 @@ export default function ShowcaseSection() {
               <div className="px-4 pt-6 pb-2">
                 <div
                   className="relative w-full bg-gray-100 overflow-hidden rounded-lg"
-                  style={{ aspectRatio: "21/9", minHeight: "180px" }}
+                  style={{
+                    aspectRatio: "16/9",
+                    minHeight: "200px",
+                    maxHeight: "400px",
+                  }}
                 >
                   <Image
                     src="/Assets/frsr.jpg"
@@ -166,6 +172,7 @@ export default function ShowcaseSection() {
                     fill
                     className="object-cover"
                     sizes="(max-width: 768px) 100vw, (max-width: 1200px) 80vw, 70vw"
+                    quality={90}
                     loading="lazy"
                   />
                   <div className="absolute bottom-2 right-2 bg-black/50 text-white text-[10px] px-2 py-1 rounded backdrop-blur-sm z-10">
@@ -183,7 +190,9 @@ export default function ShowcaseSection() {
                     fill
                     className="object-cover"
                     sizes="(max-width: 768px) 25vw, 20vw"
+                    quality={85}
                     loading="lazy"
+                    style={{ imageRendering: "auto" }}
                   />
                 </div>
                 <div className="relative w-full aspect-video bg-gray-100 rounded overflow-hidden cursor-pointer hover:opacity-80 transition">
@@ -193,7 +202,9 @@ export default function ShowcaseSection() {
                     fill
                     className="object-cover"
                     sizes="(max-width: 768px) 25vw, 20vw"
+                    quality={85}
                     loading="lazy"
+                    style={{ imageRendering: "auto" }}
                   />
                 </div>
                 <div className="relative w-full aspect-video bg-gray-100 rounded overflow-hidden cursor-pointer hover:opacity-80 transition">
@@ -203,7 +214,9 @@ export default function ShowcaseSection() {
                     fill
                     className="object-cover"
                     sizes="(max-width: 768px) 25vw, 20vw"
+                    quality={85}
                     loading="lazy"
+                    style={{ imageRendering: "auto" }}
                   />
                 </div>
                 <div className="relative w-full aspect-video bg-gray-100 rounded overflow-hidden cursor-pointer hover:opacity-80 transition">
@@ -213,7 +226,9 @@ export default function ShowcaseSection() {
                     fill
                     className="object-cover"
                     sizes="(max-width: 768px) 25vw, 20vw"
+                    quality={85}
                     loading="lazy"
+                    style={{ imageRendering: "auto" }}
                   />
                 </div>
               </div>
@@ -642,7 +657,15 @@ export default function ShowcaseSection() {
           lastUpdate: "2 min ago",
         },
         preview: (
-          <div className="bg-white rounded-2xl border border-gray-200 shadow-sm flex-1 flex flex-col overflow-hidden">
+          <div
+            className="bg-white rounded-2xl border border-gray-200 shadow-sm flex-1 flex flex-col overflow-hidden"
+            style={{
+              WebkitFontSmoothing: "antialiased",
+              MozOsxFontSmoothing: "grayscale",
+              textRendering: "optimizeLegibility",
+              imageRendering: "auto",
+            }}
+          >
             {/* Header */}
             <div className="px-4 pt-6 pb-4 border-b border-gray-200">
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-3">
@@ -767,9 +790,28 @@ export default function ShowcaseSection() {
             </div>
 
             {/* Flight Table */}
-            <div className="flex-1 overflow-y-auto">
-              <table className="w-full text-sm">
-                <thead className="bg-gray-50 border-b border-gray-200 sticky top-0">
+            <div
+              className="flex-1 overflow-y-auto"
+              style={{
+                WebkitFontSmoothing: "antialiased",
+                MozOsxFontSmoothing: "grayscale",
+                textRendering: "optimizeLegibility",
+              }}
+            >
+              <table
+                className="w-full text-sm"
+                style={{
+                  borderCollapse: "separate",
+                  borderSpacing: 0,
+                }}
+              >
+                <thead
+                  className="bg-gray-50 border-b border-gray-200 sticky top-0"
+                  style={{
+                    WebkitFontSmoothing: "antialiased",
+                    MozOsxFontSmoothing: "grayscale",
+                  }}
+                >
                   <tr>
                     <th className="px-4 py-2 text-center text-xs font-semibold text-gray-600">
                       Time
@@ -791,8 +833,77 @@ export default function ShowcaseSection() {
                     </th>
                   </tr>
                 </thead>
-                <tbody>
+                <tbody
+                  style={{
+                    WebkitFontSmoothing: "antialiased",
+                    MozOsxFontSmoothing: "grayscale",
+                  }}
+                >
                   {[
+                    {
+                      time: "08:45",
+                      flight: "UA 890",
+                      airline: "United",
+                      to: "SFO",
+                      reg: "N456UA",
+                      status: "Departed",
+                    },
+                    {
+                      time: "09:29",
+                      flight: "B6 883",
+                      airline: "JetBlue",
+                      to: "MCO",
+                      reg: "N3261J",
+                      status: "Departed",
+                    },
+                    {
+                      time: "09:45",
+                      flight: "DL 1234",
+                      airline: "Delta Air Lines",
+                      to: "ATL",
+                      reg: "N789DL",
+                      status: "Departed",
+                    },
+                    {
+                      time: "10:00",
+                      flight: "B6 500",
+                      airline: "JetBlue",
+                      to: "FLL",
+                      reg: "N123JB",
+                      status: "Departed",
+                    },
+                    {
+                      time: "10:30",
+                      flight: "B6 1003",
+                      airline: "JetBlue",
+                      to: "SJU",
+                      reg: "N763JB",
+                      status: "Departed",
+                    },
+                    {
+                      time: "10:40",
+                      flight: "B6 1269",
+                      airline: "JetBlue",
+                      to: "PUJ",
+                      reg: "N558JB",
+                      status: "Departed",
+                    },
+                    {
+                      time: "11:00",
+                      flight: "F9 1043",
+                      airline: "Frontier",
+                      to: "ORD",
+                      reg: "N665FR",
+                      status: "Departed",
+                    },
+                    {
+                      time: "11:00",
+                      flight: "AA 3199",
+                      airline: "American",
+                      to: "CLT",
+                      reg: "N754UW",
+                      status: "Departed",
+                    },
                     {
                       time: "11:16",
                       flight: "YX 5733",
@@ -810,27 +921,11 @@ export default function ShowcaseSection() {
                       status: "Departed",
                     },
                     {
-                      time: "10:40",
-                      flight: "B6 1269",
-                      airline: "JetBlue",
-                      to: "PUJ",
-                      reg: "N558JB",
-                      status: "Departed",
-                    },
-                    {
-                      time: "09:29",
-                      flight: "B6 883",
-                      airline: "JetBlue",
-                      to: "MCO",
-                      reg: "N3261J",
-                      status: "Departed",
-                    },
-                    {
-                      time: "10:30",
-                      flight: "B6 1003",
-                      airline: "JetBlue",
-                      to: "SJU",
-                      reg: "N763JB",
+                      time: "11:24",
+                      flight: "VJA 2",
+                      airline: "VJA",
+                      to: "BOS",
+                      reg: "N302PE",
                       status: "Departed",
                     },
                     {
@@ -842,33 +937,21 @@ export default function ShowcaseSection() {
                       status: "Departed",
                     },
                     {
-                      time: "11:00",
-                      flight: "F9 1043",
-                      airline: "Frontier",
-                      to: "ORD",
-                      reg: "N665FR",
-                      status: "Departed",
-                    },
-                    {
-                      time: "11:24",
-                      flight: "VJA 2",
-                      airline: "VJA",
-                      to: "BOS",
-                      reg: "N302PE",
-                      status: "Departed",
-                    },
-                    {
-                      time: "11:00",
-                      flight: "AA 3199",
-                      airline: "American",
-                      to: "CLT",
-                      reg: "N754UW",
+                      time: "12:15",
+                      flight: "AF 83",
+                      airline: "Air France",
+                      to: "CDG",
+                      reg: "F-HPJB",
                       status: "Departed",
                     },
                   ].map((row, i) => (
                     <tr
                       key={i}
                       className="border-b border-gray-100 hover:bg-gray-50 transition"
+                      style={{
+                        WebkitFontSmoothing: "antialiased",
+                        MozOsxFontSmoothing: "grayscale",
+                      }}
                     >
                       <td className="px-4 py-2.5 text-center text-gray-900">
                         {row.time}
@@ -913,6 +996,60 @@ export default function ShowcaseSection() {
     ];
   }, []);
 
+  // Mesurer toutes les cartes après le chargement des images
+  useEffect(() => {
+    const measureAllCards = () => {
+      // Attendre que toutes les refs soient attachées
+      const allRefsReady = cardRefs.current.every((ref, index) => {
+        return ref !== null || index >= slides.length;
+      });
+
+      if (!allRefsReady) {
+        // Réessayer après un court délai
+        setTimeout(measureAllCards, 100);
+        return;
+      }
+
+      const heights = cardRefs.current
+        .slice(0, slides.length)
+        .filter((ref) => ref !== null)
+        .map((ref) => {
+          if (!ref) return 0;
+          // Forcer un reflow pour obtenir la hauteur réelle
+          void ref.offsetHeight;
+          return ref.offsetHeight || 0;
+        });
+
+      if (heights.length > 0 && heights.length === slides.length) {
+        const maxHeight = Math.max(...heights);
+        console.log(
+          "[ShowcaseSection] Max card height measured:",
+          maxHeight,
+          "from",
+          heights
+        );
+        setMaxCardHeight(maxHeight);
+      }
+    };
+
+    // Mesurer après le rendu initial
+    const timeout1 = setTimeout(measureAllCards, 200);
+    // Re-mesurer après le chargement des images
+    const timeout2 = setTimeout(measureAllCards, 1500);
+    // Re-mesurer une dernière fois pour être sûr
+    const timeout3 = setTimeout(measureAllCards, 3000);
+
+    // Re-mesurer lors du redimensionnement
+    window.addEventListener("resize", measureAllCards);
+
+    return () => {
+      clearTimeout(timeout1);
+      clearTimeout(timeout2);
+      clearTimeout(timeout3);
+      window.removeEventListener("resize", measureAllCards);
+    };
+  }, [slides]);
+
   // Auto-rotate slides
   useEffect(() => {
     if (isHovered) return;
@@ -937,8 +1074,18 @@ export default function ShowcaseSection() {
         transition: { duration: 0.5, ease: [0.22, 0.61, 0.36, 1] as const },
       };
 
+  // Calculer la hauteur totale de la section (header + carte max + padding)
+  // Le header fait environ 150px, on ajoute 250px de padding
+  // Utiliser height au lieu de minHeight pour forcer une hauteur fixe
+  const sectionHeight = maxCardHeight
+    ? maxCardHeight + 400 // Header (150px) + padding (250px)
+    : 1400; // Hauteur par défaut suffisamment grande pour la carte la plus haute
+
   return (
-    <section className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8 py-16 sm:py-24">
+    <section
+      className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8 py-16 sm:py-24"
+      style={{ height: `${sectionHeight}px`, overflow: "hidden" }}
+    >
       <div className="text-center mb-12">
         <h2 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-gray-900">
           Everything you need to track aviation
@@ -955,19 +1102,49 @@ export default function ShowcaseSection() {
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}
       >
-        {/* Slide */}
+        {/* Slide Container */}
         <div className="relative overflow-hidden rounded-2xl">
-          <div className="min-h-[800px] pb-8">
+          <div className="pb-8">
+            {/* Cartes cachées pour mesurer toutes les hauteurs - Positionnées hors écran */}
+            <div
+              className="absolute opacity-0 pointer-events-none"
+              style={{
+                position: "absolute",
+                top: "-9999px",
+                left: "50%",
+                transform: "translateX(-50%)",
+                width: "100%",
+                maxWidth: "672px", // max-w-2xl
+              }}
+            >
+              {slides.map((slide, index) => (
+                <div
+                  key={`measure-${index}`}
+                  className="w-full max-w-2xl flex flex-col"
+                  ref={(el) => {
+                    if (el) {
+                      cardRefs.current[index] = el;
+                    }
+                  }}
+                >
+                  {slide.preview}
+                </div>
+              ))}
+            </div>
+
+            {/* Carte visible */}
             <AnimatePresence mode="wait">
               <motion.div
                 key={currentSlide}
                 {...animationProps}
-                className="flex justify-center"
+                className="flex justify-center w-full"
                 style={{
                   willChange: isMobile ? "auto" : "transform, opacity",
                   backfaceVisibility: "hidden",
                   WebkitBackfaceVisibility: "hidden",
                   transform: "translateZ(0)",
+                  WebkitFontSmoothing: "antialiased",
+                  MozOsxFontSmoothing: "grayscale",
                 }}
               >
                 {/* Preview Card - Centré et sans conteneur bleu */}
@@ -978,15 +1155,18 @@ export default function ShowcaseSection() {
             </AnimatePresence>
           </div>
 
-          {/* Navigation Arrows */}
+          {/* Navigation Arrows - Positionnées sous le texte du header */}
           <button
             onClick={() =>
               setCurrentSlide(
                 (prev) => (prev - 1 + slides.length) % slides.length
               )
             }
-            className="absolute left-2 top-1/2 -translate-y-1/2 min-w-[44px] min-h-[44px] w-11 h-11 bg-white/95 hover:bg-white rounded-full shadow-lg border border-gray-200 flex items-center justify-center text-gray-700 hover:text-gray-900 transition opacity-80 hover:opacity-100 z-10"
+            className="absolute left-2 min-w-[44px] min-h-[44px] w-11 h-11 bg-white/95 hover:bg-white rounded-full shadow-lg border border-gray-200 flex items-center justify-center text-gray-700 hover:text-gray-900 transition opacity-80 hover:opacity-100 z-10"
             aria-label="Previous slide"
+            style={{
+              top: "250px",
+            }}
           >
             ‹
           </button>
@@ -994,8 +1174,11 @@ export default function ShowcaseSection() {
             onClick={() =>
               setCurrentSlide((prev) => (prev + 1) % slides.length)
             }
-            className="absolute right-2 top-1/2 -translate-y-1/2 min-w-[44px] min-h-[44px] w-11 h-11 bg-white/95 hover:bg-white rounded-full shadow-lg border border-gray-200 flex items-center justify-center text-gray-700 hover:text-gray-900 transition opacity-80 hover:opacity-100 z-10"
+            className="absolute right-2 min-w-[44px] min-h-[44px] w-11 h-11 bg-white/95 hover:bg-white rounded-full shadow-lg border border-gray-200 flex items-center justify-center text-gray-700 hover:text-gray-900 transition opacity-80 hover:opacity-100 z-10"
             aria-label="Next slide"
+            style={{
+              top: "250px",
+            }}
           >
             ›
           </button>

@@ -83,7 +83,7 @@ export default function HomePage() {
   const disabled = isSubmitting || isPending;
 
   return (
-    <main>
+    <div suppressHydrationWarning>
       {/* Hero + Search */}
       <section className="relative">
         <div className="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8 py-16 sm:py-24 text-center">
@@ -126,8 +126,10 @@ export default function HomePage() {
         <SectionDivider className="my-8 sm:my-10" />
       </div>
 
-      {/* Pricing - Chargé après le contenu principal */}
-      <PricingSection />
-    </main>
+      {/* Pricing - Position fixe sous la section Showcase */}
+      <div suppressHydrationWarning className="relative">
+        <PricingSection />
+      </div>
+    </div>
   );
 }

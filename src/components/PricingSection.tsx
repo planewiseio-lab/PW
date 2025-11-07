@@ -6,7 +6,7 @@ import { useState, useEffect } from "react";
 // Hook pour détecter mobile et réduire les animations
 function useIsMobile() {
   const [isMobile, setIsMobile] = useState(false);
-  
+
   useEffect(() => {
     const checkMobile = () => {
       setIsMobile(window.innerWidth < 768);
@@ -15,7 +15,7 @@ function useIsMobile() {
     window.addEventListener("resize", checkMobile);
     return () => window.removeEventListener("resize", checkMobile);
   }, []);
-  
+
   return isMobile;
 }
 
@@ -97,13 +97,15 @@ export default function PricingSection() {
           ].map((p, i) => (
             <motion.article
               key={p.name}
-              whileHover={isMobile ? {} : { scale: 0.98 }}
-              transition={{ duration: 0.2, ease: "easeOut" }}
-              className={`relative rounded-2xl border ${p.wrapClass} bg-white p-6 sm:p-8 shadow-sm hover:shadow-md transition-all flex flex-col cursor-pointer`}
+              whileHover={isMobile ? {} : { scale: 1.02, y: -8 }}
+              transition={{ duration: 0.15, ease: "easeOut" }}
+              className={`relative rounded-2xl border ${p.wrapClass} bg-white p-6 sm:p-8 shadow-sm hover:shadow-xl transition-all duration-150 flex flex-col cursor-pointer`}
             >
               {p.oldPrice && (
                 <motion.div
-                  initial={isMobile ? { opacity: 1 } : { opacity: 0, scale: 0.8 }}
+                  initial={
+                    isMobile ? { opacity: 1 } : { opacity: 0, scale: 0.8 }
+                  }
                   animate={isMobile ? { opacity: 1 } : { opacity: 1, scale: 1 }}
                   transition={isMobile ? {} : { duration: 0.5, delay: 0.2 }}
                   className="absolute -top-3 left-4 z-10"
@@ -118,8 +120,12 @@ export default function PricingSection() {
                 {p.oldPrice ? (
                   <div className="flex items-baseline gap-3">
                     <motion.p
-                      initial={isMobile ? { opacity: 1, x: 0 } : { opacity: 0, x: -20 }}
-                      animate={isMobile ? { opacity: 1, x: 0 } : { opacity: 1, x: 0 }}
+                      initial={
+                        isMobile ? { opacity: 1, x: 0 } : { opacity: 0, x: -20 }
+                      }
+                      animate={
+                        isMobile ? { opacity: 1, x: 0 } : { opacity: 1, x: 0 }
+                      }
                       transition={isMobile ? {} : { duration: 0.5, delay: 0.1 }}
                       className="text-lg font-medium text-gray-400 line-through relative"
                     >
@@ -140,8 +146,12 @@ export default function PricingSection() {
                       )}
                     </motion.p>
                     <motion.p
-                      initial={isMobile ? { opacity: 1, y: 0 } : { opacity: 0, y: -10 }}
-                      animate={isMobile ? { opacity: 1, y: 0 } : { opacity: 1, y: 0 }}
+                      initial={
+                        isMobile ? { opacity: 1, y: 0 } : { opacity: 0, y: -10 }
+                      }
+                      animate={
+                        isMobile ? { opacity: 1, y: 0 } : { opacity: 1, y: 0 }
+                      }
                       transition={isMobile ? {} : { duration: 0.5, delay: 0.2 }}
                       className="text-3xl font-extrabold relative inline-block"
                     >
@@ -153,8 +163,12 @@ export default function PricingSection() {
                   </div>
                 ) : (
                   <motion.p
-                    initial={isMobile ? { opacity: 1, y: 0 } : { opacity: 0, y: -10 }}
-                    animate={isMobile ? { opacity: 1, y: 0 } : { opacity: 1, y: 0 }}
+                    initial={
+                      isMobile ? { opacity: 1, y: 0 } : { opacity: 0, y: -10 }
+                    }
+                    animate={
+                      isMobile ? { opacity: 1, y: 0 } : { opacity: 1, y: 0 }
+                    }
                     transition={isMobile ? {} : { duration: 0.5, delay: 0.1 }}
                     className="text-3xl font-extrabold relative inline-block"
                   >
@@ -186,10 +200,9 @@ export default function PricingSection() {
         </div>
 
         <p className="mt-8 text-center text-xs text-gray-500">
-          All prices in USD. Request counts reset monthly. Fair use applies.
+          All prices in USD. Request counts reset monthly.
         </p>
       </div>
     </section>
   );
 }
-

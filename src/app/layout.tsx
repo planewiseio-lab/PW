@@ -28,24 +28,36 @@ const ScrollToTop = dynamic(() => import("@/components/layout/ScrollToTop"), {
 // Lazy load modals et handlers d'erreur (non-critiques pour le rendu initial)
 // Note: ssr: false n'est pas autorisé dans Server Components (Next.js 15)
 // Ces composants sont "use client" donc ils gèrent le rendu côté client automatiquement
-const ClientGlobalLogoutModal = dynamic(() => import("@/components/ClientGlobalLogoutModal"));
+const ClientGlobalLogoutModal = dynamic(
+  () => import("@/components/ClientGlobalLogoutModal")
+);
 
 const AuthErrorHandler = dynamic(() => import("@/components/AuthErrorHandler"));
 
-const UserDeletedHandler = dynamic(() => import("@/components/UserDeletedHandler"));
-
-const SupabaseErrorHandler = dynamic(() => import("@/components/SupabaseErrorHandler"));
-
-const GlobalInsufficientCreditsHandler = dynamic(
-  () => import("@/components/GlobalInsufficientCreditsHandler").then((mod) => ({ default: mod.GlobalInsufficientCreditsHandler }))
+const UserDeletedHandler = dynamic(
+  () => import("@/components/UserDeletedHandler")
 );
 
-const GuestQuotaExceededModal = dynamic(
-  () => import("@/components/errors/GuestQuotaExceededModal").then((mod) => ({ default: mod.GuestQuotaExceededModal }))
+const SupabaseErrorHandler = dynamic(
+  () => import("@/components/SupabaseErrorHandler")
 );
 
-const FreeCreditsExceededModal = dynamic(
-  () => import("@/components/errors/FreeCreditsExceededModal").then((mod) => ({ default: mod.FreeCreditsExceededModal }))
+const GlobalInsufficientCreditsHandler = dynamic(() =>
+  import("@/components/GlobalInsufficientCreditsHandler").then((mod) => ({
+    default: mod.GlobalInsufficientCreditsHandler,
+  }))
+);
+
+const GuestQuotaExceededModal = dynamic(() =>
+  import("@/components/errors/GuestQuotaExceededModal").then((mod) => ({
+    default: mod.GuestQuotaExceededModal,
+  }))
+);
+
+const FreeCreditsExceededModal = dynamic(() =>
+  import("@/components/errors/FreeCreditsExceededModal").then((mod) => ({
+    default: mod.FreeCreditsExceededModal,
+  }))
 );
 
 const CookieConsent = dynamic(() => import("@/components/CookieConsent"));
@@ -56,6 +68,9 @@ const GoogleAnalytics = dynamic(() => import("@/components/GoogleAnalytics"));
 const AuthButton = dynamic(() => import("@/components/AuthButton"), {
   ssr: true, // SSR pour le SEO
 });
+
+// Import direct du wrapper client (gère lui-même le ssr: false)
+import ParticlesWrapper from "@/components/ui/ParticlesWrapper";
 
 import ErrorBoundary from "@/components/ErrorBoundary";
 import PWASetup from "@/components/PWASetup";
@@ -124,9 +139,7 @@ export const metadata: Metadata = {
       { url: "/Assets/logo.png", sizes: "32x32", type: "image/png" },
       { url: "/Assets/logo.png", sizes: "16x16", type: "image/png" },
     ],
-    apple: [
-      { url: "/Assets/logo.png", sizes: "180x180", type: "image/png" },
-    ],
+    apple: [{ url: "/Assets/logo.png", sizes: "180x180", type: "image/png" }],
     shortcut: "/Assets/logo.png",
   },
   other: {
@@ -163,11 +176,31 @@ export default function RootLayout({
     <html lang="en">
       <Head>
         {/* Preconnect pour les domaines critiques (API et images) - Amélioration LCP */}
-        <link rel="preconnect" href="https://prod.api.market" crossOrigin="anonymous" />
-        <link rel="preconnect" href="https://api.market" crossOrigin="anonymous" />
-        <link rel="preconnect" href="https://commons.wikimedia.org" crossOrigin="anonymous" />
-        <link rel="preconnect" href="https://upload.wikimedia.org" crossOrigin="anonymous" />
-        <link rel="preconnect" href="https://staticflickr.com" crossOrigin="anonymous" />
+        <link
+          rel="preconnect"
+          href="https://prod.api.market"
+          crossOrigin="anonymous"
+        />
+        <link
+          rel="preconnect"
+          href="https://api.market"
+          crossOrigin="anonymous"
+        />
+        <link
+          rel="preconnect"
+          href="https://commons.wikimedia.org"
+          crossOrigin="anonymous"
+        />
+        <link
+          rel="preconnect"
+          href="https://upload.wikimedia.org"
+          crossOrigin="anonymous"
+        />
+        <link
+          rel="preconnect"
+          href="https://staticflickr.com"
+          crossOrigin="anonymous"
+        />
         {/* DNS prefetch pour les autres domaines */}
         <link rel="dns-prefetch" href="https://prod.api.market" />
         <link rel="dns-prefetch" href="https://api.market" />
@@ -187,62 +220,73 @@ export default function RootLayout({
             <div className="bg-dot-grid w-full h-full [mask-image:linear-gradient(to_bottom,black_65%,transparent_100%)]" />
           </div>{" "}
           {/* Header (même structure que ton index.html) */}
-        <header className="sticky top-0 z-50 border-b border-black/5 bg-white/70 backdrop-blur-md">
-          <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8 h-14 flex items-center justify-between">
-            <a
-              href="/"
-              className="inline-flex items-center gap-2 hover:opacity-90 transition"
-            >
-              <img
-                src="/Assets/logo.png"
-                alt="PlaneWise"
-                className="h-6 w-auto"
-              />
-              <span className="font-semibold">PlaneWise</span>
-            </a>
-            <AuthButton />
-          </div>
-        </header>
-        {/* Barre de recherche compacte, affichée hors page d'accueil */}
-        <SearchHeader />
-        {/* Publicité TOP - Juste après le search header */}
-        <AdSection positionLabel="TOP (après header site)" />
-        {/* AOS (ne rend rien visuellement) */}
-        <AOSInit />
-        {/* PWA Setup */}
-        <PWASetup />
-        {/* Structured Data pour le site web */}
-        <StructuredData type="website" data={{}} />
-        {/* Contenu des pages : prend toute la place restante */}
-        <ErrorBoundary>
-          <ClientTransition>
-            <main className="flex-1 min-h-[calc(100vh-160px)]">{children}</main>
-          </ClientTransition>
-        </ErrorBoundary>
-        {/* Publicité BOTTOM - Avant le footer du site */}
-        <AdSection positionLabel="BOTTOM (avant footer site)" />
-        {/* Footer commun */}
-        <Footer />
-        {/* Bouton scroll to top */}
-        <ScrollToTop />
-        {/* Modal global de déconnexion */}
-        <ClientGlobalLogoutModal />
-        {/* Gestionnaire d'erreurs d'authentification */}
-        <AuthErrorHandler />
-        {/* Gestionnaire de suppression d'utilisateur */}
-        <UserDeletedHandler />
-        {/* Gestionnaire d'erreurs Supabase */}
-        <SupabaseErrorHandler />
-        {/* Gestionnaire de crédits insuffisants */}
-        <GlobalInsufficientCreditsHandler />
-        {/* Modal de quota invité dépassé */}
-        <GuestQuotaExceededModal />
-        {/* Modal de crédits épuisés pour utilisateurs Free */}
-        <FreeCreditsExceededModal />
-        {/* Google Analytics - Chargé uniquement si consentement accepté */}
-        <GoogleAnalytics />
-        {/* Cookie Consent Banner */}
-        <CookieConsent />
+          <header className="sticky top-0 z-50 border-b border-black/5 bg-white/70 backdrop-blur-md">
+            <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8 h-14 flex items-center justify-between">
+              <a
+                href="/"
+                className="inline-flex items-center gap-2 hover:opacity-90 transition"
+              >
+                <img
+                  src="/Assets/logo.png"
+                  alt="PlaneWise"
+                  className="h-6 w-auto"
+                />
+                <span className="font-semibold">PlaneWise</span>
+              </a>
+              <AuthButton />
+            </div>
+          </header>
+          {/* Barre de recherche compacte, affichée hors page d'accueil */}
+          <SearchHeader />
+          {/* Publicité TOP - Juste après le search header */}
+          <AdSection positionLabel="TOP (après header site)" />
+          {/* AOS (ne rend rien visuellement) */}
+          <AOSInit />
+          {/* PWA Setup */}
+          <PWASetup />
+          {/* Structured Data pour le site web */}
+          <StructuredData type="website" data={{}} />
+          {/* Contenu des pages : prend toute la place restante */}
+          <ErrorBoundary>
+            <ClientTransition>
+              <main className="relative flex-1 min-h-[calc(100vh-160px)]">
+                {/* Particles Background - Sur toutes les pages (exclut header et footer) */}
+                <ParticlesWrapper
+                  className="absolute inset-0 z-0 pointer-events-none"
+                  quantity={150}
+                  ease={80}
+                  color="#178cf2"
+                  size={0.6}
+                  refresh
+                />
+                <div className="relative z-10">{children}</div>
+              </main>
+            </ClientTransition>
+          </ErrorBoundary>
+          {/* Publicité BOTTOM - Avant le footer du site */}
+          <AdSection positionLabel="BOTTOM (avant footer site)" />
+          {/* Footer commun */}
+          <Footer />
+          {/* Bouton scroll to top */}
+          <ScrollToTop />
+          {/* Modal global de déconnexion */}
+          <ClientGlobalLogoutModal />
+          {/* Gestionnaire d'erreurs d'authentification */}
+          <AuthErrorHandler />
+          {/* Gestionnaire de suppression d'utilisateur */}
+          <UserDeletedHandler />
+          {/* Gestionnaire d'erreurs Supabase */}
+          <SupabaseErrorHandler />
+          {/* Gestionnaire de crédits insuffisants */}
+          <GlobalInsufficientCreditsHandler />
+          {/* Modal de quota invité dépassé */}
+          <GuestQuotaExceededModal />
+          {/* Modal de crédits épuisés pour utilisateurs Free */}
+          <FreeCreditsExceededModal />
+          {/* Google Analytics - Chargé uniquement si consentement accepté */}
+          <GoogleAnalytics />
+          {/* Cookie Consent Banner */}
+          <CookieConsent />
         </UserStatusProvider>
       </body>
     </html>
