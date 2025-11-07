@@ -1,6 +1,5 @@
 import "./globals.css";
 import type { Metadata } from "next";
-import Head from "next/head";
 import AOSInit from "@/components/AOSInit";
 import dynamic from "next/dynamic";
 
@@ -174,7 +173,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <Head>
+      <head>
         {/* Preconnect pour les domaines critiques (API et images) - Amélioration LCP */}
         <link
           rel="preconnect"
@@ -210,7 +209,7 @@ export default function RootLayout({
         <link rel="dns-prefetch" href="https://farm5.staticflickr.com" />
         <link rel="dns-prefetch" href="https://farm66.staticflickr.com" />
         <link rel="dns-prefetch" href="https://www.googletagmanager.com" />
-      </Head>
+      </head>
       <body
         className={`${comfortaa.className} min-h-screen flex flex-col text-gray-900 bg-white`}
       >
