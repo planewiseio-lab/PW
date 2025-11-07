@@ -277,10 +277,18 @@ export const GET = withFlightBrowseAccess(
       const cached = await getCache(cacheKey);
       if (cached) {
         try {
-          const cachedPayload = JSON.parse(cached);
+          let cachedPayload = JSON.parse(cached);
           
-          // Vérifier si c'est un placeholder de déduplication (marqueur temporaire)
-          if (cachedPayload && cachedPayload.__pending === true) {
+          // Si le cache contient un tableau brut (format API externe), l'ignorer et refaire la normalisation
+          if (Array.isArray(cachedPayload)) {
+            console.log(`[FlightAPI] Cache contains raw array format, ignoring and calling API to normalize`);
+            cachedPayload = null; // Forcer un nouvel appel API
+          }
+          
+          // Si cachedPayload est null après vérification, continuer avec l'appel API
+          if (!cachedPayload) {
+            // Continue to API call below
+          } else if (cachedPayload && cachedPayload.__pending === true) {
             console.log(`[FlightAPI] Request already in progress for ${cacheKey}, waiting...`);
             // Attendre que la requête en cours se termine (max 5 secondes)
             for (let i = 0; i < 50; i++) {
@@ -317,7 +325,7 @@ export const GET = withFlightBrowseAccess(
               }
             }
             // Si on arrive ici, on continue avec l'appel API (timeout ou résultat invalide)
-          } else {
+          } else if (cachedPayload) {
             // Ne pas utiliser le cache si c'est une réponse vide (flights: [] ou tableau vide)
             // Vérifier si c'est un payload valide avec des données de vol (airline, departure, etc.)
             const hasFlightsArray = Array.isArray(cachedPayload.flights);
@@ -331,7 +339,12 @@ export const GET = withFlightBrowseAccess(
             
             // Utiliser le cache seulement si c'est un payload valide (pas une réponse vide)
             if (hasValidFlightData && !isEmptyFlightsArray) {
-              console.log(`[FlightAPI] Cache HIT for ${cacheKey}`);
+              console.log(`[FlightAPI] Cache HIT for ${cacheKey}`, {
+                hasNumber: !!cachedPayload.number,
+                hasAirline: !!cachedPayload.airline,
+                hasDeparture: !!cachedPayload.departure,
+                hasArrival: !!cachedPayload.arrival,
+              });
               const response = NextResponse.json(cachedPayload);
               response.headers.set("X-Cache", "HIT");
               // Déterminer le TTL du cache HIT en fonction de l'âge du vol
@@ -341,7 +354,12 @@ export const GET = withFlightBrowseAccess(
               response.headers.set("Cache-Control", `public, max-age=${cachedTtlSeconds}, s-maxage=${cachedTtlSeconds}`);
               return response;
             } else {
-              console.log(`[FlightAPI] Cache contains empty response (flights: [] or no valid data), ignoring cache and calling API`);
+              console.log(`[FlightAPI] Cache contains empty response (flights: [] or no valid data), ignoring cache and calling API`, {
+                hasFlightsArray,
+                isEmptyFlightsArray,
+                hasValidFlightData,
+                cachedPayloadKeys: cachedPayload ? Object.keys(cachedPayload) : [],
+              });
             }
           }
         } catch (e) {
@@ -718,6 +736,15 @@ export const GET = withFlightBrowseAccess(
       };
 
       const textOut = JSON.stringify(payload);
+      
+      // Vérifier que le payload est bien un objet normalisé (pas un tableau)
+      if (Array.isArray(payload)) {
+        console.error(`[FlightAPI] ERROR: Payload is an array instead of normalized object! This should not happen.`);
+        // Ne pas mettre en cache un tableau
+        const response = NextResponse.json(payload);
+        response.headers.set("X-Cache", "MISS");
+        return response;
+      }
 
       // Ne pas mettre en cache les réponses vides (pas de données de vol valides)
       const hasValidData = payload && (
@@ -734,6 +761,14 @@ export const GET = withFlightBrowseAccess(
       
       // Ne mettre en cache que si on a des données valides
       if (hasValidData) {
+        console.log(`[FlightAPI] Caching normalized payload for ${cacheKey}`, {
+          hasNumber: !!payload.number,
+          hasAirline: !!payload.airline,
+          hasDeparture: !!payload.departure,
+          hasArrival: !!payload.arrival,
+          payloadType: typeof payload,
+          isArray: Array.isArray(payload),
+        });
         await setCache(cacheKey, textOut, ttlSeconds);
         console.log(`[FlightAPI] Cached flight data for ${cacheKey} (TTL: ${ttlSeconds}s)`);
         

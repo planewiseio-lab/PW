@@ -17,16 +17,44 @@ const responseCache = new Map<string, { data: any; timestamp: number }>();
 
 // Fonction pour vérifier si une réponse est valide
 function isValidFlightResponse(data: any): boolean {
-  if (!data) return false;
+  if (!data) {
+    console.log("[FlightRequestDeduplication] isValidFlightResponse: data is null/undefined");
+    return false;
+  }
+  
+  // Si c'est une erreur, ce n'est pas valide
+  if (data.error) {
+    console.log("[FlightRequestDeduplication] isValidFlightResponse: data has error", data.error);
+    return false;
+  }
+  
   const hasFlightsArray = Array.isArray(data.flights);
   const isEmptyFlightsArray = hasFlightsArray && data.flights.length === 0;
-  const hasValidFlightData = data && (
-    data.airline || 
-    data.departure || 
-    data.arrival ||
-    (hasFlightsArray && data.flights.length > 0)
-  );
-  return hasValidFlightData && !isEmptyFlightsArray;
+  
+  // Vérifier si on a des données de vol valides (format direct de l'API)
+  const hasValidFlightData = 
+    data.number ||
+    (data.airline && typeof data.airline === 'object') ||
+    (data.aircraft && typeof data.aircraft === 'object') ||
+    (data.departure && typeof data.departure === 'object') ||
+    (data.arrival && typeof data.arrival === 'object') ||
+    (hasFlightsArray && data.flights.length > 0);
+  
+  const isValid = hasValidFlightData && !isEmptyFlightsArray;
+  
+  if (!isValid) {
+    console.log("[FlightRequestDeduplication] isValidFlightResponse: invalid", {
+      hasNumber: !!data.number,
+      hasAirline: !!data.airline,
+      hasAircraft: !!data.aircraft,
+      hasDeparture: !!data.departure,
+      hasArrival: !!data.arrival,
+      hasFlightsArray,
+      isEmptyFlightsArray,
+    });
+  }
+  
+  return isValid;
 }
 
 // Nettoyer les requêtes orphelines et les caches vides
@@ -79,6 +107,7 @@ export async function fetchFlightData(
   // Créer une nouvelle requête
   const requestPromise = (async () => {
     try {
+      console.log(`[FlightRequestDeduplication] Fetching /api/flights/${flight}?dateLocal=${date}`);
       const response = await fetch(`/api/flights/${flight}?dateLocal=${date}`, {
         signal,
         credentials: "include",
@@ -86,6 +115,8 @@ export async function fetchFlightData(
           "Cache-Control": "max-age=300",
         },
       });
+      
+      console.log(`[FlightRequestDeduplication] Response status: ${response.status} for ${cacheKey}`);
 
       if (!response.ok) {
         // Pour les erreurs, essayer de récupérer le body JSON pour plus de détails
@@ -124,14 +155,29 @@ export async function fetchFlightData(
       }
 
       const data = await response.json();
+      console.log(`[FlightRequestDeduplication] Received response for ${cacheKey}`, {
+        hasData: !!data,
+        hasError: !!data?.error,
+        hasNumber: !!data?.number,
+        hasAirline: !!data?.airline,
+        hasDeparture: !!data?.departure,
+        hasArrival: !!data?.arrival,
+        hasFlights: !!data?.flights,
+        flightsLength: Array.isArray(data?.flights) ? data.flights.length : 0,
+        dataKeys: data ? Object.keys(data) : [],
+      });
       
       // Vérifier si l'API a retourné une erreur dans le payload même avec status 200
       if (data.error) {
+        console.log(`[FlightRequestDeduplication] API returned error in payload:`, data.error);
         throw new Error(data.error);
       }
 
       // Mettre en cache seulement si c'est un payload valide (pas une réponse vide)
-      if (isValidFlightResponse(data)) {
+      const isValid = isValidFlightResponse(data);
+      console.log(`[FlightRequestDeduplication] Response validity check:`, isValid);
+      
+      if (isValid) {
         responseCache.set(cacheKey, {
           data,
           timestamp: Date.now(),

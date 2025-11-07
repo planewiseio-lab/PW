@@ -393,7 +393,8 @@ export default function AircraftHistoryPage() {
                 href={`/login?redirect=${encodeURIComponent(
                   `/aircraft/${registration}/history`
                 )}`}
-                className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition font-medium"
+                className="text-white px-6 py-2 rounded-lg hover:opacity-90 transition-opacity font-medium"
+                style={{ backgroundColor: "#178cf2" }}
               >
                 Log In
               </Link>

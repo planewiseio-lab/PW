@@ -6,12 +6,18 @@ import { getRedisLike } from "./redisClient";
 // Uses the unified Redis-like interface (Supabase cache or Redis)
 const redisLike = getRedisLike();
 
+// Helper pour détecter le type de cache utilisé
+function getCacheType(): string {
+  const useSupabaseCache = process.env.USE_SUPABASE_CACHE === "true" || !process.env.REDIS_URL;
+  return useSupabaseCache ? "Supabase cache" : "Redis";
+}
+
 // Fonctions utilitaires - utilise getRedisLike() pour compatibilité avec Supabase cache
 export async function getRedisValue(key: string): Promise<string | null> {
   try {
     return await redisLike.get(key);
   } catch (error) {
-    console.error("Redis get error:", error);
+    console.error(`[${getCacheType()}] Get error:`, error);
     return null;
   }
 }
@@ -25,7 +31,7 @@ export async function setRedisValue(
     const result = await redisLike.set(key, value, undefined, ttlSeconds);
     return result === "OK";
   } catch (error) {
-    console.error("Redis set error:", error);
+    console.error(`[${getCacheType()}] Set error:`, error);
     return false;
   }
 }
@@ -49,7 +55,7 @@ export async function incrementRedisValue(
       return newValue;
     }
   } catch (error) {
-    console.error("Redis incr error:", error);
+    console.error(`[${getCacheType()}] Increment error:`, error);
     return 0;
   }
 }
@@ -66,7 +72,7 @@ export async function getRedisTTL(key: string): Promise<number> {
       return -1;
     }
   } catch (error) {
-    console.error("Redis TTL error:", error);
+    console.error(`[${getCacheType()}] TTL error:`, error);
     return -1;
   }
 }

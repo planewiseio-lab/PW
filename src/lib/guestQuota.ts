@@ -95,7 +95,7 @@ function normalizeIp(ip: string): string {
 }
 
 /**
- * Génère la clé Redis pour un invité
+ * Génère la clé de cache (Supabase ou Redis) pour un invité
  */
 function getGuestKey(ip: string, isAircraftLookup: boolean = false): string {
   if (isAircraftLookup) {
@@ -116,7 +116,11 @@ export async function getGuestUsage(ip: string, isAircraftLookup: boolean = fals
     const count = countStr ? parseInt(countStr, 10) : 0;
     let ttl = await getRedisTTL(key);
     
-    console.log(`[Guest Quota] 🔍 getGuestUsage for key: ${key}, TTL from Redis: ${ttl}, count: ${count}`);
+    // Détecter si on utilise Supabase cache ou Redis
+    const useSupabaseCache = process.env.USE_SUPABASE_CACHE === "true" || !process.env.REDIS_URL;
+    const cacheType = useSupabaseCache ? "Supabase cache" : "Redis";
+    
+    console.log(`[Guest Quota] 🔍 getGuestUsage for key: ${key}, TTL from ${cacheType}: ${ttl}, count: ${count}`);
     
     // getRedisTTL retourne:
     // - nombre positif = TTL en secondes

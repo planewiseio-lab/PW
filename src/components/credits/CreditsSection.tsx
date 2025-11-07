@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { usePathname } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
+import { useUserStatus } from "@/contexts/UserStatusContext";
 import { CreditBalanceCard } from "./CreditBalanceCard";
 import { UsageHistoryTable } from "./UsageHistoryTable";
 import { SubscriptionInfo } from "./SubscriptionInfo";
@@ -27,14 +28,99 @@ export function CreditsSection() {
   const [error, setError] = useState<string | null>(null);
   const pathname = usePathname();
   const fetchingRef = useRef(false); // Empêche les appels multiples simultanés
+  const lastFetchTimeRef = useRef<number>(0);
+  const currentFetchPromiseRef = useRef<Promise<void> | null>(null); // Promise partagée pour les appels simultanés
+  const CACHE_DURATION = 5000; // Cache de 5 secondes pour éviter les appels multiples rapides (augmenté pour gérer le double-render initial)
+  const { subscription: contextSubscription, isLoading: contextLoading } = useUserStatus(); // Récupérer subscription depuis le contexte
+  
+  // Utiliser des refs pour stocker les valeurs actuelles (évite les dépendances)
+  const contextSubscriptionRef = useRef(contextSubscription);
+  const contextLoadingRef = useRef(contextLoading);
+  
+  // Mettre à jour les refs quand les valeurs changent
+  useEffect(() => {
+    contextSubscriptionRef.current = contextSubscription;
+    contextLoadingRef.current = contextLoading;
+  }, [contextSubscription, contextLoading]);
 
   // Extract fetch logic to a reusable function with useCallback
-  const fetchCreditsData = useCallback(async (showLoading = true) => {
-    // Éviter les appels multiples simultanés
-    if (fetchingRef.current) {
-      return;
+  // NE PAS inclure contextSubscription dans les dépendances pour éviter les re-créations
+  const fetchCreditsData = useCallback(async (showLoading = true, forceRefresh = false) => {
+    const callId = Math.random().toString(36).slice(2, 9);
+    const now = Date.now();
+    const timeSinceLastFetch = lastFetchTimeRef.current > 0 ? now - lastFetchTimeRef.current : 0;
+    
+    console.log(`[Credits] fetchCreditsData called [${callId}]`, {
+      showLoading,
+      forceRefresh,
+      isFetching: fetchingRef.current,
+      hasPromise: !!currentFetchPromiseRef.current,
+      timeSinceLastFetch: `${timeSinceLastFetch}ms`,
+      cacheValid: timeSinceLastFetch < CACHE_DURATION,
+    });
+
+    // Si un fetch est déjà en cours, retourner la même Promise (déduplication)
+    if (currentFetchPromiseRef.current) {
+      console.log(`[Credits] [${callId}] Fetch already in progress, reusing existing promise...`);
+      return currentFetchPromiseRef.current;
     }
+
+    // Vérifier si un fetch est en cours (même si la Promise n'est pas encore créée)
+    // Cette vérification doit être AVANT de définir fetchingRef pour éviter les race conditions
+    if (fetchingRef.current) {
+      console.log(`[Credits] [${callId}] Fetch flag already set, checking for existing promise...`);
+      // Si une Promise existe déjà, la réutiliser
+      if (currentFetchPromiseRef.current) {
+        console.log(`[Credits] [${callId}] Reusing existing promise`);
+        return currentFetchPromiseRef.current;
+      }
+      // Sinon, attendre un peu que la Promise soit créée
+      return new Promise((resolve) => {
+        let attempts = 0;
+        const maxAttempts = 20; // 20 * 50ms = 1 seconde max
+        const checkInterval = setInterval(() => {
+          attempts++;
+          if (currentFetchPromiseRef.current) {
+            clearInterval(checkInterval);
+            console.log(`[Credits] [${callId}] Found existing promise after ${attempts * 50}ms`);
+            resolve(currentFetchPromiseRef.current);
+          } else if (!fetchingRef.current || attempts >= maxAttempts) {
+            clearInterval(checkInterval);
+            console.log(`[Credits] [${callId}] No promise found, giving up`);
+            resolve(Promise.resolve());
+          }
+        }, 50);
+      });
+    }
+
+    // Éviter les appels trop fréquents (cache de 5 secondes) sauf si forceRefresh
+    if (!forceRefresh && timeSinceLastFetch > 0 && timeSinceLastFetch < CACHE_DURATION) {
+      console.log(`[Credits] [${callId}] Recent fetch detected (${timeSinceLastFetch}ms ago, cache valid for ${CACHE_DURATION - timeSinceLastFetch}ms more), using cache...`);
+      return Promise.resolve();
+    }
+
+    console.log(`[Credits] [${callId}] Starting new fetch... (last fetch was ${timeSinceLastFetch}ms ago)`);
+    
+    // CRITIQUE: Définir les flags AVANT de créer la Promise pour bloquer les appels simultanés
     fetchingRef.current = true;
+    lastFetchTimeRef.current = now;
+    
+    // Créer une Promise partagée pour dédupliquer les appels simultanés
+    // CRITIQUE: La stocker IMMÉDIATEMENT dans la ref pour que les appels suivants puissent la réutiliser
+    let resolvePromise: (value: void | PromiseLike<void>) => void;
+    const fetchPromise = new Promise<void>((resolve) => {
+      resolvePromise = resolve;
+    });
+    
+    // Stocker la Promise IMMÉDIATEMENT pour bloquer les appels simultanés
+    currentFetchPromiseRef.current = fetchPromise;
+    
+    // Maintenant exécuter le fetch asynchrone
+    (async () => {
+    
+    // Lire les valeurs actuelles depuis les refs (toujours à jour)
+    const currentSubscription = contextSubscriptionRef.current;
+    const currentLoading = contextLoadingRef.current;
 
     if (showLoading) {
       setLoading(true);
@@ -66,7 +152,16 @@ export function CreditsSection() {
         if (authError || !user) {
           setError("Please sign in to view your credits");
           setLoading(false);
+          fetchingRef.current = false;
           return;
+        }
+
+        // Attendre un peu que le contexte charge la subscription si elle est en cours de chargement
+        // Cela évite de faire un fetch alors que le contexte va charger les données
+        if (currentLoading) {
+          console.log("[Credits] Context still loading, waiting a bit...");
+          // Attendre max 1 seconde que le contexte charge
+          await new Promise(resolve => setTimeout(resolve, 500));
         }
 
         // Fetch balance
@@ -75,8 +170,30 @@ export function CreditsSection() {
         let quotas: CreditsData["quotas"] = undefined;
         let renewsAt: CreditsData["renewsAt"] = undefined;
         
-        // Paralléliser les 3 requêtes indépendantes avec Promise.all
-        const [balanceResult, historyResult, subscriptionResult] = await Promise.allSettled([
+        // Utiliser subscription depuis le contexte si disponible
+        // Ne PAS faire de fallback API ici - le contexte gère déjà la récupération
+        // Si subscription n'est pas disponible, c'est qu'il n'y en a pas ou qu'elle est en cours de chargement
+        let subscription = null;
+        if (currentSubscription) {
+          // Utiliser les données du contexte (pas besoin d'appel API)
+          subscription = {
+            plan: currentSubscription.plan,
+            status: currentSubscription.status,
+            renewsAt: new Date(currentSubscription.renewsAt),
+          };
+        }
+        // Pas de fallback API - on attend que le contexte charge les données
+        // Cela évite les appels API dupliqués
+        
+        console.log(`[Credits] [${callId}] 🔄 Fetching credits data...`, {
+          hasSubscription: !!currentSubscription,
+          isLoading: currentLoading,
+          forceRefresh,
+        });
+        
+        // Paralléliser les 2 requêtes indépendantes (balance et history)
+        // Plus besoin de récupérer subscription ici car on l'a depuis le contexte
+        const [balanceResult, historyResult] = await Promise.allSettled([
           // Balance request
           (async () => {
             try {
@@ -117,25 +234,6 @@ export function CreditsSection() {
               return { items: [], nextCursor: null };
             }
           })(),
-          // Subscription request
-          (async () => {
-            try {
-              const tt = withTimeout(3000);
-              const response = await fetch("/api/user/subscription", {
-                credentials: "include",
-                cache: "no-store",
-                signal: tt.signal,
-              });
-              tt.clear();
-              if (response.ok) {
-                return await response.json();
-              }
-              return null;
-            } catch (err) {
-              console.warn("Error fetching subscription:", err);
-              return null;
-            }
-          })(),
         ]);
 
         // Traiter les résultats
@@ -150,20 +248,6 @@ export function CreditsSection() {
         const history = historyResult.status === "fulfilled" && historyResult.value
           ? historyResult.value
           : { items: [], nextCursor: null };
-
-        let subscription = null;
-        if (subscriptionResult.status === "fulfilled" && subscriptionResult.value) {
-          const data = subscriptionResult.value;
-          if (data.subscription) {
-            subscription = {
-              plan: data.subscription.plan,
-              status: data.subscription.status,
-              renewsAt: new Date(data.subscription.renewsAt),
-            };
-          }
-        } else if (subscriptionResult.status === "rejected") {
-          console.warn("Error fetching subscription:", subscriptionResult.reason);
-        }
 
         setCreditsData({
           balance,
@@ -182,9 +266,17 @@ export function CreditsSection() {
         // Always clear skeleton unless safety timer already did
         if (!didTimeout && showLoading) setLoading(false);
         clearTimeout(safetyTimer);
+        console.log(`[Credits] [${callId}] Fetch completed, resetting flag`);
         fetchingRef.current = false; // Réinitialiser le flag
+        currentFetchPromiseRef.current = null; // Réinitialiser la Promise partagée
+        // Résoudre la Promise pour que les appels en attente puissent continuer
+        resolvePromise!();
       }
-  }, []); // No dependencies - function is stable
+    })();
+    
+    // Attendre la fin du fetch
+    await fetchPromise;
+  }, []); // Pas de dépendances - fonction stable, on lit contextSubscription directement dans le corps
 
   useEffect(() => {
     // Reset state when pathname changes (navigation)
@@ -192,41 +284,116 @@ export function CreditsSection() {
     setCreditsData(null);
     setError(null);
     fetchingRef.current = false; // Réinitialiser le flag lors du changement de route
+    lastFetchTimeRef.current = 0; // Reset cache on route change
 
-    // Initial fetch
-    fetchCreditsData();
+    // Attendre un peu que le contexte se charge avant de faire le fetch initial
+    // Cela évite les appels API inutiles si le contexte charge rapidement
+    const timer = setTimeout(() => {
+      fetchCreditsData();
+    }, 200); // Petit délai pour laisser le contexte se charger
 
     return () => {
+      clearTimeout(timer);
       // Abort any in-flight requests on unmount
       fetchingRef.current = false; // Réinitialiser le flag lors du démontage
     };
-  }, [pathname]); // fetchCreditsData est stable, pas besoin de le mettre dans les dépendances
+  }, [pathname]); // Seulement pathname - fetchCreditsData est stable
+
+  // Mettre à jour les données quand contextSubscription change (après le chargement initial)
+  useEffect(() => {
+    if (!contextLoading) {
+      setCreditsData(prev => {
+        if (!prev) return prev;
+        
+        if (contextSubscription) {
+          // Mettre à jour uniquement la subscription dans creditsData si elle a changé
+          const updatedSubscription = {
+            plan: contextSubscription.plan,
+            status: contextSubscription.status,
+            renewsAt: new Date(contextSubscription.renewsAt),
+          };
+          
+          // Vérifier si la subscription a réellement changé
+          const currentPlan = prev.subscription?.plan;
+          const currentStatus = prev.subscription?.status;
+          const currentRenewsAt = prev.subscription?.renewsAt?.getTime();
+          const updatedRenewsAt = updatedSubscription.renewsAt.getTime();
+          
+          if (
+            currentPlan !== updatedSubscription.plan || 
+            currentStatus !== updatedSubscription.status ||
+            currentRenewsAt !== updatedRenewsAt
+          ) {
+            return {
+              ...prev,
+              subscription: updatedSubscription,
+            };
+          }
+        } else if (prev.subscription) {
+          // Si le contexte indique qu'il n'y a plus de subscription, mettre à jour
+          return {
+            ...prev,
+            subscription: null,
+          };
+        }
+        
+        return prev; // Pas de changement
+      });
+    }
+  }, [contextSubscription, contextLoading]); // Retirer creditsData des dépendances pour éviter les boucles
 
   // Auto-refresh when window regains focus (user comes back from another tab/window)
   useEffect(() => {
+    let focusTimeout: NodeJS.Timeout;
     const handleFocus = () => {
-      console.log("[Credits] Window focused, refreshing credits data...");
-      fetchCreditsData(false); // Don't show loading spinner on auto-refresh
+      // Debounce pour éviter les appels multiples rapides
+      clearTimeout(focusTimeout);
+      focusTimeout = setTimeout(() => {
+        // Vérifier le cache avant de refresh
+        const now = Date.now();
+        if (now - lastFetchTimeRef.current < CACHE_DURATION) {
+          console.log("[Credits] Window focused but cache still valid, skipping refresh");
+          return;
+        }
+        
+        if (fetchingRef.current) {
+          console.log("[Credits] Fetch in progress, skipping focus refresh");
+          return;
+        }
+        console.log("[Credits] Window focused, refreshing credits data...");
+        fetchCreditsData(false, false); // Don't show loading spinner, respect cache
+      }, 500); // Debounce de 500ms
     };
 
     window.addEventListener("focus", handleFocus);
     return () => {
+      clearTimeout(focusTimeout);
       window.removeEventListener("focus", handleFocus);
     };
-  }, []); // fetchCreditsData est stable, pas besoin de le mettre dans les dépendances
+  }, []); // Pas de dépendances - fetchCreditsData est stable
 
   // Listen for custom credit update events
   useEffect(() => {
+    let updateTimeout: NodeJS.Timeout;
     const handleCreditUpdate = () => {
-      console.log("[Credits] Credit update event received, refreshing...");
-      fetchCreditsData(false); // Don't show loading spinner on event-based refresh
+      // Debounce pour éviter les appels multiples rapides
+      clearTimeout(updateTimeout);
+      updateTimeout = setTimeout(() => {
+        if (fetchingRef.current) {
+          console.log("[Credits] Fetch in progress, skipping credit update refresh");
+          return;
+        }
+        console.log("[Credits] Credit update event received, refreshing...");
+        fetchCreditsData(false, true); // Don't show loading spinner, force refresh (important pour crédits)
+      }, 300); // Debounce de 300ms
     };
 
     window.addEventListener("credits:updated", handleCreditUpdate);
     return () => {
+      clearTimeout(updateTimeout);
       window.removeEventListener("credits:updated", handleCreditUpdate);
     };
-  }, []); // fetchCreditsData est stable, pas besoin de le mettre dans les dépendances
+  }, []); // Pas de dépendances - fetchCreditsData est stable
 
   if (loading) {
     return (

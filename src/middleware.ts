@@ -4,6 +4,15 @@ import { NextResponse, type NextRequest } from "next/server";
 export async function middleware(request: NextRequest) {
   // Request ID propagation
   const reqId = request.headers.get("x-request-id") || `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+  
+  // Logger les requêtes HTTP en production (optionnel, activé via variable d'environnement)
+  const shouldLogRequests = process.env.LOG_REQUESTS === "true" || process.env.NODE_ENV === "development";
+  const startTime = Date.now();
+  
+  if (shouldLogRequests) {
+    console.log(`[${new Date().toISOString()}] ${request.method} ${request.nextUrl.pathname}${request.nextUrl.search}`);
+  }
+  
   // Redirect www to non-www (SEO best practice)
   const hostname = request.headers.get("host") || "";
   if (hostname.startsWith("www.")) {
@@ -108,6 +117,16 @@ export async function middleware(request: NextRequest) {
   }
 
   supabaseResponse.headers.set("X-Request-Id", reqId);
+  
+  // Logger la requête (le temps de réponse sera loggé par Next.js ou dans les routes API)
+  // Note: En production, Next.js ne log pas automatiquement les requêtes HTTP
+  // Pour voir les logs, activez LOG_REQUESTS=true dans .env.local
+  if (shouldLogRequests && request.nextUrl.pathname.startsWith('/api')) {
+    // Pour les routes API, on log juste la requête
+    // Le temps de réponse sera loggé dans les routes individuelles si nécessaire
+    console.log(`[API] ${request.method} ${request.nextUrl.pathname}${request.nextUrl.search}`);
+  }
+  
   return supabaseResponse;
 }
 

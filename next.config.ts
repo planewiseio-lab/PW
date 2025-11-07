@@ -72,14 +72,6 @@ const nextConfig: NextConfig = {
     minimumCacheTTL: 60,
     deviceSizes: [640, 750, 828, 1080, 1200, 1920, 2048, 3840],
     imageSizes: [16, 32, 48, 64, 96, 128, 256, 384],
-    domains: [
-      "commons.wikimedia.org",
-      "upload.wikimedia.org",
-      "farm5.staticflickr.com",
-      "farm66.staticflickr.com",
-      "staticflickr.com",
-      "airport-data.com",
-    ],
     remotePatterns: [
       {
         protocol: "https",

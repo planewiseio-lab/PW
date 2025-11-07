@@ -72,7 +72,9 @@ export default function HomePage() {
       // Pour les vols, rediriger vers la page de recherche avec date
       // Utiliser la date du jour par défaut si pas de date sélectionnée
       const today = new Date().toISOString().split("T")[0];
-      startTransition(() => router.push(`/flight/${encodeURIComponent(v)}?date=${today}`));
+      startTransition(() =>
+        router.push(`/flight/${encodeURIComponent(v)}?date=${today}`)
+      );
     } else {
       startTransition(() => router.push(`/${mode}/${encodeURIComponent(v)}`));
     }
@@ -85,16 +87,19 @@ export default function HomePage() {
       {/* Hero + Search */}
       <section className="relative">
         <div className="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8 py-16 sm:py-24 text-center">
-          <div className="flex justify-center">
-            <span className="inline-flex items-center gap-2 rounded-full border border-black/5 bg-white/70 backdrop-blur px-3 py-1 text-xs font-medium text-gray-600 shadow-sm">
-              <span className="h-2 w-2 rounded-full bg-emerald-500" />
-              Live aviation data
-            </span>
+          <div className="flex flex-col items-center mb-4">
+            <img
+              src="/Assets/logo.png"
+              alt="PlaneWise"
+              className="h-32 sm:h-40 md:h-48 lg:h-56 w-auto mb-2"
+            />
+            <h1
+              className="text-4xl sm:text-5xl md:text-6xl font-bold"
+              style={{ fontFamily: "Comfortaa, sans-serif", color: "#178cf2" }}
+            >
+              PlaneWise.io
+            </h1>
           </div>
-
-          <h1 className="mt-4 text-5xl sm:text-6xl font-extrabold tracking-tight leading-tight text-gray-900">
-            PlaneWise<span className="text-gray-900">.io</span>
-          </h1>
           <p className="mt-4 text-gray-600 max-w-3xl text-lg mx-auto">
             Instantly look up any aircraft registration and explore specs,
             photos, and flight history — all in one place.
@@ -114,12 +119,12 @@ export default function HomePage() {
         </div>
       </section>
 
-      <SectionDivider className="my-8 sm:my-10" />
-
-      {/* Showcase - Chargé après le contenu principal */}
-      <ShowcaseSection />
-
-      <SectionDivider className="my-8 sm:my-10" />
+      {/* Showcase - Chargé après le contenu principal - Masqué sur mobile */}
+      <div className="hidden sm:block" suppressHydrationWarning>
+        <SectionDivider className="my-8 sm:my-10" />
+        <ShowcaseSection />
+        <SectionDivider className="my-8 sm:my-10" />
+      </div>
 
       {/* Pricing - Chargé après le contenu principal */}
       <PricingSection />

@@ -1,109 +1,40 @@
 "use client";
 
 import { createClient } from "@/lib/supabase/client";
-import { useEffect, useState, useMemo } from "react";
-import { usePathname, useRouter } from "next/navigation";
-import { validateUser } from "@/lib/auth-utils";
+import { useEffect, useState, useRef } from "react";
+import { useRouter } from "next/navigation";
+import { useUserStatus } from "@/contexts/UserStatusContext";
 import Link from "next/link";
 
 export default function DashboardPage() {
-  const [user, setUser] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
   const [favoriteAircraft, setFavoriteAircraft] = useState<any[]>([]);
-
-  // Vérifier si Supabase est configuré (mémorisé pour éviter recalcul)
-  const isSupabaseConfigured = useMemo(() => {
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-    const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-    return (
-      supabaseUrl &&
-      supabaseAnonKey &&
-      supabaseUrl !== "https://your-project.supabase.co" &&
-      supabaseAnonKey !== "your-anon-key-here"
-    );
-  }, []);
-
-  const pathname = usePathname();
+  const { user, isLoading } = useUserStatus();
   const router = useRouter();
+  
+  const favoritesLoadingRef = useRef(false);
+  const lastLoadedUserIdRef = useRef<string | null>(null);
+  const lastLoadTimeRef = useRef<number>(0);
+  const CACHE_DURATION = 3000; // Cache de 3 secondes
 
-  useEffect(() => {
-    // Reset state when component mounts or pathname changes (navigation)
-    setLoading(true);
-    setUser(null);
-    setFavoriteAircraft([]);
-
-    const getUser = async () => {
-      if (!isSupabaseConfigured) {
-        setLoading(false);
-        return;
-      }
-
-      try {
-        // Timeout pour validateUser pour éviter qu'il bloque
-        const userPromise = validateUser();
-        const timeoutPromise = new Promise((_, reject) =>
-          setTimeout(() => reject(new Error("User validation timeout")), 5000)
-        );
-
-        const user = await Promise.race([userPromise, timeoutPromise]) as any;
-
-        if (!user) {
-          console.log("No user found, redirecting to home");
-          setLoading(false);
-          router.replace("/");
-          return;
-        }
-
-        console.log("User found:", user.id);
-        setUser(user);
-        setLoading(false);
-
-        // Charger les favoris après avoir défini l'utilisateur
-        setTimeout(() => loadFavoriteAircraft(), 100);
-      } catch (err: any) {
-        console.error("Error getting user:", err);
-        setLoading(false);
-        // Ne pas rediriger si c'est juste un timeout, afficher l'erreur
-        if (err?.message?.includes("timeout")) {
-          console.warn("User validation timed out, but continuing anyway");
-          // Continuer sans user si timeout
-          return;
-        }
-        router.replace("/");
-      }
-    };
-
-    // Timeout de sécurité pour éviter un loading infini (backup au cas où)
-    const timeoutId = setTimeout(() => {
-      console.warn("Dashboard loading timeout, forcing stop");
-      setLoading(false);
-      // Ne pas rediriger, juste arrêter le loading pour éviter les boucles
-    }, 8000); // 8 secondes (backup)
-
-    getUser();
-
-    return () => {
-      clearTimeout(timeoutId);
-    };
-  }, [isSupabaseConfigured, pathname, router]);
-
-  // Recharger les favoris quand l'utilisateur change
-  useEffect(() => {
-    if (user) {
-      console.log("User changed, loading favorites for:", user.id);
-      loadFavoriteAircraft();
-    }
-  }, [user]);
-
-  const loadFavoriteAircraft = async () => {
-    console.log("loadFavoriteAircraft called, user:", user);
-
-    if (!user) {
-      console.log("No user found, skipping favorites load");
+  // Fonction stable pour charger les favoris (pas de dépendances)
+  const loadFavoriteAircraft = async (userId: string) => {
+    // Éviter les appels multiples simultanés
+    if (favoritesLoadingRef.current) {
       return;
     }
 
-    console.log("Loading favorites for user:", user.id);
+    // Éviter les rechargements inutiles
+    const now = Date.now();
+    if (
+      lastLoadedUserIdRef.current === userId &&
+      now - lastLoadTimeRef.current < CACHE_DURATION
+    ) {
+      return;
+    }
+
+    favoritesLoadingRef.current = true;
+    lastLoadedUserIdRef.current = userId;
+    lastLoadTimeRef.current = now;
 
     // Réinitialiser la liste avant de charger
     setFavoriteAircraft([]);
@@ -113,10 +44,8 @@ export default function DashboardPage() {
       const { data, error } = await supabase
         .from("user_favorites")
         .select("*")
-        .eq("user_id", user.id)
+        .eq("user_id", userId)
         .order("created_at", { ascending: false });
-
-      console.log("Favorites query result:", { data, error });
 
       if (error) {
         console.error("Error loading favorites:", error);
@@ -141,13 +70,29 @@ export default function DashboardPage() {
 
       // Limiter à 30 avions maximum
       const limitedFavorites = formattedFavorites.slice(0, 30);
-
-      console.log("Formatted favorites:", limitedFavorites);
       setFavoriteAircraft(limitedFavorites);
     } catch (error) {
       console.error("Error loading favorites:", error);
+      lastLoadedUserIdRef.current = null;
+      lastLoadTimeRef.current = 0;
+    } finally {
+      favoritesLoadingRef.current = false;
     }
   };
+
+  // Rediriger si pas d'utilisateur après le chargement
+  useEffect(() => {
+    if (!isLoading && !user) {
+      router.replace("/");
+    }
+  }, [isLoading, user, router]);
+
+  // Charger les favoris quand l'utilisateur est disponible
+  useEffect(() => {
+    if (user?.id && lastLoadedUserIdRef.current !== user.id) {
+      loadFavoriteAircraft(user.id);
+    }
+  }, [user?.id]); // Seulement dépendre de user.id, pas de la fonction
 
   const removeFavoriteAircraft = async (
     id: string,
@@ -176,44 +121,19 @@ export default function DashboardPage() {
       }
 
       // Recharger la liste des favoris
-      await loadFavoriteAircraft();
+      lastLoadedUserIdRef.current = null; // Forcer le rechargement
+      await loadFavoriteAircraft(user.id);
     } catch (error) {
       console.error("Error removing favorite:", error);
     }
   };
 
-  if (loading) {
+  if (isLoading) {
     return (
       <main className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8 py-8">
         <div className="text-center">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
           <p className="mt-2 text-gray-600">Loading...</p>
-        </div>
-      </main>
-    );
-  }
-
-  if (!isSupabaseConfigured) {
-    return (
-      <main className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8 py-8">
-        <div className="text-center">
-          <h1 className="text-3xl font-bold text-gray-900 mb-4">Dashboard</h1>
-          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-6">
-            <h2 className="text-lg font-semibold text-yellow-800 mb-2">
-              Authentication Not Configured
-            </h2>
-            <p className="text-yellow-700 mb-4">
-              Supabase authentication is not configured. Please set up your
-              environment variables.
-            </p>
-            <div className="text-sm text-yellow-600">
-              <p>Required environment variables:</p>
-              <ul className="list-disc list-inside mt-2">
-                <li>NEXT_PUBLIC_SUPABASE_URL</li>
-                <li>NEXT_PUBLIC_SUPABASE_ANON_KEY</li>
-              </ul>
-            </div>
-          </div>
         </div>
       </main>
     );
@@ -240,8 +160,10 @@ export default function DashboardPage() {
             </div>
             <button
               onClick={() => {
-                console.log("Manual refresh clicked");
-                loadFavoriteAircraft();
+                if (user?.id) {
+                  lastLoadedUserIdRef.current = null; // Forcer le rechargement
+                  loadFavoriteAircraft(user.id);
+                }
               }}
               className="flex items-center justify-center w-8 h-8 bg-[#178cf2] text-white rounded-md hover:brightness-110 transition-colors"
               title="Refresh"

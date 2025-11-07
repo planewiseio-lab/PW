@@ -119,6 +119,16 @@ export const metadata: Metadata = {
     creator: "@planewise",
   },
   manifest: "/manifest.json",
+  icons: {
+    icon: [
+      { url: "/Assets/logo.png", sizes: "32x32", type: "image/png" },
+      { url: "/Assets/logo.png", sizes: "16x16", type: "image/png" },
+    ],
+    apple: [
+      { url: "/Assets/logo.png", sizes: "180x180", type: "image/png" },
+    ],
+    shortcut: "/Assets/logo.png",
+  },
   other: {
     "format-detection": "telephone=no",
   },
@@ -183,16 +193,11 @@ export default function RootLayout({
               href="/"
               className="inline-flex items-center gap-2 hover:opacity-90 transition"
             >
-              <svg
-                aria-hidden
-                viewBox="0 0 24 24"
-                className="h-5 w-5 text-blue-600"
-              >
-                <path
-                  d="M2 12.5l8.5 1.5 3.5 6 1-6 7-1.5-7-1.5-1-6-3.5 6L2 12.5z"
-                  fill="currentColor"
-                />
-              </svg>
+              <img
+                src="/Assets/logo.png"
+                alt="PlaneWise"
+                className="h-6 w-auto"
+              />
               <span className="font-semibold">PlaneWise</span>
             </a>
             <AuthButton />

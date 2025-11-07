@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef, Suspense } from "react";
+import { useState, useEffect, useRef, Suspense, useCallback } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import FlightCard from "@/components/FlightCard";
 import { motion, AnimatePresence } from "framer-motion";
@@ -118,73 +118,153 @@ function FlightPageContent() {
     return today.toISOString().split("T")[0];
   });
 
-  const loadFlightData = async (flight: string, date: string) => {
+  const loadFlightData = useCallback(async (flight: string, date: string) => {
+    console.log("[FlightPage] loadFlightData called", { flight, date });
     try {
       setLoading(true);
       setError(null);
       setFlightData(null); // Reset data
 
-      // Cancel previous request if it exists
-      if (abortControllerRef.current) {
-        abortControllerRef.current.abort();
+      // Cancel previous request if it exists and not already aborted
+      if (abortControllerRef.current && !abortControllerRef.current.signal.aborted) {
+        try {
+          abortControllerRef.current.abort();
+        } catch (e) {
+          // Ignore errors if already aborted
+        }
       }
 
       // Create a new AbortController
       abortControllerRef.current = new AbortController();
 
+      console.log("[FlightPage] Calling fetchFlightData...");
       const data = await fetchFlightData(
         flight,
         date,
         abortControllerRef.current.signal
       );
+      console.log("[FlightPage] fetchFlightData returned", { 
+        hasData: !!data,
+        dataType: typeof data,
+        isArray: Array.isArray(data),
+      });
+
+      // Si l'API retourne directement un tableau (format brut), utiliser le premier élément
+      let processedData = data;
+      if (Array.isArray(data) && data.length > 0) {
+        console.log("[FlightPage] API returned raw array, using first element", {
+          arrayLength: data.length,
+          firstElement: data[0],
+        });
+        const rawFlight = data[0];
+        
+        // Normaliser les données brutes pour qu'elles correspondent au format attendu
+        processedData = {
+          number: rawFlight.number || rawFlight.callSign || "",
+          airline: {
+            name: rawFlight.airline?.name || "Unknown Airline",
+            iata: rawFlight.airline?.iata || "",
+            icao: rawFlight.airline?.icao || "",
+          },
+          aircraft: {
+            model: rawFlight.aircraft?.model || "Unknown Aircraft",
+            registration: rawFlight.aircraft?.reg || rawFlight.aircraft?.registration || "Not available",
+          },
+          departure: {
+            airport: {
+              iata: rawFlight.departure?.airport?.iata || rawFlight.departure?.airport?.icao || "",
+              name: rawFlight.departure?.airport?.name || rawFlight.departure?.airport?.municipalityName || "",
+              city: rawFlight.departure?.airport?.city || rawFlight.departure?.airport?.municipalityName || "",
+            },
+            scheduledTimeLocal: rawFlight.departure?.scheduledTime?.local || "",
+            actualTimeLocal: rawFlight.departure?.revisedTime?.local || rawFlight.departure?.actualTime?.local || "",
+            estimatedTimeLocal: rawFlight.departure?.estimatedTime?.local || "",
+          },
+          arrival: {
+            airport: {
+              iata: rawFlight.arrival?.airport?.iata || rawFlight.arrival?.airport?.icao || "",
+              name: rawFlight.arrival?.airport?.name || rawFlight.arrival?.airport?.municipalityName || "",
+              city: rawFlight.arrival?.airport?.city || rawFlight.arrival?.airport?.municipalityName || "",
+            },
+            scheduledTimeLocal: rawFlight.arrival?.scheduledTime?.local || "",
+            actualTimeLocal: rawFlight.arrival?.revisedTime?.local || rawFlight.arrival?.actualTime?.local || "",
+            estimatedTimeLocal: rawFlight.arrival?.predictedTime?.local || rawFlight.arrival?.estimatedTime?.local || "",
+          },
+          status: rawFlight.status || "Unknown",
+          distance: rawFlight.greatCircleDistance?.km || null,
+          lastUpdated: rawFlight.lastUpdatedUtc || new Date().toISOString(),
+        };
+        console.log("[FlightPage] Normalized raw flight data", processedData);
+      }
 
       console.log("[FlightPage] Received data:", {
-        hasData: !!data,
-        hasError: !!data?.error,
-        hasFlights: !!data?.flights,
-        flightsLength: Array.isArray(data?.flights) ? data.flights.length : 0,
-        hasNumber: !!data?.number,
-        hasAirline: !!data?.airline,
-        hasAircraft: !!data?.aircraft,
-        hasDeparture: !!data?.departure,
-        dataKeys: data ? Object.keys(data) : [],
+        hasData: !!processedData,
+        hasError: !!processedData?.error,
+        hasFlights: !!processedData?.flights,
+        flightsLength: Array.isArray(processedData?.flights) ? processedData.flights.length : 0,
+        hasNumber: !!processedData?.number,
+        hasAirline: !!processedData?.airline,
+        hasAircraft: !!processedData?.aircraft,
+        hasDeparture: !!processedData?.departure,
+        dataKeys: processedData ? Object.keys(processedData) : [],
       });
 
       // Vérifier si les données sont valides
-      if (data && !data.error) {
+      if (processedData && !processedData.error) {
         // Vérifier si on a un tableau de vols
-        if (data.flights && Array.isArray(data.flights) && data.flights.length > 0) {
+        if (processedData.flights && Array.isArray(processedData.flights) && processedData.flights.length > 0) {
           // Si on a un tableau de vols, utiliser le premier vol
           console.log("[FlightPage] Using flight from flights array");
-          setFlightData(data.flights[0]);
+          setFlightData(processedData.flights[0]);
         } else if (
           // Vérifier si c'est un objet de vol unique (format actuel de l'API)
           // L'API retourne directement un objet vol avec number, airline, aircraft, departure, arrival
-          data.number ||
-          (data.airline && typeof data.airline === 'object') ||
-          (data.aircraft && typeof data.aircraft === 'object') ||
-          (data.departure && typeof data.departure === 'object') ||
-          (data.arrival && typeof data.arrival === 'object')
+          // Vérifier que les propriétés essentielles existent
+          processedData.number ||
+          (processedData.airline && typeof processedData.airline === 'object') ||
+          (processedData.aircraft && typeof processedData.aircraft === 'object') ||
+          (processedData.departure && typeof processedData.departure === 'object') ||
+          (processedData.arrival && typeof processedData.arrival === 'object')
         ) {
-          console.log("[FlightPage] Using direct flight object");
-          setFlightData(data);
+          console.log("[FlightPage] Using direct flight object", {
+            hasNumber: !!processedData.number,
+            hasAirline: !!processedData.airline,
+            hasAircraft: !!processedData.aircraft,
+            hasDeparture: !!processedData.departure,
+            hasArrival: !!processedData.arrival,
+            departureAirport: processedData.departure?.airport,
+            arrivalAirport: processedData.arrival?.airport,
+          });
+          setFlightData(processedData);
         } else {
           // Pas de vol trouvé, mais ce n'est pas une erreur - afficher le message approprié
-          console.log("[FlightPage] No flight data found in response");
+          console.log("[FlightPage] No flight data found in response", {
+            data: processedData,
+            hasNumber: !!processedData?.number,
+            hasAirline: !!processedData?.airline,
+            airlineType: typeof processedData?.airline,
+            airlineKeys: processedData?.airline ? Object.keys(processedData.airline) : [],
+            hasDeparture: !!processedData?.departure,
+            departureType: typeof processedData?.departure,
+            departureKeys: processedData?.departure ? Object.keys(processedData.departure) : [],
+          });
           setFlightData(null);
           setError(null); // Pas d'erreur, juste pas de données
         }
       } else {
         // Il y a une vraie erreur dans la réponse
-        console.log("[FlightPage] Error in response:", data?.error);
-        setError(data?.error || "No flight data found for the selected date");
+        console.log("[FlightPage] Error in response:", processedData?.error);
+        setError(processedData?.error || "No flight data found for the selected date");
         setFlightData(null);
       }
     } catch (err: any) {
+      console.error("[FlightPage] Error in loadFlightData:", err);
       if (err.name === "AbortError") {
         // Request cancelled, do not show error
+        console.log("[FlightPage] Request was aborted");
         return;
       } else if (err.name === "AbortError" && err.message.includes("timeout")) {
+        console.log("[FlightPage] Request timeout");
         setError("Request timeout - please try again");
       } else if (
         err.message?.includes("GUEST_QUOTA_EXCEEDED") ||
@@ -192,29 +272,36 @@ function FlightPageContent() {
       ) {
         // Ne pas afficher l'erreur sur la page pour les erreurs de quota invité
         // Le modal s'affichera automatiquement via triggerGuestQuotaExceeded
+        console.log("[FlightPage] Guest quota exceeded");
         setError(null);
         return;
       } else {
+        console.error("[FlightPage] Unexpected error:", err);
         setError(err instanceof Error ? err.message : "An error occurred");
       }
     } finally {
+      console.log("[FlightPage] loadFlightData finished, setting loading to false");
       setLoading(false);
     }
-  };
+  }, []); // Pas de dépendances - la fonction est stable
 
   // Handle URL parameter changes and load flight data
   useEffect(() => {
     let isMounted = true;
     
     const dateFromUrl = searchParams.get("date");
-    const finalDate =
-      dateFromUrl && dateFromUrl !== searchDate ? dateFromUrl : searchDate;
+    const today = new Date().toISOString().split("T")[0];
+    const finalDate = dateFromUrl || today;
 
+    // Mettre à jour searchDate seulement si différent
     if (dateFromUrl && dateFromUrl !== searchDate) {
       setSearchDate(dateFromUrl);
+    } else if (!dateFromUrl && searchDate !== today) {
+      setSearchDate(today);
     }
 
     if (flightNumber) {
+      console.log("[FlightPage] useEffect triggering loadFlightData", { flightNumber, finalDate });
       // Charger immédiatement pour améliorer le LCP
       loadFlightData(flightNumber, finalDate).catch((err) => {
         if (!isMounted) return;
@@ -227,8 +314,12 @@ function FlightPageContent() {
     // Nettoyer les WebSockets lors du pagehide pour permettre le bfcache
     const handlePageHide = () => {
       // Nettoyer les requêtes en cours
-      if (abortControllerRef.current) {
-        abortControllerRef.current.abort();
+      if (abortControllerRef.current && !abortControllerRef.current.signal.aborted) {
+        try {
+          abortControllerRef.current.abort();
+        } catch (e) {
+          // Ignore errors if already aborted
+        }
       }
     };
 
@@ -237,11 +328,15 @@ function FlightPageContent() {
     return () => {
       isMounted = false;
       window.removeEventListener("pagehide", handlePageHide);
-      if (abortControllerRef.current) {
-        abortControllerRef.current.abort();
+      if (abortControllerRef.current && !abortControllerRef.current.signal.aborted) {
+        try {
+          abortControllerRef.current.abort();
+        } catch (e) {
+          // Ignore errors if already aborted - signal might be already aborted
+        }
       }
     };
-  }, [flightNumber, searchParams, searchDate]);
+  }, [flightNumber, searchParams, loadFlightData]); // Retirer searchDate des dépendances pour éviter les boucles
 
   const handleDateChange = (newDate: string) => {
     setSearchDate(newDate);

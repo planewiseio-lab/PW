@@ -5,10 +5,10 @@ import { createClient } from "@/lib/supabase/client";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { motion } from "framer-motion";
 import PasswordRequirements from "@/components/PasswordRequirements";
+import { useUserStatus } from "@/contexts/UserStatusContext";
 
 function AccountSettingsContent() {
-  const [user, setUser] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
+  const { user: contextUser, isLoading: contextLoading } = useUserStatus();
   const [activeTab, setActiveTab] = useState("profile");
   const [isSendingResetEmail, setIsSendingResetEmail] = useState(false);
   const [fullName, setFullName] = useState("");
@@ -26,6 +26,7 @@ function AccountSettingsContent() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const fetchingRef = useRef(false); // Empêche les appels multiples simultanés
+  const authCheckedRef = useRef(false); // Empêche les vérifications multiples
 
   // Mapping des plans vers leurs labels lisibles
   const planLabels: Record<string, string> = {
@@ -74,97 +75,27 @@ function AccountSettingsContent() {
     }
   };
 
+  // Utiliser le contexte UserStatus au lieu de vérifier l'auth manuellement
   useEffect(() => {
-    // Reset state when component mounts or pathname changes (navigation)
-    setLoading(true);
-    setUser(null);
-    setFullName("");
-    setEmail("");
-    fetchingRef.current = false; // Réinitialiser le flag
+    if (!contextLoading && !contextUser) {
+      router.replace("/login");
+      return;
+    }
 
-    const checkAuth = async () => {
-      try {
-        console.log("[Account Settings] Checking authentication...");
-        const supabase = createClient();
+    if (contextUser && !authCheckedRef.current) {
+      authCheckedRef.current = true;
+      setFullName(contextUser.user_metadata?.full_name || "");
+      setEmail(contextUser.email || "");
+      
+      // Récupérer l'abonnement et l'historique de facturation
+      fetchSubscriptionData();
+    }
+  }, [contextLoading, contextUser, router]);
 
-        // Try to get session first
-        const {
-          data: { session },
-          error: sessionError,
-        } = await supabase.auth.getSession();
-
-        if (sessionError) {
-          console.log(
-            "[Account Settings] Session error:",
-            sessionError.message
-          );
-          // If session error, try to get user directly
-          const {
-            data: { user },
-            error: userError,
-          } = await supabase.auth.getUser();
-
-          if (userError) {
-            console.log("[Account Settings] User error:", userError.message);
-            setLoading(false);
-            router.replace("/login");
-            return;
-          }
-
-          if (user) {
-            console.log("[Account Settings] User found via getUser:", user.id);
-            setUser(user);
-            setFullName(user.user_metadata?.full_name || "");
-            setEmail(user.email || "");
-            
-            // Récupérer l'abonnement et l'historique de facturation
-            await fetchSubscriptionData();
-            
-            setLoading(false);
-            return;
-          }
-        }
-
-        if (session?.user) {
-          console.log(
-            "[Account Settings] User found via session:",
-            session.user.id
-          );
-          setUser(session.user);
-          setFullName(session.user.user_metadata?.full_name || "");
-          setEmail(session.user.email || "");
-          
-          // Récupérer l'abonnement et l'historique de facturation
-          await fetchSubscriptionData();
-          
-          setLoading(false);
-          return;
-        }
-
-        // No user found
-        console.log("[Account Settings] No user found, redirecting to login");
-        setLoading(false);
-        router.replace("/login");
-      } catch (err) {
-        console.error("[Account Settings] Error checking auth:", err);
-        setLoading(false);
-        router.push("/login");
-      }
-    };
-
-    checkAuth();
-
-    // Safety timeout
-    const timeoutId = setTimeout(() => {
-      console.log("[Account Settings] Safety timeout triggered");
-      setLoading(false);
-    }, 3000);
-
-    return () => {
-      clearTimeout(timeoutId);
-      fetchingRef.current = false;
-    };
-  }, [pathname, router]); // Re-run when pathname changes (navigation)
+  // Réinitialiser authCheckedRef quand on change de page
+  useEffect(() => {
+    authCheckedRef.current = false;
+  }, [pathname]);
 
   // Lire le paramètre tab de l'URL et ouvrir l'onglet correspondant
   useEffect(() => {
@@ -328,7 +259,10 @@ function AccountSettingsContent() {
     }
   };
 
-  if (loading) {
+  // Utiliser contextUser au lieu de user local
+  const user = contextUser;
+
+  if (contextLoading) {
     return (
       <main className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8 py-8">
         <div className="text-center">
@@ -337,6 +271,10 @@ function AccountSettingsContent() {
         </div>
       </main>
     );
+  }
+
+  if (!user) {
+    return null; // Will redirect
   }
 
   const tabs = [

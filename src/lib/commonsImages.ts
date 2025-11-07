@@ -16,8 +16,27 @@ export type CommonsImage = {
 
 const COMMONS_API = "https://commons.wikimedia.org/w/api.php";
 
+// Cache en mémoire pour éviter les appels multiples
+interface CacheEntry {
+  data: CommonsImage[];
+  timestamp: number;
+  promise?: Promise<CommonsImage[]>;
+}
+
+const imageCache = new Map<string, CacheEntry>();
+const CACHE_TTL = 60 * 60 * 1000; // 1 heure
+const fetchingMap = new Map<string, Promise<CommonsImage[]>>(); // Promises partagées
+
+/**
+ * Normalise le registry pour le cache (minuscules, sans espaces)
+ */
+function normalizeRegistry(registry: string): string {
+  return registry.trim().toLowerCase();
+}
+
 /**
  * Fetches aircraft images from Wikimedia Commons by registration
+ * Avec cache et déduplication pour éviter les appels multiples
  *
  * @param registry - Aircraft registration (e.g., "C-FNAX", "D-ABYU")
  * @param limit - Maximum number of images to return (default: 5)
@@ -30,6 +49,59 @@ export async function fetchCommonsImagesByRegistration(
   if (!registry || !registry.trim()) {
     return [];
   }
+
+  // Normaliser le registry pour le cache (évite les doublons c-frsr vs C-FRSR)
+  const normalizedRegistry = normalizeRegistry(registry);
+  const cacheKey = `${normalizedRegistry}:${limit}`;
+
+  // Vérifier le cache
+  const cached = imageCache.get(cacheKey);
+  if (cached) {
+    const age = Date.now() - cached.timestamp;
+    if (age < CACHE_TTL) {
+      console.log(
+        `[fetchCommonsImages] Cache hit for ${registry} (${Math.round(age / 1000)}s old)`
+      );
+      return cached.data;
+    }
+    // Cache expiré, le supprimer
+    imageCache.delete(cacheKey);
+  }
+
+  // Vérifier si un fetch est déjà en cours pour cette clé
+  const existingFetch = fetchingMap.get(cacheKey);
+  if (existingFetch) {
+    console.log(
+      `[fetchCommonsImages] Reusing existing fetch for ${registry}`
+    );
+    return existingFetch;
+  }
+
+  // Créer une nouvelle Promise partagée
+  const fetchPromise = fetchCommonsImagesInternal(registry, limit);
+  fetchingMap.set(cacheKey, fetchPromise);
+
+  try {
+    const result = await fetchPromise;
+    // Mettre en cache le résultat
+    imageCache.set(cacheKey, {
+      data: result,
+      timestamp: Date.now(),
+    });
+    return result;
+  } finally {
+    // Nettoyer la Promise partagée
+    fetchingMap.delete(cacheKey);
+  }
+}
+
+/**
+ * Fonction interne qui fait le vrai fetch (sans cache)
+ */
+async function fetchCommonsImagesInternal(
+  registry: string,
+  limit: number = 5
+): Promise<CommonsImage[]> {
 
   try {
     // Step 1: Search for files matching the registration
@@ -152,6 +224,18 @@ export async function fetchCommonsImagesByRegistration(
   } catch (error: any) {
     console.error("[fetchCommonsImages] Error:", error);
     return [];
+  }
+}
+
+/**
+ * Nettoie le cache expiré (peut être appelé périodiquement)
+ */
+export function clearExpiredImageCache(): void {
+  const now = Date.now();
+  for (const [key, entry] of imageCache.entries()) {
+    if (now - entry.timestamp >= CACHE_TTL) {
+      imageCache.delete(key);
+    }
   }
 }
 
