@@ -72,6 +72,7 @@ const AuthButton = dynamic(() => import("@/components/AuthButton"), {
 import ParticlesWrapper from "@/components/ui/ParticlesWrapper";
 
 import ErrorBoundary from "@/components/ErrorBoundary";
+import HeadLinks from "@/components/HeadLinks";
 import PWASetup from "@/components/PWASetup";
 import StructuredData from "@/components/StructuredData";
 import { AdSection } from "@/components/ads/AdWrapper";
@@ -173,46 +174,10 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <head>
-        {/* Preconnect pour les domaines critiques (API et images) - Amélioration LCP */}
-        <link
-          rel="preconnect"
-          href="https://prod.api.market"
-          crossOrigin="anonymous"
-        />
-        <link
-          rel="preconnect"
-          href="https://api.market"
-          crossOrigin="anonymous"
-        />
-        <link
-          rel="preconnect"
-          href="https://commons.wikimedia.org"
-          crossOrigin="anonymous"
-        />
-        <link
-          rel="preconnect"
-          href="https://upload.wikimedia.org"
-          crossOrigin="anonymous"
-        />
-        <link
-          rel="preconnect"
-          href="https://staticflickr.com"
-          crossOrigin="anonymous"
-        />
-        {/* DNS prefetch pour les autres domaines */}
-        <link rel="dns-prefetch" href="https://prod.api.market" />
-        <link rel="dns-prefetch" href="https://api.market" />
-        <link rel="dns-prefetch" href="https://commons.wikimedia.org" />
-        <link rel="dns-prefetch" href="https://upload.wikimedia.org" />
-        <link rel="dns-prefetch" href="https://staticflickr.com" />
-        <link rel="dns-prefetch" href="https://farm5.staticflickr.com" />
-        <link rel="dns-prefetch" href="https://farm66.staticflickr.com" />
-        <link rel="dns-prefetch" href="https://www.googletagmanager.com" />
-      </head>
       <body
         className={`${comfortaa.className} min-h-screen flex flex-col text-gray-900 bg-white`}
       >
+        <HeadLinks />
         <UserStatusProvider>
           {/* background grid - discret + fade bas */}
           <div className="fixed inset-0 -z-10 bg-white">
