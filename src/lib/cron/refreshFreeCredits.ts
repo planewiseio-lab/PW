@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import { Plan, SubscriptionStatus } from "@prisma/client";
+import { Plan, SubscriptionStatus, CreditReason } from "@prisma/client";
 import { ensureMonthlyTopUp } from "@/lib/credits";
 
 /**
