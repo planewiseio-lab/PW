@@ -631,53 +631,79 @@ export async function assertCreditsAvailable(userId: string): Promise<void> {
 /**
  * Ensure user is initialized with a FREE subscription and credits
  * This is called automatically when a user logs in if they don't have a subscription
+ * Returns true if initialization was successful, false otherwise
  */
 export async function ensureUserInitialized(userId: string): Promise<void> {
-  // Check if user already has a subscription
-  const existingSubscription = await prisma.subscriptions.findUnique({
-    where: { userId },
-  });
-
-  if (existingSubscription) {
-    // User already has a subscription, check if they have credits
-    const balance = await prisma.credit_balances.findUnique({
+  try {
+    // Check if user already has a subscription
+    const existingSubscription = await prisma.subscriptions.findUnique({
       where: { userId },
     });
 
-    // If no credit balance exists, initialize with 50 credits for FREE plan
-    if (!balance && existingSubscription.plan === Plan.FREE) {
-      console.log(`[Init] User ${userId} has subscription but no credits, initializing with 50 credits`);
+    if (existingSubscription) {
+      // User already has a subscription, check if they have credits
+      const balance = await prisma.credit_balances.findUnique({
+        where: { userId },
+      });
+
+      // If no credit balance exists, initialize with 50 credits for FREE plan
+      if (!balance && existingSubscription.plan === Plan.FREE) {
+        console.log(`[Init] User ${userId} has subscription but no credits, initializing with 50 credits`);
+        try {
+          await grantCredits(userId, 50, "MANUAL_ADJUST", {
+            plan: Plan.FREE,
+            reason: "auto_initialize_existing_user",
+          });
+        } catch (grantError) {
+          console.error(`[Init] Failed to grant credits to user ${userId}:`, grantError);
+          // Don't throw - user has subscription, just missing credits
+        }
+      }
+      return; // User is already initialized
+    }
+
+    // User doesn't have a subscription, create one
+    console.log(`[Init] User ${userId} has no subscription, creating FREE subscription and initializing credits`);
+
+    // Calculate renewal date (1 month from now)
+    const nextMonth = new Date();
+    nextMonth.setMonth(nextMonth.getMonth() + 1);
+
+    // Create FREE subscription
+    try {
+      await prisma.subscriptions.create({
+        data: {
+          id: crypto.randomUUID(),
+          userId,
+          plan: Plan.FREE,
+          status: SubscriptionStatus.ACTIVE,
+          renewsAt: nextMonth,
+        },
+      });
+    } catch (createError: any) {
+      // If subscription already exists (race condition), that's okay
+      if (createError?.code === 'P2002') {
+        console.log(`[Init] Subscription already exists for user ${userId} (race condition)`);
+        return;
+      }
+      throw createError;
+    }
+
+    // Initialize credits (50 for FREE)
+    try {
       await grantCredits(userId, 50, "MANUAL_ADJUST", {
         plan: Plan.FREE,
-        reason: "auto_initialize_existing_user",
+        reason: "auto_initialize_user",
       });
+    } catch (grantError) {
+      console.error(`[Init] Failed to grant credits to user ${userId}:`, grantError);
+      // Don't throw - subscription was created, credits can be added later
     }
-    return; // User is already initialized
+
+    console.log(`[Init] ✅ User ${userId} initialized with FREE plan and 50 credits`);
+  } catch (error) {
+    console.error(`[Init] Error initializing user ${userId}:`, error);
+    // Don't throw - let the calling code handle it or continue
+    throw error;
   }
-
-  // User doesn't have a subscription, create one
-  console.log(`[Init] User ${userId} has no subscription, creating FREE subscription and initializing credits`);
-
-  // Calculate renewal date (1 month from now)
-  const nextMonth = new Date();
-  nextMonth.setMonth(nextMonth.getMonth() + 1);
-
-  // Create FREE subscription
-  await prisma.subscriptions.create({
-    data: {
-      id: crypto.randomUUID(),
-      userId,
-      plan: Plan.FREE,
-      status: SubscriptionStatus.ACTIVE,
-      renewsAt: nextMonth,
-    },
-  });
-
-  // Initialize credits (50 for FREE)
-  await grantCredits(userId, 50, "MANUAL_ADJUST", {
-    plan: Plan.FREE,
-    reason: "auto_initialize_user",
-  });
-
-  console.log(`[Init] ✅ User ${userId} initialized with FREE plan and 50 credits`);
 }

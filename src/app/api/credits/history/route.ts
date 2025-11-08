@@ -18,6 +18,15 @@ export async function GET(request: NextRequest) {
     const limit = parseInt(searchParams.get("limit") || "100");
     const cursor = searchParams.get("cursor") || undefined;
 
+    // Ensure user is initialized before fetching history
+    try {
+      const { ensureUserInitialized } = await import("@/lib/credits");
+      await ensureUserInitialized(user.id);
+    } catch (initError) {
+      console.error(`[Credits History] Failed to ensure user initialization for ${user.id}:`, initError);
+      // Continue anyway - user might already be initialized
+    }
+
     const history = await getUsageHistory(user.id, limit, cursor);
 
     return NextResponse.json(history);

@@ -17,7 +17,13 @@ export async function GET(request: NextRequest) {
     }
 
     // Ensure user is initialized (creates subscription and credits if needed)
-    await ensureUserInitialized(user.id);
+    // Wrap in try-catch to prevent 500 errors if initialization fails
+    try {
+      await ensureUserInitialized(user.id);
+    } catch (initError) {
+      console.error(`[Credits Balance] Failed to ensure user initialization for ${user.id}:`, initError);
+      // Continue anyway - user might already be initialized
+    }
 
     // Vérifier le plan de l'utilisateur
     const subscription = await prisma.subscriptions.findUnique({
