@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { prisma } from "@/lib/prisma";
+import { ensureUserInitialized } from "@/lib/credits";
 
 export async function GET(request: NextRequest) {
   try {
@@ -13,6 +14,9 @@ export async function GET(request: NextRequest) {
     if (error || !user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
+
+    // Ensure user is initialized (creates subscription and credits if needed)
+    await ensureUserInitialized(user.id);
 
     // Récupérer l'abonnement depuis la base de données
     const subscription = await prisma.subscriptions.findUnique({

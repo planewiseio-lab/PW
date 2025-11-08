@@ -64,6 +64,7 @@ export function AdWrapper({
 /**
  * Composant qui affiche une publicité entre le contenu
  * Utile pour les pages d'article ou de détail
+ * Réserve l'espace même si les cookies ne sont pas acceptés pour éviter le layout shift
  */
 export function AdSection({
   className = "",
@@ -83,28 +84,35 @@ export function AdSection({
   // 1. L'utilisateur a une souscription active
   // 2. Le consentement aux cookies n'a pas été accepté
   // 3. On est sur une page légale/informative (privacy, terms, about-us)
-  if (!shouldShowAds || cookieConsent !== "accepted" || isLegalPage)
-    return null;
+  const shouldDisplayAd = shouldShowAds && cookieConsent === "accepted" && !isLegalPage;
 
   // Mode développement: afficher un placeholder visuel
   const isDevelopment = process.env.NODE_ENV === "development";
 
+  // Toujours réserver l'espace pour éviter le layout shift
+  // Si on ne doit pas afficher la pub, on affiche un placeholder invisible
   return (
     <div className={`flex justify-center my-8 ${className}`}>
-      {isDevelopment ? (
-        <div className="w-full max-w-[728px] h-[90px] bg-gradient-to-r from-blue-50 via-purple-50 to-pink-50 border-2 border-dashed border-blue-300 rounded-lg flex items-center justify-center shadow-sm hover:shadow-md transition-shadow">
-          <div className="text-center">
-            <div className="text-blue-600 font-semibold text-lg mb-1">
-              📢 PUB ADSENSE - {positionLabel}
-            </div>
-            <div className="text-xs text-gray-500">
-              728x90 Desktop / Responsive Mobile | Visible pour Guest et
-              Subscribed (pas Pro)
+      {shouldDisplayAd ? (
+        isDevelopment ? (
+          <div className="w-full max-w-[728px] h-[90px] bg-gradient-to-r from-blue-50 via-purple-50 to-pink-50 border-2 border-dashed border-blue-300 rounded-lg flex items-center justify-center shadow-sm hover:shadow-md transition-shadow">
+            <div className="text-center">
+              <div className="text-blue-600 font-semibold text-lg mb-1">
+                📢 PUB ADSENSE - {positionLabel}
+              </div>
+              <div className="text-xs text-gray-500">
+                728x90 Desktop / Responsive Mobile | Visible pour Guest et
+                Subscribed (pas Pro)
+              </div>
             </div>
           </div>
-        </div>
+        ) : (
+          <AdUnitDisplay />
+        )
       ) : (
-        <AdUnitDisplay />
+        // Placeholder invisible pour réserver l'espace et éviter le layout shift
+        // Hauteur standard d'une pub display: 90px (728x90)
+        <div className="w-full max-w-[728px] h-[90px] invisible" aria-hidden="true" />
       )}
     </div>
   );

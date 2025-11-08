@@ -48,17 +48,14 @@ export function withGuestQuota<T = any>(
       
       console.log(`[Guest Quota] 🎭 Checking quota for IP: ${clientIp}, isAircraftLookup: ${isAircraftLookup}, limit: ${limit}`);
 
-      // 2. Vérifier si le quota pour ce type de requête est dépassé
-      // Le modal s'affichera automatiquement via triggerGuestQuotaExceeded si le quota atteint 100%
-      console.log(
-        `[Guest Quota] 🔍 Checking quota exceeded for IP: ${clientIp}, type: ${isAircraftLookup ? 'aircraft lookup' : 'general'}`
-      );
-      const quotaExceeded = await isGuestQuotaExceeded(clientIp, isAircraftLookup);
-      console.log(`[Guest Quota] 📊 Quota exceeded result: ${quotaExceeded}`);
+      // 2. Vérifier AVANT l'incrémentation si le quota est déjà dépassé
+      // Cela évite d'incrémenter inutilement si on est déjà à la limite
+      const { getGuestUsage } = await import("./guestQuota");
+      const currentUsage = await getGuestUsage(clientIp, isAircraftLookup);
+      console.log(`[Guest Quota] 📊 Current usage before increment: ${currentUsage.count}/${limit}`);
 
-      // Si le quota pour ce type de requête est à 100%, bloquer la requête et afficher le modal
-      if (quotaExceeded) {
-        console.log(`[Guest Quota] ❌ Quota exceeded for IP: ${clientIp}, type: ${isAircraftLookup ? 'aircraft lookup' : 'general'}`);
+      if (currentUsage.count >= limit) {
+        console.log(`[Guest Quota] ❌ Quota already exceeded for IP: ${clientIp}, type: ${isAircraftLookup ? 'aircraft lookup' : 'general'}`);
 
         // Récupérer les stats du quota pour inclure les détails dans la réponse
         let stats: { used: number; remaining: number; limit: number; ttl: number } | null = null;
@@ -76,7 +73,7 @@ export function withGuestQuota<T = any>(
           // Utiliser les valeurs par défaut si getGuestQuotaStats échoue
         }
 
-        const ttlValue = stats?.ttl ?? 0;
+        const ttlValue = stats?.ttl ?? currentUsage.ttl;
         console.log(`[Guest Quota] 🔔 Returning error with TTL: ${ttlValue} seconds`);
 
         return NextResponse.json(
@@ -87,7 +84,7 @@ export function withGuestQuota<T = any>(
               `Vous avez atteint la limite de ${limit} requêtes ${isAircraftLookup ? 'de lookup d\'avions' : 'anonymes'} sur 24h. Connectez-vous pour débloquer le plan gratuit.`,
             remaining: 0,
             guestRemaining: 0,
-            guestUsed: stats?.used ?? limit,
+            guestUsed: stats?.used ?? currentUsage.count,
             guestLimit: limit,
             guestTtl: ttlValue, // TTL en secondes jusqu'à la réinitialisation
             requiresAuth: true,
@@ -111,23 +108,88 @@ export function withGuestQuota<T = any>(
         const existing = await getRedisValue(redisKey);
         if (existing) {
           console.log(`[Guest Quota] ⏩ Dedup hit (redis), skipping increment for ${dedupKey}`);
-          const { getGuestUsage } = await import("./guestQuota");
           usage = await getGuestUsage(clientIp, isAircraftLookup);
         } else {
           // set with TTL ~2s
           await setRedisValue(redisKey, "1", Math.ceil(GUEST_DEDUP_WINDOW_MS / 1000));
           usage = await incrementGuestUsage(clientIp, isAircraftLookup);
+          
+          // 4. Vérifier APRÈS l'incrémentation si on a dépassé la limite
+          // Cela évite les race conditions où deux requêtes passent simultanément
+          if (usage.count > limit) {
+            console.log(`[Guest Quota] ❌ Quota exceeded AFTER increment: ${usage.count}/${limit} - blocking request`);
+            
+            // Récupérer les stats finales
+            let stats: { used: number; remaining: number; limit: number; ttl: number } | null = null;
+            try {
+              const { getGuestQuotaStats } = await import("./guestQuota");
+              stats = await getGuestQuotaStats(clientIp, isAircraftLookup);
+            } catch (error) {
+              console.error("[Guest Quota] Failed to get quota stats:", error);
+            }
+
+            const ttlValue = stats?.ttl ?? usage.ttl;
+            return NextResponse.json(
+              {
+                error: "GUEST_QUOTA_EXCEEDED",
+                code: "GUEST_QUOTA_EXCEEDED",
+                message:
+                  `Vous avez atteint la limite de ${limit} requêtes ${isAircraftLookup ? 'de lookup d\'avions' : 'anonymes'} sur 24h. Connectez-vous pour débloquer le plan gratuit.`,
+                remaining: 0,
+                guestRemaining: 0,
+                guestUsed: stats?.used ?? usage.count,
+                guestLimit: limit,
+                guestTtl: ttlValue,
+                requiresAuth: true,
+                upgradeUrl:
+                  "/login?redirect=" + encodeURIComponent(request.nextUrl.pathname),
+              },
+              { status: 429 }
+            );
+          }
         }
       } catch {
         // Fallback in-memory
         const lastTs = inflightGuestMap.get(dedupKey) || 0;
         if (now - lastTs < GUEST_DEDUP_WINDOW_MS) {
           console.log(`[Guest Quota] ⏩ Dedup hit, skipping increment for ${dedupKey}`);
-          const { getGuestUsage } = await import("./guestQuota");
           usage = await getGuestUsage(clientIp, isAircraftLookup);
         } else {
           inflightGuestMap.set(dedupKey, now);
           usage = await incrementGuestUsage(clientIp, isAircraftLookup);
+          
+          // Vérifier APRÈS l'incrémentation si on a dépassé la limite
+          if (usage.count > limit) {
+            console.log(`[Guest Quota] ❌ Quota exceeded AFTER increment: ${usage.count}/${limit} - blocking request`);
+            
+            let stats: { used: number; remaining: number; limit: number; ttl: number } | null = null;
+            try {
+              const { getGuestQuotaStats } = await import("./guestQuota");
+              stats = await getGuestQuotaStats(clientIp, isAircraftLookup);
+            } catch (error) {
+              console.error("[Guest Quota] Failed to get quota stats:", error);
+            }
+
+            const ttlValue = stats?.ttl ?? usage.ttl;
+            return NextResponse.json(
+              {
+                error: "GUEST_QUOTA_EXCEEDED",
+                code: "GUEST_QUOTA_EXCEEDED",
+                message:
+                  `Vous avez atteint la limite de ${limit} requêtes ${isAircraftLookup ? 'de lookup d\'avions' : 'anonymes'} sur 24h. Connectez-vous pour débloquer le plan gratuit.`,
+                remaining: 0,
+                guestRemaining: 0,
+                guestUsed: stats?.used ?? usage.count,
+                guestLimit: limit,
+                guestTtl: ttlValue,
+                requiresAuth: true,
+                upgradeUrl:
+                  "/login?redirect=" + encodeURIComponent(request.nextUrl.pathname),
+              },
+              { status: 429 }
+            );
+          }
+          
           setTimeout(() => {
             inflightGuestMap.delete(dedupKey);
           }, GUEST_DEDUP_WINDOW_MS);
@@ -169,11 +231,26 @@ export function withGuestQuota<T = any>(
     } catch (error) {
       console.error("[Guest Quota] 💥 Error in guest quota middleware:", error);
 
-      // En cas d'erreur, on autorise la requête pour éviter de bloquer le service
+      // En cas d'erreur critique du système de quota, bloquer la requête par sécurité
+      // Cela évite que les utilisateurs guest puissent contourner les limites
       console.log(
-        "[Guest Quota] ⚠️ Allowing request due to quota system error"
+        "[Guest Quota] ⚠️ Quota system error - blocking request for security"
       );
-      return await handler(request, ...args);
+      return NextResponse.json(
+        {
+          error: "GUEST_QUOTA_SYSTEM_ERROR",
+          code: "GUEST_QUOTA_SYSTEM_ERROR",
+          message: "Unable to verify guest quota. Please try again or log in.",
+          remaining: 0,
+          guestRemaining: 0,
+          guestUsed: 0,
+          guestLimit: 0,
+          guestTtl: 0,
+          requiresAuth: true,
+          upgradeUrl: "/login?redirect=" + encodeURIComponent(request.nextUrl.pathname),
+        },
+        { status: 503 }
+      );
     }
   };
 }

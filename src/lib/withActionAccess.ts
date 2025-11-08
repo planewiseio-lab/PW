@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { withCreditChargeABD } from "@/lib/withCreditChargeABD-simple";
 import { withGuestQuota } from "@/lib/withGuestQuota";
+import { ensureUserInitialized } from "@/lib/credits";
 import { ActionType, Plan } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 
@@ -57,6 +58,18 @@ export function withActionAccess<T = any>(
         console.log(
           `[Action Access] 👤 Authenticated user: ${user.id}, checking plan`
         );
+
+        // Ensure user is initialized BEFORE checking subscription
+        // This creates subscription and credits if needed
+        try {
+          await ensureUserInitialized(user.id);
+        } catch (initError) {
+          console.error(
+            `[Action Access] Failed to ensure user initialization for ${user.id}:`,
+            initError
+          );
+          // Continue anyway - ensureUserInitialized is best effort
+        }
 
         // Vérifier le plan de l'utilisateur
         try {

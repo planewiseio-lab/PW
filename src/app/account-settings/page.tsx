@@ -485,7 +485,7 @@ function AccountSettingsContent() {
                       <button
                         onClick={handleSendPasswordReset}
                         disabled={isSendingResetEmail}
-                        className="w-full bg-blue-600 text-white py-3 px-4 rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2"
+                        className="w-full bg-[#178cf2] text-white py-3 px-4 rounded-lg hover:brightness-110 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2"
                       >
                         {isSendingResetEmail ? (
                           <>

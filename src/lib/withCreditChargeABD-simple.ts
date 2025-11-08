@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { chargeOneCredit, InsufficientCreditsError, getCreditCost } from "@/lib/credits";
+import { chargeOneCredit, InsufficientCreditsError, getCreditCost, ensureUserInitialized } from "@/lib/credits";
 import { ActionType } from "@prisma/client";
 
 // Global cache for pending requests to prevent duplicate API calls and credit charges
@@ -38,6 +38,17 @@ export function withCreditChargeABD(
       }
 
       const userId = user.id;
+      
+      // Ensure user is initialized (creates subscription and credits if needed)
+      // This must be done BEFORE charging credits to avoid errors
+      try {
+        await ensureUserInitialized(userId);
+      } catch (initError) {
+        console.error(`[ABD] Failed to ensure user initialization for ${userId}:`, initError);
+        // Continue anyway - ensureUserInitialized is best effort
+        // If it fails, chargeOneCredit will handle the error appropriately
+      }
+      
       const endpoint = request.nextUrl.pathname;
       const method = request.method;
       const searchParams = request.nextUrl.searchParams.toString();

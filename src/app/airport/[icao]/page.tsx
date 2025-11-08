@@ -39,6 +39,7 @@ function AirportBoardContent() {
   const [airlineFilter, setAirlineFilter] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
   const [timeFilter, setTimeFilter] = useState("");
+  const [autoLoadAttempts, setAutoLoadAttempts] = useState(0);
 
   // Utiliser le hook optimisé
   const {
@@ -119,6 +120,61 @@ function AirportBoardContent() {
 
   // Utiliser directement les vols filtrés (la pagination est gérée par le hook)
   const displayedRows = filtered;
+
+  // Détecter si un filtre est actif
+  const hasActiveFilter = useMemo(() => {
+    return !!(
+      q.trim() ||
+      airlineFilter ||
+      statusFilter ||
+      timeFilter
+    );
+  }, [q, airlineFilter, statusFilter, timeFilter]);
+
+  // Réinitialiser le compteur d'auto-load quand les filtres changent
+  useEffect(() => {
+    setAutoLoadAttempts(0);
+  }, [q, airlineFilter, statusFilter, timeFilter]);
+
+  // Charger automatiquement plus de données si un filtre est actif et qu'aucun résultat n'est trouvé
+  useEffect(() => {
+    // Ne charger que si:
+    // 1. Un filtre est actif
+    // 2. Aucun résultat filtré n'est trouvé
+    // 3. Il y a des données chargées mais pas de résultats
+    // 4. Il y a encore des données à charger
+    // 5. On n'est pas en train de charger
+    // 6. On n'a pas dépassé la limite de tentatives
+    if (
+      hasActiveFilter &&
+      displayedRows.length === 0 &&
+      allRows.length > 0 &&
+      pagination?.hasMore &&
+      !loading &&
+      !loadingMore &&
+      loaded &&
+      autoLoadAttempts < 10 // Limite de sécurité : max 10 tentatives automatiques (200 vols max)
+    ) {
+      // Utiliser un petit délai pour éviter les déclenchements multiples rapides
+      const timer = setTimeout(() => {
+        console.log(`[Airport] Filter active but no results (attempt ${autoLoadAttempts + 1}/10), loading more data...`);
+        setAutoLoadAttempts((prev) => prev + 1);
+        loadMore();
+      }, 300); // Délai de 300ms pour éviter les déclenchements multiples
+
+      return () => clearTimeout(timer);
+    }
+  }, [
+    hasActiveFilter,
+    displayedRows.length,
+    allRows.length,
+    pagination?.hasMore,
+    loading,
+    loadingMore,
+    loaded,
+    loadMore,
+    autoLoadAttempts,
+  ]);
 
   // Calculer les statistiques
   const stats = useMemo(() => {

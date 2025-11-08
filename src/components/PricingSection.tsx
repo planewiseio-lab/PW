@@ -90,7 +90,7 @@ export default function PricingSection() {
               cta: {
                 href: "/checkout?plan=pro",
                 text: "Choose Pro",
-                className: "bg-blue-600 hover:bg-blue-700",
+                className: "bg-[#178cf2] hover:brightness-110",
               },
               wrapClass: "border-gray-200",
             } as const,
