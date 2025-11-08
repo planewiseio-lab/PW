@@ -366,13 +366,13 @@ function AuthPageContent() {
         >
           {/* Logo en haut */}
           <div className="text-center mb-8">
-            <Link href="/" className="inline-flex items-center gap-3">
+            <Link href="/" className="inline-flex items-center gap-3 justify-center">
               <img
                 src="/Assets/logo.png"
                 alt="PlaneWise Logo"
-                className="h-10 w-10 object-contain"
+                className="h-16 w-16 sm:h-20 sm:w-20 object-contain"
               />
-              <span className="text-2xl font-bold text-[#178cf2]">
+              <span className="text-2xl sm:text-3xl font-bold text-[#178cf2]">
                 PlaneWise.io
               </span>
             </Link>
