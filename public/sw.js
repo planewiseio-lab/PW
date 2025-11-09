@@ -84,6 +84,16 @@ self.addEventListener("fetch", (event) => {
     return; // Laisser passer sans interception
   }
 
+  // Ignorer les requêtes AdSense - laisser passer directement (ne peut pas être mis en cache)
+  if (
+    url.hostname.includes("googlesyndication.com") ||
+    url.hostname.includes("pagead2.googlesyndication.com") ||
+    url.hostname.includes("googleads.g.doubleclick.net") ||
+    url.hostname.includes("tpc.googlesyndication.com")
+  ) {
+    return; // Laisser passer sans interception
+  }
+
   // Stratégie Cache First pour les assets statiques
   if (STATIC_ASSETS.some((asset) => url.pathname === asset)) {
     event.respondWith(
