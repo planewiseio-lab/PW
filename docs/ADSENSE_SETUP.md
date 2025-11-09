@@ -13,16 +13,19 @@ Pour que les publicités AdSense s'affichent, vous devez configurer les variable
 ### Variables optionnelles (pour différents formats de publicités)
 
 2. **`NEXT_PUBLIC_ADSENSE_DISPLAY_SLOT`** (recommandé)
+
    - Format : `1234567890`
    - ID du format de publicité display (728x90 Desktop / Responsive Mobile)
    - Utilisé pour les publicités dans `AdSection` et `AdUnitDisplay`
 
 3. **`NEXT_PUBLIC_ADSENSE_IN_ARTICLE_SLOT`** (optionnel)
+
    - Format : `1234567890`
    - ID du format de publicité in-article
    - Utilisé pour les publicités dans les pages de contenu
 
 4. **`NEXT_PUBLIC_ADSENSE_SIDEBAR_SLOT`** (optionnel)
+
    - Format : `1234567890`
    - ID du format de publicité sidebar
    - Utilisé pour les publicités dans les sidebars
@@ -50,6 +53,7 @@ Le fichier sera accessible à : `https://waytotrack.com/ads.txt`
 ### Méthode 2 : Script AdSense dans <head>
 
 Le script est déjà configuré dans `layout.tsx`. Si la méthode ads.txt ne fonctionne pas :
+
 1. Vérifiez que `NEXT_PUBLIC_ADSENSE_ID` est configuré dans Vercel
 2. Redéployez l'application
 3. Attendez quelques heures que le robot Google indexe le site
@@ -100,12 +104,14 @@ Après avoir ajouté les variables d'environnement, vous devez redéployer :
 ### En développement local
 
 1. Créez un fichier `.env.local` à la racine du projet :
+
    ```
    NEXT_PUBLIC_ADSENSE_ID=ca-pub-XXXXXXXXXX
    NEXT_PUBLIC_ADSENSE_DISPLAY_SLOT=1234567890
    ```
 
 2. Redémarrez le serveur de développement :
+
    ```bash
    npm run dev
    ```
@@ -124,6 +130,7 @@ Après avoir ajouté les variables d'environnement, vous devez redéployer :
 ### Affichage conditionnel
 
 Les publicités s'affichent uniquement si :
+
 - ✅ `NEXT_PUBLIC_ADSENSE_ID` est configuré
 - ✅ `NEXT_PUBLIC_ADSENSE_DISPLAY_SLOT` est configuré (pour les pubs display)
 - ✅ L'utilisateur a accepté les cookies (`cookieConsent === "accepted"`)
@@ -133,6 +140,7 @@ Les publicités s'affichent uniquement si :
 ### Réservation d'espace (Layout Shift Prevention)
 
 Même si les publicités ne s'affichent pas (cookie non accepté, utilisateur Pro, etc.), l'espace est **toujours réservé** pour éviter le layout shift :
+
 - **Hauteur réservée** : 90px (728x90 Desktop / Responsive Mobile)
 - **Placeholder invisible** : Affiché si les conditions ne sont pas remplies
 
@@ -147,16 +155,19 @@ Même si les publicités ne s'affichent pas (cookie non accepté, utilisateur Pr
 ### Les publicités ne s'affichent pas
 
 1. **Vérifiez les variables d'environnement** :
+
    - Ouvrez la console du navigateur (F12)
    - Cherchez `[AdSense] NEXT_PUBLIC_ADSENSE_ID not configured` → Variable manquante
    - Cherchez `[AdSense] Failed to push ad` → Erreur de chargement
 
 2. **Vérifiez le consentement aux cookies** :
+
    - Ouvrez la console du navigateur
    - Tapez `localStorage.getItem('plane-wise-cookie-consent')`
    - Doit retourner `"accepted"`
 
 3. **Vérifiez le statut de l'utilisateur** :
+
    - Les utilisateurs **Pro** ne voient pas les publicités
    - Seuls les utilisateurs **Guest** et **Subscribed** voient les publicités
 
@@ -173,8 +184,8 @@ Même si les publicités ne s'affichent pas (cookie non accepté, utilisateur Pr
 ## Support
 
 Si vous avez des problèmes :
+
 1. Vérifiez les logs Vercel pour les erreurs
 2. Vérifiez la console du navigateur pour les erreurs AdSense
 3. Vérifiez que votre site est approuvé par AdSense
 4. Contactez le support AdSense si nécessaire
-
