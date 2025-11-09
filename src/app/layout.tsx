@@ -173,8 +173,20 @@ export default function RootLayout({
 }: {
   children: React.ReactNode;
 }) {
+  const adsenseId = process.env.NEXT_PUBLIC_ADSENSE_ID;
+
   return (
     <html lang="en">
+      {/* Script AdSense pour validation de propriété du site - Ajouté dans <head> automatiquement */}
+      {adsenseId && (
+        <Script
+          id="adsense-validation"
+          strategy="beforeInteractive"
+          async
+          src={`https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=${adsenseId}`}
+          crossOrigin="anonymous"
+        />
+      )}
       <body
         className={`${comfortaa.className} min-h-screen flex flex-col text-gray-900 bg-white`}
       >
