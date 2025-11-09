@@ -6,6 +6,15 @@ import { Plan } from "@prisma/client";
 
 export async function GET(request: NextRequest) {
   try {
+    // Check Prisma connection
+    if (!prisma) {
+      console.error("[Credits Balance] Prisma client is not initialized");
+      return NextResponse.json(
+        { error: "Database connection error" },
+        { status: 500 }
+      );
+    }
+
     const supabase = await createClient();
     const {
       data: { user },
@@ -20,19 +29,35 @@ export async function GET(request: NextRequest) {
     // Wrap in try-catch to prevent 500 errors if initialization fails
     try {
       await ensureUserInitialized(user.id);
-    } catch (initError) {
+    } catch (initError: any) {
       console.error(
         `[Credits Balance] Failed to ensure user initialization for ${user.id}:`,
         initError
       );
+      console.error("[Credits Balance] Init error details:", {
+        message: initError?.message,
+        code: initError?.code,
+        name: initError?.name,
+      });
       // Continue anyway - user might already be initialized
     }
 
     // Vérifier le plan de l'utilisateur
-    const subscription = await prisma.subscriptions.findUnique({
-      where: { userId: user.id },
-      select: { plan: true, renewsAt: true },
-    });
+    let subscription;
+    try {
+      subscription = await prisma.subscriptions.findUnique({
+        where: { userId: user.id },
+        select: { plan: true, renewsAt: true },
+      });
+    } catch (dbError: any) {
+      console.error("[Credits Balance] Database error fetching subscription:", dbError);
+      console.error("[Credits Balance] DB error details:", {
+        message: dbError?.message,
+        code: dbError?.code,
+        name: dbError?.name,
+      });
+      throw dbError;
+    }
 
     // Si l'utilisateur est sur le plan FREE, retourner les crédits réels (50) avec la date de renouvellement
     if (subscription?.plan === Plan.FREE) {
@@ -58,9 +83,10 @@ export async function GET(request: NextRequest) {
       stack: error?.stack,
     });
     return NextResponse.json(
-      { 
+      {
         error: "Internal server error",
-        message: process.env.NODE_ENV === "development" ? error?.message : undefined,
+        message:
+          process.env.NODE_ENV === "development" ? error?.message : undefined,
       },
       { status: 500 }
     );

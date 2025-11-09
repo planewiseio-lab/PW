@@ -5,6 +5,15 @@ import { ensureUserInitialized } from "@/lib/credits";
 
 export async function GET(request: NextRequest) {
   try {
+    // Check Prisma connection
+    if (!prisma) {
+      console.error("[Subscription] Prisma client is not initialized");
+      return NextResponse.json(
+        { error: "Database connection error" },
+        { status: 500 }
+      );
+    }
+
     const supabase = await createClient();
     const {
       data: { user },
@@ -19,15 +28,31 @@ export async function GET(request: NextRequest) {
     // Wrap in try-catch to prevent 500 errors if initialization fails
     try {
       await ensureUserInitialized(user.id);
-    } catch (initError) {
+    } catch (initError: any) {
       console.error(`[Subscription] Failed to ensure user initialization for ${user.id}:`, initError);
+      console.error("[Subscription] Init error details:", {
+        message: initError?.message,
+        code: initError?.code,
+        name: initError?.name,
+      });
       // Continue anyway - user might already be initialized
     }
 
     // Récupérer l'abonnement depuis la base de données
-    const subscription = await prisma.subscriptions.findUnique({
-      where: { userId: user.id },
-    });
+    let subscription;
+    try {
+      subscription = await prisma.subscriptions.findUnique({
+        where: { userId: user.id },
+      });
+    } catch (dbError: any) {
+      console.error("[Subscription] Database error fetching subscription:", dbError);
+      console.error("[Subscription] DB error details:", {
+        message: dbError?.message,
+        code: dbError?.code,
+        name: dbError?.name,
+      });
+      throw dbError;
+    }
 
     if (!subscription) {
       return NextResponse.json({ subscription: null });
