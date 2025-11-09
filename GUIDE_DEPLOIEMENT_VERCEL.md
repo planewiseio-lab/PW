@@ -106,9 +106,22 @@ SUPABASE_SERVICE_ROLE_KEY = votre_service_role_key
 
 #### Variable Base de données (OBLIGATOIRE)
 
+⚠️ **IMPORTANT pour Supabase + Vercel** : Utilisez le **Connection Pooler** (port **6543**) et non la connexion directe (port 5432) !
+
 ```
-DATABASE_URL = postgresql://user:password@host:port/database?schema=public
+DATABASE_URL = postgresql://postgres:[PASSWORD]@db.[PROJECT-REF].supabase.co:6543/postgres?pgbouncer=true
 ```
+
+**Comment obtenir l'URL du pooler :**
+1. Allez sur https://supabase.com/dashboard
+2. Sélectionnez votre projet
+3. Settings → Database
+4. Section "Connection string" → Onglet **"Connection pooling"**
+5. Copiez l'URI (elle contient `:6543` et `?pgbouncer=true`)
+
+**Format attendu :**
+- ✅ Port **6543** (Connection Pooler) - **RECOMMANDÉ pour Vercel**
+- ❌ Port **5432** (Direct connection) - Ne fonctionne PAS avec Vercel/serverless
 
 #### Variables Stripe (OBLIGATOIRES pour les paiements)
 
