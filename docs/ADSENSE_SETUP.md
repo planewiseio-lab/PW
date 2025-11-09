@@ -32,6 +32,33 @@ Pour que les publicités AdSense s'affichent, vous devez configurer les variable
    - ID du format de publicité compact
    - Utilisé pour les publicités compactes (mobile)
 
+## Validation de propriété du site
+
+AdSense propose 3 méthodes de validation. **La méthode `ads.txt` est recommandée** car elle est plus fiable :
+
+### Méthode 1 : ads.txt (RECOMMANDÉ) ✅
+
+1. Le fichier `public/ads.txt` a déjà été créé avec votre ID AdSense
+2. Dans AdSense Dashboard → **Sites** → **Valider la propriété du site**
+3. Sélectionnez **"Extrait ads.txt"**
+4. Le contenu devrait être : `google.com, pub-1185676051061482, DIRECT, f08c47fec0942fa0`
+5. Cochez **"J'ai ajouté le fichier ads.txt"**
+6. Cliquez sur **"Valider"**
+
+Le fichier sera accessible à : `https://waytotrack.com/ads.txt`
+
+### Méthode 2 : Script AdSense dans <head>
+
+Le script est déjà configuré dans `layout.tsx`. Si la méthode ads.txt ne fonctionne pas :
+1. Vérifiez que `NEXT_PUBLIC_ADSENSE_ID` est configuré dans Vercel
+2. Redéployez l'application
+3. Attendez quelques heures que le robot Google indexe le site
+4. Réessayez la validation
+
+### Méthode 3 : Meta tag
+
+Si les deux premières méthodes ne fonctionnent pas, AdSense peut proposer une balise meta à ajouter.
+
 ## Étapes de configuration
 
 ### 1. Obtenir votre ID AdSense
