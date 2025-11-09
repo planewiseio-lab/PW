@@ -21,7 +21,10 @@ export async function GET(request: NextRequest) {
     try {
       await ensureUserInitialized(user.id);
     } catch (initError) {
-      console.error(`[Credits Balance] Failed to ensure user initialization for ${user.id}:`, initError);
+      console.error(
+        `[Credits Balance] Failed to ensure user initialization for ${user.id}:`,
+        initError
+      );
       // Continue anyway - user might already be initialized
     }
 
@@ -46,10 +49,19 @@ export async function GET(request: NextRequest) {
     const credits = await getCreditBalance(user.id);
 
     return NextResponse.json({ credits, isFreeUser: false });
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error fetching credit balance:", error);
+    console.error("Error details:", {
+      message: error?.message,
+      code: error?.code,
+      name: error?.name,
+      stack: error?.stack,
+    });
     return NextResponse.json(
-      { error: "Internal server error" },
+      { 
+        error: "Internal server error",
+        message: process.env.NODE_ENV === "development" ? error?.message : undefined,
+      },
       { status: 500 }
     );
   }

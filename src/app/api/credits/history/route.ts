@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { getUsageHistory } from "@/lib/credits";
+import { getUsageHistory, ensureUserInitialized } from "@/lib/credits";
 
 export async function GET(request: NextRequest) {
   try {
@@ -20,7 +20,6 @@ export async function GET(request: NextRequest) {
 
     // Ensure user is initialized before fetching history
     try {
-      const { ensureUserInitialized } = await import("@/lib/credits");
       await ensureUserInitialized(user.id);
     } catch (initError) {
       console.error(`[Credits History] Failed to ensure user initialization for ${user.id}:`, initError);
@@ -30,10 +29,19 @@ export async function GET(request: NextRequest) {
     const history = await getUsageHistory(user.id, limit, cursor);
 
     return NextResponse.json(history);
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error fetching usage history:", error);
+    console.error("Error details:", {
+      message: error?.message,
+      code: error?.code,
+      name: error?.name,
+      stack: error?.stack,
+    });
     return NextResponse.json(
-      { error: "Internal server error" },
+      { 
+        error: "Internal server error",
+        message: process.env.NODE_ENV === "development" ? error?.message : undefined,
+      },
       { status: 500 }
     );
   }

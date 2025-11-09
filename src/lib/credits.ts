@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { ActionType, CreditReason, Plan, SubscriptionStatus } from "@prisma/client";
 import Stripe from "stripe";
+import { randomUUID } from "crypto";
 
 export class InsufficientCreditsError extends Error {
   constructor(message = "Insufficient credits") {
@@ -137,7 +138,7 @@ export async function grantCredits(
     // Create ledger entry
     await tx.credit_ledger.create({
       data: {
-        id: crypto.randomUUID(),
+        id: randomUUID(),
         userId,
         delta: amount, // Can be negative for removal
         reason: reason as CreditReason,
@@ -213,7 +214,7 @@ export async function chargeOneCredit(opts: {
     }
 
     // Create usage event
-    const usageEventId = crypto.randomUUID();
+    const usageEventId = randomUUID();
     await tx.usage_events.create({
       data: {
         id: usageEventId,
@@ -228,7 +229,7 @@ export async function chargeOneCredit(opts: {
     );
 
     // Create ledger entry
-    const ledgerId = crypto.randomUUID();
+    const ledgerId = randomUUID();
     await tx.credit_ledger.create({
       data: {
         id: ledgerId,
@@ -333,7 +334,7 @@ export async function chargeMultipleCredits(opts: {
 
       await tx.usage_events.create({
         data: {
-          id: crypto.randomUUID(),
+          id: randomUUID(),
           userId,
           actionType: action.actionType,
           idempotencyKey: actionKey,
@@ -344,7 +345,7 @@ export async function chargeMultipleCredits(opts: {
       // Create ledger entry for each action
       await tx.credit_ledger.create({
         data: {
-          id: crypto.randomUUID(),
+          id: randomUUID(),
           userId,
           delta: -actionCost,
           reason: CreditReason.ACTION,
@@ -487,7 +488,7 @@ export async function ensureMonthlyTopUp(userId: string): Promise<void> {
       // Create ledger entry for the reduction
       await tx.credit_ledger.create({
         data: {
-          id: crypto.randomUUID(),
+          id: randomUUID(),
           userId,
           delta: -creditsToRemove,
           reason: CreditReason.ADMIN_FIX,
@@ -540,7 +541,7 @@ export async function ensureMonthlyTopUp(userId: string): Promise<void> {
         // Create ledger entry for the top-up
         await tx.credit_ledger.create({
           data: {
-            id: crypto.randomUUID(),
+            id: randomUUID(),
             userId,
             delta: 50 - updatedCredits, // Can be negative if user had more than 50
             reason: CreditReason.MONTHLY_TOPUP,
@@ -573,7 +574,7 @@ export async function ensureMonthlyTopUp(userId: string): Promise<void> {
         // Create ledger entry for the top-up (inside transaction)
         await tx.credit_ledger.create({
           data: {
-            id: crypto.randomUUID(),
+            id: randomUUID(),
             userId,
             delta: creditsToAdd,
             reason: CreditReason.MONTHLY_TOPUP,
@@ -673,7 +674,7 @@ export async function ensureUserInitialized(userId: string): Promise<void> {
     try {
       await prisma.subscriptions.create({
         data: {
-          id: crypto.randomUUID(),
+          id: randomUUID(),
           userId,
           plan: Plan.FREE,
           status: SubscriptionStatus.ACTIVE,

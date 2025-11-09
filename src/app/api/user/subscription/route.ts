@@ -40,10 +40,19 @@ export async function GET(request: NextRequest) {
         renewsAt: subscription.renewsAt.toISOString(),
     },
   });
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error fetching subscription:", error);
+    console.error("Error details:", {
+      message: error?.message,
+      code: error?.code,
+      name: error?.name,
+      stack: error?.stack,
+    });
     return NextResponse.json(
-      { error: "Internal server error" },
+      { 
+        error: "Internal server error",
+        message: process.env.NODE_ENV === "development" ? error?.message : undefined,
+      },
       { status: 500 }
     );
   }
