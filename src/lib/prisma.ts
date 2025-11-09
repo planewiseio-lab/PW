@@ -6,45 +6,76 @@ const globalForPrisma = globalThis as unknown as {
 
 let prismaInstance: PrismaClient;
 
-// Always log DATABASE_URL for debugging (without exposing password)
+// Always log database URL for debugging (without exposing password)
 // This helps diagnose connection issues in Vercel
-function logDatabaseUrl() {
-  if (typeof process.env.DATABASE_URL === "string") {
-    const dbUrl = process.env.DATABASE_URL;
-    const maskedUrl = dbUrl.replace(/:[^:@]+@/, ":****@"); // Mask password
-    console.log(`[Prisma] Using DATABASE_URL: ${maskedUrl}`);
-    console.log(`[Prisma] NODE_ENV: ${process.env.NODE_ENV || "undefined"}`);
-    // Check if using correct port (6543 for Connection Pooler)
-    if (dbUrl.includes(":5432")) {
-      console.error(`[Prisma] ⚠️ WARNING: DATABASE_URL uses port 5432 (direct connection). Should use port 6543 (Connection Pooler) for Vercel!`);
-    } else if (dbUrl.includes(":6543")) {
-      console.log(`[Prisma] ✅ DATABASE_URL correctly uses port 6543 (Connection Pooler)`);
-    }
-  } else {
-    console.error(`[Prisma] ⚠️ ERROR: DATABASE_URL is not defined!`);
+// Since Jan 2024, Supabase uses Supavisor (not pgBouncer) for IPv4 compatibility with Vercel
+function logDatabaseUrl(dbUrl: string, source: string) {
+  const maskedUrl = dbUrl.replace(/:[^:@]+@/, ":****@"); // Mask password
+  console.log(`[Prisma] Using ${source}: ${maskedUrl}`);
+  console.log(`[Prisma] NODE_ENV: ${process.env.NODE_ENV || "undefined"}`);
+
+  // Check for Supavisor (pooler.supabase.com) or old pgBouncer URL
+  if (dbUrl.includes("pooler.supabase.com")) {
+    console.log(`[Prisma] ✅ Using Supavisor (IPv4 compatible for Vercel)`);
+  } else if (dbUrl.includes("db.") && dbUrl.includes(":6543")) {
+    console.warn(
+      `[Prisma] ⚠️ WARNING: Using old pgBouncer URL. Supabase migrated to Supavisor in Jan 2024. Use POSTGRES_PRISMA_URL instead!`
+    );
+  } else if (dbUrl.includes(":5432")) {
+    console.error(
+      `[Prisma] ⚠️ WARNING: Using direct connection (port 5432). This may not work with Vercel. Use Supavisor (POSTGRES_PRISMA_URL) instead!`
+    );
   }
 }
 
-// Log immediately when module loads
-logDatabaseUrl();
+// Get database URL - prefer POSTGRES_PRISMA_URL (Supavisor) for Vercel, fallback to DATABASE_URL
+// Since Jan 2024, Supabase uses Supavisor instead of pgBouncer for IPv4 compatibility with Vercel
+const getDatabaseUrl = (): string => {
+  // In production/Vercel, prefer POSTGRES_PRISMA_URL (Supavisor)
+  if (process.env.NODE_ENV === "production" || process.env.VERCEL) {
+    if (process.env.POSTGRES_PRISMA_URL) {
+      logDatabaseUrl(process.env.POSTGRES_PRISMA_URL, "POSTGRES_PRISMA_URL");
+      return process.env.POSTGRES_PRISMA_URL;
+    }
+    if (process.env.DATABASE_URL) {
+      logDatabaseUrl(process.env.DATABASE_URL, "DATABASE_URL");
+      return process.env.DATABASE_URL;
+    }
+    console.error(
+      `[Prisma] ⚠️ ERROR: Neither POSTGRES_PRISMA_URL nor DATABASE_URL is defined!`
+    );
+    throw new Error(
+      "Database URL not configured. Set POSTGRES_PRISMA_URL or DATABASE_URL."
+    );
+  }
+
+  // In development, use DATABASE_URL (local connection)
+  if (process.env.DATABASE_URL) {
+    logDatabaseUrl(process.env.DATABASE_URL, "DATABASE_URL");
+    return process.env.DATABASE_URL;
+  }
+
+  console.error(`[Prisma] ⚠️ ERROR: DATABASE_URL is not defined!`);
+  throw new Error("Database URL not configured. Set DATABASE_URL.");
+};
+
+const databaseUrl = getDatabaseUrl();
 
 if (process.env.NODE_ENV === "production" || process.env.VERCEL) {
   // In production/Vercel, use connection pooling settings optimized for serverless
+  // Supavisor handles connection pooling automatically
   prismaInstance = new PrismaClient({
     datasources: {
       db: {
-        url: process.env.DATABASE_URL,
+        url: databaseUrl,
       },
     },
-    // Add connection pool settings for better performance with PgBouncer
-    // Note: Prisma handles connection pooling internally, but we can optimize for serverless
   });
-  // Log again after Prisma client creation to ensure URL is correct
-  logDatabaseUrl();
 } else {
   if (!globalForPrisma.prisma) {
     globalForPrisma.prisma = new PrismaClient({
-      log: process.env.NODE_ENV === "development" ? ["error", "warn"] : ["error"],
+      log:
+        process.env.NODE_ENV === "development" ? ["error", "warn"] : ["error"],
     });
   }
   prismaInstance = globalForPrisma.prisma;
