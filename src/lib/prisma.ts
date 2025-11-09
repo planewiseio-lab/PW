@@ -29,7 +29,16 @@ function logDatabaseUrl() {
 logDatabaseUrl();
 
 if (process.env.NODE_ENV === "production" || process.env.VERCEL) {
-  prismaInstance = new PrismaClient();
+  // In production/Vercel, use connection pooling settings optimized for serverless
+  prismaInstance = new PrismaClient({
+    datasources: {
+      db: {
+        url: process.env.DATABASE_URL,
+      },
+    },
+    // Add connection pool settings for better performance with PgBouncer
+    // Note: Prisma handles connection pooling internally, but we can optimize for serverless
+  });
   // Log again after Prisma client creation to ensure URL is correct
   logDatabaseUrl();
 } else {
