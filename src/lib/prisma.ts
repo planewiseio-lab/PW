@@ -30,7 +30,7 @@ function logDatabaseUrl(dbUrl: string, source: string) {
 
 // Get database URL - prefer POSTGRES_PRISMA_URL (Supavisor) for Vercel, fallback to DATABASE_URL
 // Since Jan 2024, Supabase uses Supavisor instead of pgBouncer for IPv4 compatibility with Vercel
-const getDatabaseUrl = (): string => {
+const getDatabaseUrl = (): string | null => {
   // In production/Vercel, prefer POSTGRES_PRISMA_URL (Supavisor)
   if (process.env.NODE_ENV === "production" || process.env.VERCEL) {
     if (process.env.POSTGRES_PRISMA_URL) {
@@ -40,6 +40,16 @@ const getDatabaseUrl = (): string => {
     if (process.env.DATABASE_URL) {
       logDatabaseUrl(process.env.DATABASE_URL, "DATABASE_URL");
       return process.env.DATABASE_URL;
+    }
+    // During build, don't throw error, just return null
+    // Check for build phase or if we're in a build context without DB URL
+    const isBuildPhase = process.env.NEXT_PHASE === "phase-production-build" || 
+                         (process.env.VERCEL && !process.env.DATABASE_URL && !process.env.POSTGRES_PRISMA_URL);
+    if (isBuildPhase) {
+      console.warn(
+        `[Prisma] ⚠️ WARNING: Database URL not configured during build. This is expected if routes are not used during build.`
+      );
+      return null;
     }
     console.error(
       `[Prisma] ⚠️ ERROR: Neither POSTGRES_PRISMA_URL nor DATABASE_URL is defined!`
@@ -55,30 +65,54 @@ const getDatabaseUrl = (): string => {
     return process.env.DATABASE_URL;
   }
 
+  // During build, don't throw error, just return null
+  // Check for build phase or if we're in a build context without DB URL
+  const isBuildPhase = process.env.NEXT_PHASE === "phase-production-build" || 
+                       (process.env.VERCEL && !process.env.DATABASE_URL && !process.env.POSTGRES_PRISMA_URL);
+  if (isBuildPhase) {
+    console.warn(
+      `[Prisma] ⚠️ WARNING: DATABASE_URL not configured during build. This is expected if routes are not used during build.`
+    );
+    return null;
+  }
+
   console.error(`[Prisma] ⚠️ ERROR: DATABASE_URL is not defined!`);
   throw new Error("Database URL not configured. Set DATABASE_URL.");
 };
 
 const databaseUrl = getDatabaseUrl();
 
-if (process.env.NODE_ENV === "production" || process.env.VERCEL) {
-  // In production/Vercel, use connection pooling settings optimized for serverless
-  // Supavisor handles connection pooling automatically
+// Only create Prisma instance if we have a database URL (skip during build if not configured)
+if (databaseUrl) {
+  if (process.env.NODE_ENV === "production" || process.env.VERCEL) {
+    // In production/Vercel, use connection pooling settings optimized for serverless
+    // Supavisor handles connection pooling automatically
+    prismaInstance = new PrismaClient({
+      datasources: {
+        db: {
+          url: databaseUrl,
+        },
+      },
+    });
+  } else {
+    if (!globalForPrisma.prisma) {
+      globalForPrisma.prisma = new PrismaClient({
+        log:
+          process.env.NODE_ENV === "development" ? ["error", "warn"] : ["error"],
+      });
+    }
+    prismaInstance = globalForPrisma.prisma;
+  }
+} else {
+  // During build, create a dummy instance that will throw when used
+  // This prevents build errors while still allowing the code to compile
   prismaInstance = new PrismaClient({
     datasources: {
       db: {
-        url: databaseUrl,
+        url: "postgresql://dummy:dummy@dummy:5432/dummy",
       },
     },
-  });
-} else {
-  if (!globalForPrisma.prisma) {
-    globalForPrisma.prisma = new PrismaClient({
-      log:
-        process.env.NODE_ENV === "development" ? ["error", "warn"] : ["error"],
-    });
-  }
-  prismaInstance = globalForPrisma.prisma;
+  }) as any;
 }
 
 export const prisma = prismaInstance;

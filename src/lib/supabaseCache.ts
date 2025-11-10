@@ -23,6 +23,13 @@ interface SortedSetEntry {
  */
 export async function getCache(key: string): Promise<string | null> {
   try {
+    // During build, return null to avoid database connection errors
+    const isBuildPhase = process.env.NEXT_PHASE === "phase-production-build" || 
+                         (process.env.VERCEL && !process.env.DATABASE_URL && !process.env.POSTGRES_PRISMA_URL);
+    if (isBuildPhase) {
+      return null;
+    }
+    
     const entry = await prisma.$queryRaw<CacheEntry[]>`
       SELECT key, value, expires_at
       FROM cache
@@ -35,7 +42,13 @@ export async function getCache(key: string): Promise<string | null> {
     }
 
     return entry[0].value;
-  } catch (error) {
+  } catch (error: any) {
+    // During build, silently fail
+    const isBuildPhase = process.env.NEXT_PHASE === "phase-production-build" || 
+                         (process.env.VERCEL && !process.env.DATABASE_URL && !process.env.POSTGRES_PRISMA_URL);
+    if (isBuildPhase) {
+      return null;
+    }
     console.error("[SupabaseCache] Error getting cache:", error);
     return null;
   }

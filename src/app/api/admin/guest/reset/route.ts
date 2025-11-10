@@ -3,6 +3,9 @@ import { resetGuestQuota, getGuestQuotaStats } from "@/lib/guestQuota";
 import { guardAdminReset } from "@/lib/security/adminResetGuard";
 import { logger } from "@/lib/logger";
 
+export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
+
 export async function POST(request: NextRequest) {
   try {
     const guard = await guardAdminReset(request);
