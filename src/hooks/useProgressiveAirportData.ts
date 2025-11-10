@@ -12,6 +12,7 @@ type FlightRow = {
   airline: string;
   from?: string;
   to?: string;
+  airportName?: string;
   reg?: string;
   status?: string;
   gate?: string;
@@ -42,9 +43,9 @@ export function useProgressiveAirportData(code: string, dir: Direction) {
   const cacheKey = useMemo(() => `${code}-${dir}`, [code, dir]);
 
   const loadFlights = useCallback(
-    async (offset = 0, limit = 20) => {
-      // Vérifier le cache d'abord seulement si on n'est pas en train de charger plus
-      if (offset === 0) {
+    async (offset = 0, limit = 20, searchQuery?: string) => {
+      // Vérifier le cache d'abord seulement si on n'est pas en train de charger plus et qu'il n'y a pas de recherche
+      if (offset === 0 && !searchQuery) {
         const cached = cache.get(cacheKey);
         if (
           cached &&
@@ -58,7 +59,7 @@ export function useProgressiveAirportData(code: string, dir: Direction) {
         }
       }
 
-      const isLoadingMore = offset > 0;
+      const isLoadingMore = offset > 0 && !searchQuery;
       if (isLoadingMore) {
         setLoadingMore(true);
       } else {
@@ -67,7 +68,9 @@ export function useProgressiveAirportData(code: string, dir: Direction) {
       setError(null);
 
       try {
-        const requestKey = `airport:${cacheKey}:${offset}:${limit}`;
+        const requestKey = searchQuery 
+          ? `airport:${cacheKey}:search:${searchQuery}`
+          : `airport:${cacheKey}:${offset}:${limit}`;
 
         const data = await cachedRequest(
           requestKey,
@@ -76,13 +79,22 @@ export function useProgressiveAirportData(code: string, dir: Direction) {
             url.searchParams.set("dir", dir);
             url.searchParams.set("before", "1");
             url.searchParams.set("after", "1");
-            url.searchParams.set("limit", limit.toString());
-            url.searchParams.set("offset", offset.toString());
+            
+            // Si une recherche est fournie, utiliser le paramètre search au lieu de pagination
+            if (searchQuery && searchQuery.trim()) {
+              url.searchParams.set("search", searchQuery.trim());
+              console.log(`[useProgressiveAirportData] Making search request to: ${url.toString()}`);
+            } else {
+              url.searchParams.set("limit", limit.toString());
+              url.searchParams.set("offset", offset.toString());
+            }
 
             const response = await fetch(url.toString(), {
               cache: "no-store",
               credentials: "include",
             });
+            
+            console.log(`[useProgressiveAirportData] Response status: ${response.status}, URL: ${url.toString()}`);
 
             if (!response.ok) {
               let errorData: any = null;
@@ -129,12 +141,14 @@ export function useProgressiveAirportData(code: string, dir: Direction) {
         } else {
           // Remplacer les vols existants
           setFlights(flightsData);
-          // Mettre en cache seulement la première requête
-          cache.set(cacheKey, {
-            data: flightsData,
-            pagination: paginationData,
-            timestamp: Date.now(),
-          });
+          // Mettre en cache seulement la première requête (pas pour les recherches)
+          if (!searchQuery) {
+            cache.set(cacheKey, {
+              data: flightsData,
+              pagination: paginationData,
+              timestamp: Date.now(),
+            });
+          }
         }
 
         setPagination(paginationData);
@@ -157,6 +171,15 @@ export function useProgressiveAirportData(code: string, dir: Direction) {
       loadFlights(flights.length, 20);
     }
   }, [pagination, loadingMore, flights.length, loadFlights]);
+
+  const searchFlights = useCallback((query: string) => {
+    if (query.trim()) {
+      loadFlights(0, 0, query.trim());
+    } else {
+      // Si la recherche est vide, recharger les données normales
+      loadFlights(0, 20);
+    }
+  }, [loadFlights]);
 
   useEffect(() => {
     if (!code) return;
@@ -183,5 +206,6 @@ export function useProgressiveAirportData(code: string, dir: Direction) {
     pagination,
     refetch: () => loadFlights(0, 20),
     loadMore,
+    searchFlights,
   };
 }

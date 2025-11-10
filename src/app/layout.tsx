@@ -177,16 +177,17 @@ export default function RootLayout({
 
   return (
     <html lang="en">
-      {/* Script AdSense pour validation de propriété du site - Ajouté dans <head> automatiquement */}
-      {adsenseId && (
-        <Script
-          id="adsense-validation"
-          strategy="beforeInteractive"
-          async
-          src={`https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=${adsenseId}`}
-          crossOrigin="anonymous"
-        />
-      )}
+      <head>
+        {/* Script AdSense pour validation de propriété du site */}
+        {adsenseId && (
+          <Script
+            id="adsense-validation"
+            strategy="beforeInteractive"
+            src={`https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=${adsenseId}`}
+            crossOrigin="anonymous"
+          />
+        )}
+      </head>
       <body
         className={`${comfortaa.className} min-h-screen flex flex-col text-gray-900 bg-white`}
       >

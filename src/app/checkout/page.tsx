@@ -310,7 +310,7 @@ function CheckoutContent() {
   const isSamePlan = currentSubscription?.plan === plan;
 
   return (
-    <div className="min-h-screen bg-gray-50 py-12 px-4">
+    <div className="min-h-screen bg-white py-12 px-4">
       <div className="max-w-4xl mx-auto">
         <div className="mb-6">
           <Link
@@ -431,21 +431,12 @@ function CheckoutContent() {
               </motion.div>
             )}
 
-            {error && (
-              <motion.div
-                initial={{ opacity: 0, y: -10 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm mb-6"
-              >
-                {error}
-              </motion.div>
-            )}
-
             {stripePromise ? (
               <Elements
                 stripe={stripePromise}
                 options={{
                   clientSecret: clientSecret,
+                  locale: "en",
                   appearance: {
                     theme: "stripe",
                     variables: {

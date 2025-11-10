@@ -82,9 +82,37 @@ export function withCreditChargeABD(
       // Create the request promise and store it immediately to prevent duplicates
       const requestPromise = (async () => {
         try {
-          // Charge a credit BEFORE executing the handler
-          // This ensures each search debits a credit, even if it comes from cache
-          const { newBalance } = await chargeOneCredit({
+          // Vérifier si c'est une recherche (pour ne pas facturer si cache uniquement)
+          const url = new URL(request.url);
+          const isSearchRequest = url.searchParams.get("search") && url.searchParams.get("search")?.trim();
+          
+          let newBalance: number | undefined;
+          
+          // Exécuter le handler d'abord pour toutes les requêtes afin de vérifier si on utilise uniquement le cache
+          // Cela permet de ne pas facturer de crédits pour les requêtes qui utilisent uniquement le cache
+          const response = await handler(request, ...args);
+          
+          // Vérifier le header pour savoir si on doit charger des crédits
+          if (response instanceof NextResponse) {
+            const skipCharge = response.headers.get("X-Skip-Credit-Charge") === "true";
+            if (skipCharge) {
+              const requestType = isSearchRequest ? "search" : "pagination";
+              console.log(`[ABD] ⏭️ Skipping credit charge for ${requestType} request using cache only`);
+              // Récupérer le solde actuel pour l'afficher dans le header
+              const { getCreditBalance } = await import("@/lib/credits");
+              const currentBalance = await getCreditBalance(userId);
+              // Mettre à jour le header pour indiquer qu'aucun crédit n'a été débité
+              response.headers.set("X-Credits-Charged", "0");
+              response.headers.set("X-Credits-Remaining", currentBalance.toString());
+              // Retirer le header skip pour éviter qu'il soit propagé
+              response.headers.delete("X-Skip-Credit-Charge");
+              return response;
+            }
+          }
+          
+          // Si on arrive ici, la requête a nécessité un appel API externe
+          // On charge les crédits maintenant (après avoir exécuté le handler)
+          const chargeResult = await chargeOneCredit({
             userId,
             actionType,
             idempotencyKey,
@@ -94,17 +122,16 @@ export function withCreditChargeABD(
               method,
               userAgent: request.headers.get("user-agent"),
               source: "abd_api_request",
+              isSearch: isSearchRequest || false,
             },
           });
+          newBalance = chargeResult.newBalance;
 
           console.log(
-            `[ABD] ✅ Credit charged: ${userId} now has ${newBalance} credits`
+            `[ABD] ✅ Credit charged (API call required): ${userId} now has ${newBalance} credits`
           );
 
-          // Execute the handler with all arguments
-          const response = await handler(request, ...args);
-
-          // Add debug headers
+          // Add debug headers (le handler a déjà été exécuté plus haut)
           if (response instanceof NextResponse) {
             response.headers.set("X-Credits-Remaining", newBalance.toString());
             response.headers.set("X-Credits-Charged", "1");

@@ -50,7 +50,10 @@ export async function GET(request: NextRequest) {
         select: { plan: true, renewsAt: true },
       });
     } catch (dbError: any) {
-      console.error("[Credits Balance] Database error fetching subscription:", dbError);
+      console.error(
+        "[Credits Balance] Database error fetching subscription:",
+        dbError
+      );
       console.error("[Credits Balance] DB error details:", {
         message: dbError?.message,
         code: dbError?.code,

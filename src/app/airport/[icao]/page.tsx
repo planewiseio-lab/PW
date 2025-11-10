@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState, Suspense } from "react";
+import { useEffect, useMemo, useState, Suspense, useRef } from "react";
 import { useParams, useSearchParams, useRouter } from "next/navigation";
 import { useProgressiveAirportData } from "@/hooks/useProgressiveAirportData";
 import EnhancedFlightSkeleton from "@/components/EnhancedFlightSkeleton";
@@ -16,6 +16,7 @@ type FlightRow = {
   airline: string;
   from?: string;
   to?: string;
+  airportName?: string;
   reg?: string;
   status?: string;
   gate?: string;
@@ -51,21 +52,46 @@ function AirportBoardContent() {
     pagination,
     refetch,
     loadMore,
+    searchFlights,
   } = useProgressiveAirportData(code, dir);
 
   const filtered = useMemo(() => {
     let result = allRows;
 
-    // Filtre de recherche principal
-    const v = q.trim().toLowerCase();
-    if (v) {
-      result = result.filter(
-        (r: FlightRow) =>
-          r.number.toLowerCase().includes(v) ||
-          (r.airline || "").toLowerCase().includes(v) ||
-          (r.to || r.from || "").toLowerCase().includes(v) ||
-          (r.reg || "").toLowerCase().includes(v)
-      );
+    // Fonction de normalisation pour la recherche (supprime les espaces)
+    const normalizeSearch = (str: string | null | undefined) => {
+      if (!str || typeof str !== "string") return "";
+      return str.replace(/\s+/g, "").toLowerCase().trim();
+    };
+
+    // Si la recherche a été appliquée côté serveur (via searchFlights), 
+    // les résultats sont déjà filtrés, donc on ne refiltre pas côté client
+    // On vérifie cela en regardant si tous les résultats correspondent à la recherche
+    const searchWasAppliedServerSide = q.trim() && allRows.length > 0 && 
+      allRows.every((r: FlightRow) => {
+        const v = normalizeSearch(q.trim());
+        return (
+          normalizeSearch(r.number).includes(v) ||
+          normalizeSearch(r.airline).includes(v) ||
+          normalizeSearch(r.to || r.from).includes(v) ||
+          normalizeSearch(r.reg).includes(v) ||
+          normalizeSearch(r.airportName).includes(v)
+        );
+      });
+
+    // Filtre de recherche principal (seulement si pas déjà appliqué côté serveur)
+    if (!searchWasAppliedServerSide) {
+      const v = normalizeSearch(q.trim());
+      if (v) {
+        result = result.filter(
+          (r: FlightRow) =>
+            normalizeSearch(r.number).includes(v) ||
+            normalizeSearch(r.airline).includes(v) ||
+            normalizeSearch(r.to || r.from).includes(v) ||
+            normalizeSearch(r.reg).includes(v) ||
+            normalizeSearch(r.airportName).includes(v)
+        );
+      }
     }
 
     // Filtre par compagnie
@@ -136,10 +162,67 @@ function AirportBoardContent() {
     setAutoLoadAttempts(0);
   }, [q, airlineFilter, statusFilter, timeFilter]);
 
-  // Charger automatiquement plus de données si un filtre est actif et qu'aucun résultat n'est trouvé
+  // Utiliser la recherche côté serveur si un filtre de recherche principal est actif
+  const lastSearchQueryRef = useRef<string>("");
+  const searchFlightsRef = useRef<((query: string) => void) | null>(null);
+  const refetchRef = useRef<(() => void) | null>(null);
+  
+  // Mettre à jour les refs quand les fonctions changent
+  useEffect(() => {
+    if (typeof searchFlights === "function") {
+      searchFlightsRef.current = searchFlights;
+    }
+    if (typeof refetch === "function") {
+      refetchRef.current = refetch;
+    }
+  }, [searchFlights, refetch]);
+  
+  useEffect(() => {
+    const currentQuery = q.trim();
+    const lastQuery = lastSearchQueryRef.current;
+    
+    console.log(`[Airport] Search effect triggered - currentQuery: "${currentQuery}", lastQuery: "${lastQuery}", loading: ${loading}, loaded: ${loaded}`);
+    
+    // Si la recherche a changé
+    if (currentQuery !== lastQuery) {
+      lastSearchQueryRef.current = currentQuery;
+      
+      if (currentQuery && !loading) {
+        console.log(`[Airport] Setting up search timer for: "${currentQuery}"`);
+        const searchTimer = setTimeout(() => {
+          console.log(`[Airport] Search query active, using server-side search for: "${currentQuery}"`);
+          // Vérifier que la fonction est disponible avant de l'appeler
+          if (typeof searchFlightsRef.current === "function") {
+            console.log(`[Airport] Calling searchFlightsRef.current("${currentQuery}")`);
+            searchFlightsRef.current(currentQuery);
+          } else {
+            console.warn(`[Airport] searchFlightsRef.current is not a function, skipping search. Type: ${typeof searchFlightsRef.current}`);
+          }
+        }, 500); // Debounce de 500ms pour éviter trop de requêtes
+
+        return () => {
+          console.log(`[Airport] Clearing search timer for: "${currentQuery}"`);
+          clearTimeout(searchTimer);
+        };
+      } else if (!currentQuery && lastQuery && loaded) {
+        // Si la recherche vient d'être effacée (on avait une recherche avant), recharger normalement
+        console.log(`[Airport] Search cleared, reloading normal data...`);
+        // Vérifier que la fonction est disponible avant de l'appeler
+        if (typeof refetchRef.current === "function") {
+          refetchRef.current();
+        } else {
+          console.warn(`[Airport] refetchRef.current is not a function, skipping refetch`);
+        }
+      } else {
+        console.log(`[Airport] Search condition not met - currentQuery: "${currentQuery}", loading: ${loading}`);
+      }
+    }
+  }, [q, loading, loaded]); // Retirer searchFlights et refetch des dépendances
+
+  // Charger automatiquement plus de données si un filtre (autre que la recherche principale) est actif et qu'aucun résultat n'est trouvé
   useEffect(() => {
     // Ne charger que si:
-    // 1. Un filtre est actif
+    // 1. Un filtre est actif (mais pas la recherche principale q qui utilise searchFlights)
     // 2. Aucun résultat filtré n'est trouvé
     // 3. Il y a des données chargées mais pas de résultats
     // 4. Il y a encore des données à charger
@@ -147,6 +230,7 @@ function AirportBoardContent() {
     // 6. On n'a pas dépassé la limite de tentatives
     if (
       hasActiveFilter &&
+      !q.trim() && // Ne pas utiliser auto-load si on a une recherche principale
       displayedRows.length === 0 &&
       allRows.length > 0 &&
       pagination?.hasMore &&
@@ -166,6 +250,7 @@ function AirportBoardContent() {
     }
   }, [
     hasActiveFilter,
+    q,
     displayedRows.length,
     allRows.length,
     pagination?.hasMore,
@@ -618,6 +703,7 @@ function AirportBoardContent() {
                             className="text-gray-900 hover:text-gray-700 hover:underline transition-colors"
                           >
                             {r.to}
+                            {r.airportName ? ` - ${r.airportName}` : ""}
                           </a>
                         ) : (
                           "—"
@@ -628,6 +714,7 @@ function AirportBoardContent() {
                           className="text-gray-900 hover:text-gray-700 hover:underline transition-colors"
                         >
                           {r.from}
+                          {r.airportName ? ` - ${r.airportName}` : ""}
                         </a>
                       ) : (
                         "—"
@@ -677,18 +764,21 @@ function AirportBoardContent() {
             )}
 
             {/* Mobile Load More Button */}
-            {pagination?.hasMore && (
+            {/* Ne pas afficher le bouton Load More si une recherche est active (le serveur retourne tous les résultats) */}
+            {pagination?.hasMore && !q.trim() && (
               <div className="mt-6 mb-6 text-center px-4">
                 <button
                   onClick={loadMore}
-                  disabled={loadingMore}
+                  disabled={loadingMore || (hasActiveFilter && displayedRows.length === 0)}
                   className="btn-primary-md w-full disabled:opacity-60 disabled:cursor-not-allowed"
                   type="button"
                 >
                   {loadingMore
                     ? "Loading..."
+                    : hasActiveFilter && displayedRows.length === 0
+                    ? "No matches found, loading more..."
                     : `Load More (${
-                        pagination.total - displayedRows.length
+                        pagination.total - allRows.length
                       } remaining)`}
                 </button>
               </div>
@@ -1117,18 +1207,21 @@ function AirportBoardContent() {
           </div>
 
           {/* Load More Button - Consistent with other blue buttons */}
-          {pagination?.hasMore && (
+          {/* Ne pas afficher le bouton Load More si une recherche est active (le serveur retourne tous les résultats) */}
+          {pagination?.hasMore && !q.trim() && (
             <div className="mt-6 mb-6 text-center">
               <button
                 onClick={loadMore}
-                disabled={loadingMore}
+                disabled={loadingMore || (hasActiveFilter && displayedRows.length === 0)}
                 className="btn-primary-md disabled:opacity-60 disabled:cursor-not-allowed"
                 type="button"
               >
                 {loadingMore
                   ? "Loading..."
+                  : hasActiveFilter && displayedRows.length === 0
+                  ? "No matches found, loading more..."
                   : `Load More (${
-                      pagination.total - displayedRows.length
+                      pagination.total - allRows.length
                     } remaining)`}
               </button>
             </div>

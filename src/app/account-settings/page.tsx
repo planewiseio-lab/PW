@@ -810,19 +810,19 @@ function AccountSettingsContent() {
 
                       {/* Message 4: Current Subscription Info (plan PRO/BASIC, status ACTIVE) */}
                       {subscription.plan !== "FREE" && subscription.status === "ACTIVE" && (
-                    <div className="bg-gradient-to-r from-brand-50 to-blue-50 rounded-2xl border border-brand-200 p-6 shadow-sm">
-                      <div className="flex items-start justify-between">
+                    <div className="bg-gradient-to-r from-brand-50 to-blue-50 rounded-2xl border border-brand-200 p-4 sm:p-6 shadow-sm">
+                      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 sm:gap-6">
                         <div className="flex-1">
-                          <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                          <h3 className="text-lg font-semibold text-gray-900 mb-3">
                             Current Subscription
                           </h3>
-                          <div className="space-y-2">
-                            <div className="flex items-center gap-3">
-                              <span className="font-semibold text-gray-900">
+                          <div className="space-y-3">
+                            <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">
+                              <span className="font-semibold text-gray-900 text-base">
                                 Plan: {planLabels[subscription.plan] || subscription.plan}
                               </span>
                               <span
-                                className={`px-2 py-1 rounded-full text-xs font-medium ${
+                                className={`inline-flex items-center justify-center px-3 py-1.5 rounded-full text-xs font-semibold uppercase tracking-wide w-fit ${
                                   subscription.status === "ACTIVE"
                                     ? "bg-green-100 text-green-800"
                                     : subscription.status === "PAST_DUE"
@@ -904,7 +904,7 @@ function AccountSettingsContent() {
                             }
                           }}
                           disabled={loadingAction}
-                          className="px-4 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800 focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 transition-colors disabled:opacity-50 flex items-center gap-2 whitespace-nowrap"
+                          className="w-full sm:w-auto sm:max-w-[200px] px-3 sm:px-4 py-2 sm:py-2.5 bg-gray-900 text-white rounded-lg hover:bg-gray-800 focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 transition-colors disabled:opacity-50 flex items-center justify-center gap-2 whitespace-nowrap text-xs sm:text-sm font-medium"
                         >
                           <svg
                             className="w-4 h-4"
@@ -939,7 +939,7 @@ function AccountSettingsContent() {
                       Available Plans
                     </h3>
 
-                    <div className="grid gap-6 md:grid-cols-3">
+                    <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
                       {[
                         {
                           name: "Free",
@@ -1005,7 +1005,25 @@ function AccountSettingsContent() {
                           wrapClass: "border-brand-200",
                           badge: (subscription?.plan?.toUpperCase?.() || subscription?.plan || "") === "PRO" ? undefined : "Popular",
                         },
-                      ].map((p, i) => {
+                      ]
+                      // Filtrer le plan FREE si l'utilisateur a un plan PRO ou BASIC actif ou annulé
+                      .filter((p) => {
+                        const currentPlan = subscription?.plan?.toUpperCase?.() || subscription?.plan || "";
+                        const planCode = p.planCode?.toUpperCase?.() || p.planCode || "";
+                        
+                        // Si c'est le plan FREE et que l'utilisateur a PRO ou BASIC (actif ou annulé), le masquer
+                        if (planCode === "FREE") {
+                          const hasPaidPlan = currentPlan === "PRO" || currentPlan === "BASIC";
+                          const isActiveOrCanceled = subscription?.status === "ACTIVE" || subscription?.status === "CANCELED";
+                          
+                          // Masquer FREE si l'utilisateur a un plan payant actif ou annulé
+                          if (hasPaidPlan && isActiveOrCanceled) {
+                            return false;
+                          }
+                        }
+                        return true;
+                      })
+                      .map((p, i) => {
                         // Normalize plan comparison (handle both string and enum types)
                         const currentPlan = subscription?.plan?.toUpperCase?.() || subscription?.plan || "";
                         const planCode = p.planCode?.toUpperCase?.() || p.planCode || "";

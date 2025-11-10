@@ -278,18 +278,20 @@ export function CreditsSection() {
     await fetchPromise;
   }, []); // Pas de dépendances - fonction stable, on lit contextSubscription directement dans le corps
 
+  // Force refresh when component mounts or pathname changes to /credits
   useEffect(() => {
     // Reset state when pathname changes (navigation)
     setLoading(true);
     setCreditsData(null);
     setError(null);
     fetchingRef.current = false; // Réinitialiser le flag lors du changement de route
-    lastFetchTimeRef.current = 0; // Reset cache on route change
+    lastFetchTimeRef.current = 0; // Reset cache on route change - FORCE refresh
 
     // Attendre un peu que le contexte se charge avant de faire le fetch initial
     // Cela évite les appels API inutiles si le contexte charge rapidement
+    // Forcer le rafraîchissement à chaque ouverture de la page /credits
     const timer = setTimeout(() => {
-      fetchCreditsData();
+      fetchCreditsData(true, true); // forceRefresh = true pour toujours rafraîchir
     }, 200); // Petit délai pour laisser le contexte se charger
 
     return () => {
@@ -298,6 +300,25 @@ export function CreditsSection() {
       fetchingRef.current = false; // Réinitialiser le flag lors du démontage
     };
   }, [pathname]); // Seulement pathname - fetchCreditsData est stable
+
+  // Force refresh when component mounts (even if pathname doesn't change)
+  // Cela garantit que les données sont toujours à jour quand on arrive sur /credits
+  useEffect(() => {
+    // Forcer le rafraîchissement au montage du composant
+    const timer = setTimeout(() => {
+      // Vérifier qu'on est bien sur la page /credits
+      if (pathname === "/credits") {
+        console.log("[Credits] Component mounted on /credits, forcing refresh...");
+        // Réinitialiser le cache pour forcer le rafraîchissement
+        lastFetchTimeRef.current = 0;
+        fetchCreditsData(true, true); // forceRefresh = true
+      }
+    }, 100);
+
+    return () => {
+      clearTimeout(timer);
+    };
+  }, [pathname]); // Se déclencher aussi si pathname change vers /credits
 
   // Mettre à jour les données quand contextSubscription change (après le chargement initial)
   useEffect(() => {
