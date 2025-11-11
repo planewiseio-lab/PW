@@ -171,8 +171,7 @@ export function CreditsSection() {
         let renewsAt: CreditsData["renewsAt"] = undefined;
         
         // Utiliser subscription depuis le contexte si disponible
-        // Ne PAS faire de fallback API ici - le contexte gère déjà la récupération
-        // Si subscription n'est pas disponible, c'est qu'il n'y en a pas ou qu'elle est en cours de chargement
+        // Si le contexte n'a pas encore chargé, faire un appel API direct pour récupérer la subscription
         let subscription = null;
         if (currentSubscription) {
           // Utiliser les données du contexte (pas besoin d'appel API)
@@ -181,9 +180,28 @@ export function CreditsSection() {
             status: currentSubscription.status,
             renewsAt: new Date(currentSubscription.renewsAt),
           };
+        } else if (!currentLoading) {
+          // Si le contexte n'a pas encore chargé et qu'on n'est plus en train de charger, faire un appel API direct
+          // Cela permet d'afficher la subscription même si le contexte n'a pas encore fini de charger
+          try {
+            const subResponse = await fetch("/api/user/subscription", {
+              credentials: "include",
+              cache: "no-store",
+            });
+            if (subResponse.ok) {
+              const subData = await subResponse.json();
+              if (subData?.subscription) {
+                subscription = {
+                  plan: subData.subscription.plan,
+                  status: subData.subscription.status,
+                  renewsAt: new Date(subData.subscription.renewsAt),
+                };
+              }
+            }
+          } catch (subErr) {
+            console.error("[Credits] Error fetching subscription fallback:", subErr);
+          }
         }
-        // Pas de fallback API - on attend que le contexte charge les données
-        // Cela évite les appels API dupliqués
         
         console.log(`[Credits] [${callId}] 🔄 Fetching credits data...`, {
           hasSubscription: !!currentSubscription,

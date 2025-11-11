@@ -236,8 +236,12 @@ export const GET = withFlightBrowseAccess(
     request: NextRequest,
     { params }: { params: Promise<{ flight: string }> }
   ) => {
+    console.log(`[FlightAPI] ====== GET /api/flights/[flight] called ======`);
+    console.log(`[FlightAPI] Request URL:`, request.url);
+    
     try {
       if (!AERODATABOX_API_KEY) {
+        console.log(`[FlightAPI] ERROR: AeroDataBox API key not configured`);
         return NextResponse.json(
           { error: "AeroDataBox API key not configured" },
           { status: 500 }
@@ -245,15 +249,62 @@ export const GET = withFlightBrowseAccess(
       }
 
       const { flight } = await params;
+      console.log(`[FlightAPI] Extracted flight param from params:`, flight);
       const { searchParams: urlSearchParams } = new URL(request.url);
       const dateLocal =
         urlSearchParams.get("dateLocal") || urlSearchParams.get("date");
 
-      // Validation stricte du numéro de vol (supprimer les espaces)
-      const numberRaw = String(flight).trim().toUpperCase().replace(/\s+/g, "");
-      if (!/^[A-Z0-9]{1,3}\d{1,4}$/.test(numberRaw)) {
+      // Décoder explicitement le paramètre flight (au cas où Next.js ne le ferait pas)
+      // et gérer les cas où il pourrait être undefined ou null
+      let flightParam = flight;
+      if (typeof flightParam === "string") {
+        // Décoder les caractères encodés dans l'URL (%20 pour espace, etc.)
+        try {
+          flightParam = decodeURIComponent(flightParam);
+        } catch (e) {
+          // Si le décodage échoue, utiliser la valeur originale
+          console.log(`[FlightAPI] Failed to decode flight parameter, using original:`, flightParam);
+        }
+      }
+
+      // Debug: voir ce qui est reçu
+      console.log(`[FlightAPI] Received flight parameter:`, {
+        raw: flight,
+        decoded: flightParam,
+        type: typeof flightParam,
+        length: flightParam?.length,
+        encoded: encodeURIComponent(flightParam || ""),
+        url: request.url,
+      });
+
+      // Validation stricte du numéro de vol (supprimer les espaces pour normalisation)
+      const numberRaw = String(flightParam || "").trim().toUpperCase().replace(/\s+/g, "");
+      
+      console.log(`[FlightAPI] Normalized flight number:`, {
+        original: flight,
+        normalized: numberRaw,
+      });
+      
+      // Validation plus permissive : accepter les formats avec ou sans espace
+      if (!numberRaw || numberRaw.length < 2) {
         return NextResponse.json(
-          { error: "Invalid flight number format. Use format like AC123" },
+          { error: "Invalid flight number format. Use format like AC123 or AC 123" },
+          { status: 400 }
+        );
+      }
+      
+      // Vérifier que le numéro contient au moins une lettre et un chiffre
+      const hasLetter = /[A-Z]/.test(numberRaw);
+      const hasDigit = /\d/.test(numberRaw);
+      
+      if (!hasLetter || !hasDigit) {
+        console.log(`[FlightAPI] Flight number validation failed:`, {
+          numberRaw,
+          hasLetter,
+          hasDigit,
+        });
+        return NextResponse.json(
+          { error: "Invalid flight number format. Must contain letters and numbers. Use format like AC123 or AC 123" },
           { status: 400 }
         );
       }
@@ -266,16 +317,22 @@ export const GET = withFlightBrowseAccess(
         );
       }
 
-      // Clé de cache optimisée (sans timestamp pour permettre le cache)
+      // Clé de cache normalisée (toujours utiliser numberRaw sans espace pour cohérence)
+      // Cela garantit que "LH466", "LH 466", "lh466" utilisent tous la même clé de cache
       const now = new Date();
       const requestedDate = dateLocal ? new Date(dateLocal) : now;
       const isHistoricalDate = dateLocal && requestedDate < now;
       const isOlderThan24h = isHistoricalDate && (now.getTime() - requestedDate.getTime()) > 24 * 60 * 60 * 1000;
       const cacheKey = `flight:${numberRaw}:${dateLocal || "today"}`;
+      
+      console.log(`[FlightAPI] Cache key: ${cacheKey} (normalized from: "${flight}")`);
 
+      // Vérifier si on doit forcer un refresh (paramètre ?refresh=true)
+      const forceRefresh = urlSearchParams.get("refresh") === "true";
+      
       // Vérifier le cache Supabase persistant (partagé entre toutes les instances serverless)
-      const cached = await getCache(cacheKey);
-      if (cached) {
+      const cached = forceRefresh ? null : await getCache(cacheKey);
+      if (cached && !forceRefresh) {
         try {
           let cachedPayload = JSON.parse(cached);
           
@@ -344,6 +401,8 @@ export const GET = withFlightBrowseAccess(
                 hasAirline: !!cachedPayload.airline,
                 hasDeparture: !!cachedPayload.departure,
                 hasArrival: !!cachedPayload.arrival,
+                flightsCount: cachedPayload.flights?.length || 0,
+                flightNumber: cachedPayload.number || cachedPayload.flights?.[0]?.number,
               });
               const response = NextResponse.json(cachedPayload);
               response.headers.set("X-Cache", "HIT");
@@ -354,7 +413,7 @@ export const GET = withFlightBrowseAccess(
               response.headers.set("Cache-Control", `public, max-age=${cachedTtlSeconds}, s-maxage=${cachedTtlSeconds}`);
               return response;
             } else {
-              console.log(`[FlightAPI] Cache contains empty response (flights: [] or no valid data), ignoring cache and calling API`, {
+              console.log(`[FlightAPI] Cache contains invalid/empty data for ${cacheKey}, ignoring cache and calling API`, {
                 hasFlightsArray,
                 isEmptyFlightsArray,
                 hasValidFlightData,
@@ -407,40 +466,83 @@ export const GET = withFlightBrowseAccess(
 
       console.log(`[FlightAPI] Cache MISS for ${cacheKey} - calling API`);
 
-      // SOLUTION OPTIMALE: Une seule requête à AeroDataBox avec le numéro exact
-      // Ne pas générer de variations car L et I sont des lettres différentes
+      // SOLUTION OPTIMALE: Essayer plusieurs formats car l'API peut accepter différents formats
+      // L'API AeroDataBox peut accepter "LH466" ou "LH 466" (avec espace)
       let candidates: string[] = [];
+      
+      // Générer les variations possibles du numéro de vol
+      const variations: string[] = [];
+      
+      // Format 1: Sans espace (LH466)
+      variations.push(numberRaw);
+      
+      // Format 2: Avec espace si le numéro a au moins 2 caractères (LH 466)
+      if (numberRaw.length >= 2) {
+        const airlineCode = numberRaw.match(/^([A-Z0-9]{1,3})/)?.[1] || "";
+        const flightNum = numberRaw.substring(airlineCode.length);
+        if (airlineCode && flightNum) {
+          variations.push(`${airlineCode} ${flightNum}`);
+        }
+      }
+      
+      console.log(`[FlightAPI] Generated variations for ${numberRaw}:`, variations);
 
       if (dateLocal) {
-        // Essayer d'abord avec la date exacte
-        candidates.push(
-          `/flights/number/${encodeURIComponent(
-            numberRaw
-          )}/${encodeURIComponent(
-            dateLocal
-          )}?withLocation=true&withCodeshared=true&withCancelled=true&limit=25`
-        );
+        // Essayer toutes les variations avec la date exacte
+        for (const variation of variations) {
+          candidates.push(
+            `/flights/number/${encodeURIComponent(
+              variation
+            )}/${encodeURIComponent(
+              dateLocal
+            )}?withLocation=true&withCodeshared=true&withCancelled=true&limit=25`
+          );
+        }
+        
+        // Aussi essayer le jour suivant (utile pour les vols qui partent tard le soir)
+        const requestedDateObj = new Date(dateLocal);
+        const nextDay = new Date(requestedDateObj);
+        nextDay.setDate(nextDay.getDate() + 1);
+        const nextDayStr = nextDay.toISOString().split('T')[0];
+        
+        console.log(`[FlightAPI] Also trying next day: ${nextDayStr} (requested: ${dateLocal})`);
+        
+        for (const variation of variations) {
+          candidates.push(
+            `/flights/number/${encodeURIComponent(
+              variation
+            )}/${encodeURIComponent(
+              nextDayStr
+            )}?withLocation=true&withCodeshared=true&withCancelled=true&limit=25`
+          );
+        }
         
         // Si aucune variation ne fonctionne avec la date, essayer sans date
         // (pour récupérer le vol le plus récent disponible)
-        candidates.push(
-          `/flights/number/${encodeURIComponent(
-            numberRaw
-          )}?withLocation=true&withCodeshared=true&withCancelled=true&limit=25`
-        );
+        for (const variation of variations) {
+          candidates.push(
+            `/flights/number/${encodeURIComponent(
+              variation
+            )}?withLocation=true&withCodeshared=true&withCancelled=true&limit=25`
+          );
+        }
       } else {
-        // Essayer sans date
-        candidates.push(
-          `/flights/number/${encodeURIComponent(
-            numberRaw
-          )}?withLocation=true&withCodeshared=true&withCancelled=true&limit=25`
-        );
+        // Essayer toutes les variations sans date
+        for (const variation of variations) {
+          candidates.push(
+            `/flights/number/${encodeURIComponent(
+              variation
+            )}?withLocation=true&withCodeshared=true&withCancelled=true&limit=25`
+          );
+        }
       }
 
       // Collecter TOUS les résultats de tous les candidats pour filtrer ensuite
       const allFlights: any[] = [];
       let foundExactMatch = false; // Flag pour arrêter si on trouve un vol avec la date exacte
 
+      console.log(`[FlightAPI] Trying ${candidates.length} API candidates:`, candidates.map(c => c.split('?')[0]));
+      
       for (const pathPart of candidates) {
         // Si on a déjà trouvé un vol avec la date exacte, arrêter la recherche
         if (foundExactMatch && dateLocal) {
@@ -448,8 +550,9 @@ export const GET = withFlightBrowseAccess(
           break;
         }
 
+        console.log(`[FlightAPI] Trying API call: ${pathPart}`);
         const resp = await callAero(pathPart);
-        console.log(`[AeroDataBox] ${resp.status} ${resp.url}`);
+        console.log(`[AeroDataBox] Response: ${resp.status} from ${resp.url}`);
 
         // Si 204 (pas de contenu), continuer sans erreur et sans parser
         if (resp.status === 204) {
@@ -527,16 +630,49 @@ export const GET = withFlightBrowseAccess(
       // Utiliser les vols collectés
       const flights = allFlights;
 
+      // Si on a une date demandée, filtrer les vols pour trouver ceux qui correspondent
+      // à la date demandée OU au jour suivant (pour les vols qui partent tard le soir)
+      let filteredFlights = flights;
+      if (dateLocal) {
+        const requestedDateObj = new Date(dateLocal);
+        const nextDay = new Date(requestedDateObj);
+        nextDay.setDate(nextDay.getDate() + 1);
+        const nextDayStr = nextDay.toISOString().split('T')[0];
+        
+        filteredFlights = flights.filter((flight: any) => {
+          const depLocalTime =
+            flight.departure?.scheduledTime?.local ||
+            flight.departure?.revisedTime?.local ||
+            flight.dep?.scheduledTime?.local ||
+            flight.dep?.revisedTime?.local;
+          if (!depLocalTime) return true; // Garder les vols sans date pour ne pas les perdre
+          const depLocalDate = depLocalTime.match(/^\d{4}-\d{2}-\d{2}/)?.[0];
+          // Accepter la date demandée OU le jour suivant
+          return depLocalDate === dateLocal || depLocalDate === nextDayStr;
+        });
+        
+        console.log(`[FlightAPI] Filtered ${flights.length} flights to ${filteredFlights.length} for date ${dateLocal} or ${nextDayStr}`);
+        
+        // Si on a trouvé des vols filtrés, les utiliser
+        if (filteredFlights.length > 0) {
+          filteredFlights = filteredFlights;
+        } else {
+          // Si aucun vol ne correspond à la date demandée ou au jour suivant, utiliser tous les vols
+          console.log(`[FlightAPI] No flights match requested date or next day, using all ${flights.length} flights`);
+          filteredFlights = flights;
+        }
+      }
+
       // Trouver le bon avion en filtrant par date et en évitant les vols codeshare incorrects
-      let f = flights[0];
+      let f = filteredFlights[0];
 
       // Log détaillé pour débugger
       console.log(
-        `[FlightAPI] Processing ${flights.length} flights for ${numberRaw} on ${
+        `[FlightAPI] Processing ${filteredFlights.length} flights for ${numberRaw} on ${
           dateLocal || "today"
         }`
       );
-      flights.forEach((flight: any, idx: number) => {
+      filteredFlights.forEach((flight: any, idx: number) => {
         // Essayer différentes structures possibles pour l'immatriculation
         const reg =
           flight.aircraft?.registration ||
@@ -562,10 +698,10 @@ export const GET = withFlightBrowseAccess(
       });
 
       // Si on a une date spécifique, filtrer par date locale de départ
+      // Note: filteredFlights contient déjà les vols de la date demandée ou du jour suivant
       if (dateLocal) {
-        // Filtrer les vols pour trouver celui qui correspond à la date locale demandée
-        const matchingFlight = flights.find((flight: any) => {
-          // Extraire la date locale de départ
+        // Préférer le vol de la date exacte, sinon prendre celui du jour suivant
+        const exactDateFlight = filteredFlights.find((flight: any) => {
           const depLocalTime =
             flight.departure?.scheduledTime?.local ||
             flight.departure?.revisedTime?.local ||
@@ -573,11 +709,7 @@ export const GET = withFlightBrowseAccess(
             flight.dep?.revisedTime?.local;
 
           if (!depLocalTime) return false;
-
-          // Extraire juste la date (sans heure)
-          // Format: "2025-10-23 17:35+09:00" -> "2025-10-23"
           const depLocalDate = depLocalTime.match(/^\d{4}-\d{2}-\d{2}/)?.[0];
-
           if (!depLocalDate) return false;
 
           console.log(
@@ -586,6 +718,8 @@ export const GET = withFlightBrowseAccess(
 
           return depLocalDate === dateLocal;
         });
+        
+        const matchingFlight = exactDateFlight || filteredFlights[0];
 
         if (matchingFlight) {
           f = matchingFlight;
@@ -598,7 +732,7 @@ export const GET = withFlightBrowseAccess(
           console.log(
             `[FlightAPI] ⚠️ No flight matches date ${dateLocal}, using first result`
           );
-          flights.forEach((flight: any, idx: number) => {
+          filteredFlights.forEach((flight: any, idx: number) => {
             const depLocalTime =
               flight.departure?.scheduledTime?.local ||
               flight.departure?.revisedTime?.local ||

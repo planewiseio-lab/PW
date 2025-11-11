@@ -182,7 +182,7 @@ export default function RootLayout({
         {adsenseId && (
           <Script
             id="adsense-validation"
-            strategy="beforeInteractive"
+            strategy="afterInteractive"
             src={`https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=${adsenseId}`}
             crossOrigin="anonymous"
           />

@@ -452,6 +452,25 @@ model user_favorites {
 }
 
 /// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model fleet_status {
+  id                    String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id               String   @db.Uuid
+  aircraft_registration String
+  status                String
+  message               String?
+  location              String?
+  flight_info           Json?
+  updated_at            DateTime @default(now()) @updatedAt @db.Timestamptz(6)
+  created_at            DateTime @default(now()) @db.Timestamptz(6)
+
+  @@unique([user_id, aircraft_registration], map: "fleet_status_user_registration_unique")
+  @@index([user_id], map: "idx_fleet_status_user_id")
+  @@index([aircraft_registration], map: "idx_fleet_status_registration")
+  @@index([updated_at], map: "idx_fleet_status_updated_at")
+  @@schema("public")
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
 model user_subscriptions {
   id         String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   user_id    String    @db.Uuid
@@ -492,14 +511,14 @@ model credit_balances {
 }
 
 model credit_ledger {
-  id         String      @id @default(dbgenerated("gen_random_uuid()"))
-  userId     String      @map("userId")
+  id         String       @id @default(dbgenerated("gen_random_uuid()"))
+  userId     String       @map("userId")
   delta      Int
   reason     CreditReason
-  actionType ActionType? @map("actionType")
-  refId      String?     @map("refId")
+  actionType ActionType?  @map("actionType")
+  refId      String?      @map("refId")
   metadata   Json?
-  createdAt  DateTime    @default(now()) @map("createdAt")
+  createdAt  DateTime     @default(now()) @map("createdAt")
 
   @@index([userId])
   @@map("credit_ledger")
@@ -507,12 +526,12 @@ model credit_ledger {
 }
 
 model usage_events {
-  id              String     @id @default(dbgenerated("gen_random_uuid()"))
-  userId          String     @map("userId")
-  actionType      ActionType @map("actionType")
-  idempotencyKey  String     @unique @map("idempotencyKey")
-  cost            Int        @default(1)
-  createdAt       DateTime   @default(now()) @map("createdAt")
+  id             String     @id @default(dbgenerated("gen_random_uuid()"))
+  userId         String     @map("userId")
+  actionType     ActionType @map("actionType")
+  idempotencyKey String     @unique @map("idempotencyKey")
+  cost           Int        @default(1)
+  createdAt      DateTime   @default(now()) @map("createdAt")
 
   @@index([userId])
   @@map("usage_events")

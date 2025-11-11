@@ -107,7 +107,14 @@ function FlightPageContent() {
   const params = useParams();
   const router = useRouter();
   const searchParams = useSearchParams();
-  const flightNumber = params.flight as string;
+  // Décoder explicitement le paramètre flight (Next.js devrait le faire automatiquement, mais on s'assure)
+  const flightNumber = params.flight ? decodeURIComponent(params.flight as string) : "";
+  
+  console.log("[FlightPage] Flight number from params:", {
+    raw: params.flight,
+    decoded: flightNumber,
+    url: typeof window !== 'undefined' ? window.location.href : 'N/A',
+  });
   const abortControllerRef = useRef<AbortController | null>(null);
 
   const [flightData, setFlightData] = useState<FlightData | null>(null);
@@ -258,18 +265,15 @@ function FlightPageContent() {
         setFlightData(null);
       }
     } catch (err: any) {
-      console.error("[FlightPage] Error in loadFlightData:", err);
-      if (err.name === "AbortError") {
-        // Request cancelled, do not show error
-        console.log("[FlightPage] Request was aborted");
+      // Ignorer silencieusement les AbortError - c'est normal lors du cleanup
+      if (err?.name === "AbortError" || err instanceof DOMException) {
+        console.log("[FlightPage] Request was aborted (normal cleanup)");
         return;
-      } else if (err.name === "AbortError" && err.message.includes("timeout")) {
-        console.log("[FlightPage] Request timeout");
-        setError("Request timeout - please try again");
-      } else if (
-        err.message?.includes("GUEST_QUOTA_EXCEEDED") ||
-        err.message?.includes("Guest quota exceeded")
-      ) {
+      }
+      
+      console.error("[FlightPage] Error in loadFlightData:", err);
+      
+      if (err.message?.includes("GUEST_QUOTA_EXCEEDED") || err.message?.includes("Guest quota exceeded")) {
         // Ne pas afficher l'erreur sur la page pour les erreurs de quota invité
         // Le modal s'affichera automatiquement via triggerGuestQuotaExceeded
         console.log("[FlightPage] Guest quota exceeded");
@@ -280,8 +284,12 @@ function FlightPageContent() {
         setError(err instanceof Error ? err.message : "An error occurred");
       }
     } finally {
-      console.log("[FlightPage] loadFlightData finished, setting loading to false");
-      setLoading(false);
+      // Ne mettre loading à false que si la requête n'a pas été annulée
+      // Vérifier si le signal est aborted avant de mettre loading à false
+      if (!abortControllerRef.current?.signal.aborted) {
+        console.log("[FlightPage] loadFlightData finished, setting loading to false");
+        setLoading(false);
+      }
     }
   }, []); // Pas de dépendances - la fonction est stable
 
@@ -304,8 +312,13 @@ function FlightPageContent() {
       console.log("[FlightPage] useEffect triggering loadFlightData", { flightNumber, finalDate });
       // Charger immédiatement pour améliorer le LCP
       loadFlightData(flightNumber, finalDate).catch((err) => {
-        if (!isMounted) return;
-        if (err.name !== "AbortError") {
+        // Ignorer silencieusement les AbortError - c'est normal quand le composant se démonte
+        if (err?.name === "AbortError" || err instanceof DOMException) {
+          console.log("[FlightPage] Request was aborted (normal cleanup)");
+          return;
+        }
+        // Pour les autres erreurs, seulement logger si le composant est encore monté
+        if (isMounted) {
           console.error("[FlightPage] Error loading flight data:", err);
         }
       });
@@ -328,11 +341,16 @@ function FlightPageContent() {
     return () => {
       isMounted = false;
       window.removeEventListener("pagehide", handlePageHide);
-      if (abortControllerRef.current && !abortControllerRef.current.signal.aborted) {
+      // Annuler la requête en cours lors du démontage
+      if (abortControllerRef.current) {
         try {
-          abortControllerRef.current.abort();
+          // Vérifier si le signal n'est pas déjà aborted avant d'abort
+          if (!abortControllerRef.current.signal.aborted) {
+            abortControllerRef.current.abort();
+          }
         } catch (e) {
-          // Ignore errors if already aborted - signal might be already aborted
+          // Ignorer les erreurs - le signal peut être déjà aborted ou dans un état invalide
+          // C'est normal et ne doit pas être considéré comme une erreur
         }
       }
     };

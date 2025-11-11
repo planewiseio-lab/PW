@@ -79,7 +79,22 @@ export async function fetchFlightData(
   date: string,
   signal?: AbortSignal
 ): Promise<any> {
-  const cacheKey = `flight:${flight}:${date}`;
+  console.log(`[FlightRequestDeduplication] fetchFlightData called with:`, {
+    flight,
+    date,
+    flightType: typeof flight,
+    flightLength: flight?.length,
+  });
+  
+  // Normaliser le numéro de vol pour le cache (enlever les espaces)
+  const normalizedFlight = flight?.replace(/\s+/g, '').toUpperCase() || '';
+  const cacheKey = `flight:${normalizedFlight}:${date}`;
+  
+  console.log(`[FlightRequestDeduplication] Normalized flight:`, {
+    original: flight,
+    normalized: normalizedFlight,
+    cacheKey,
+  });
 
   // Vérifier le cache d'abord
   const cached = responseCache.get(cacheKey);
@@ -107,8 +122,16 @@ export async function fetchFlightData(
   // Créer une nouvelle requête
   const requestPromise = (async () => {
     try {
-      console.log(`[FlightRequestDeduplication] Fetching /api/flights/${flight}?dateLocal=${date}`);
-      const response = await fetch(`/api/flights/${flight}?dateLocal=${date}`, {
+      // Vérifier si le signal est déjà aborted avant de faire la requête
+      if (signal?.aborted) {
+        throw new DOMException("The operation was aborted.", "AbortError");
+      }
+
+      // Utiliser le numéro de vol normalisé dans l'URL de l'API
+      const apiUrl = `/api/flights/${encodeURIComponent(normalizedFlight)}?dateLocal=${date}`;
+      console.log(`[FlightRequestDeduplication] Fetching ${apiUrl}`);
+      console.log(`[FlightRequestDeduplication] Original flight: "${flight}", Normalized: "${normalizedFlight}"`);
+      const response = await fetch(apiUrl, {
         signal,
         credentials: "include",
         headers: {
@@ -188,9 +211,22 @@ export async function fetchFlightData(
       }
 
       return data;
-    } finally {
-      // Nettoyer la requête en cours
+    } catch (err: any) {
+      // Si c'est une AbortError, ne pas la propager comme une erreur normale
+      if (err?.name === "AbortError" || err instanceof DOMException) {
+        console.log(`[FlightRequestDeduplication] Request aborted for ${cacheKey}`);
+        // Nettoyer la requête en cours avant de relancer l'erreur
+        pendingRequests.delete(cacheKey);
+        throw err;
+      }
+      // Pour les autres erreurs, nettoyer et propager
       pendingRequests.delete(cacheKey);
+      throw err;
+    } finally {
+      // Nettoyer la requête en cours seulement si elle n'a pas déjà été nettoyée
+      if (pendingRequests.has(cacheKey)) {
+        pendingRequests.delete(cacheKey);
+      }
     }
   })();
 

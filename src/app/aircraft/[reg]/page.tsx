@@ -538,11 +538,11 @@ function AircraftCard({
         return;
       }
 
-      // Limiter à 30 avions maximum
-      if (currentFavorites && currentFavorites.length >= 30) {
+      // Limiter à 5 avions maximum pour le dashboard 2.0 (flotte)
+      if (currentFavorites && currentFavorites.length >= 5) {
         alert(
-          "❌ Limit reached! You have reached the maximum of 30 saved aircraft.\n\n" +
-            "Please remove some aircraft from your dashboard before adding new ones.\n\n" +
+          "❌ Fleet limit reached! You have reached the maximum of 5 aircraft in your fleet.\n\n" +
+            "Please remove an aircraft from your dashboard before adding a new one.\n\n" +
             "Go to: https://planewise.io/dashboard"
         );
         setIsAddingToFavorites(false);

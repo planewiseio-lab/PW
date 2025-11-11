@@ -11,7 +11,19 @@ interface SubscriptionInfoProps {
 }
 
 export function SubscriptionInfo({ subscription }: SubscriptionInfoProps) {
-  if (!subscription) {
+  // Vérifier si l'abonnement est null ou si c'est un plan FREE sans date de renouvellement valide
+  const isActiveSubscription = subscription && (
+    subscription.plan !== Plan.FREE || 
+    (subscription.renewsAt && new Date(subscription.renewsAt) > new Date())
+  );
+  
+  // Vérifier si l'abonnement est canceled mais encore actif (renewsAt dans le futur)
+  const isCanceledButActive = subscription && 
+    subscription.status === SubscriptionStatus.CANCELED &&
+    subscription.renewsAt &&
+    new Date(subscription.renewsAt) > new Date();
+  
+  if (!isActiveSubscription && !isCanceledButActive) {
     return (
       <div className="bg-white rounded-lg shadow p-6 h-full w-full flex flex-col">
         <h3 className="text-lg font-semibold text-gray-900 mb-4">

@@ -114,7 +114,7 @@ export default function FlightCard({ flightData }: FlightCardProps) {
         status === "landed" || 
         status === "arrived*";
 
-      // Si le vol n'a pas encore décollé
+      // Si le vol n'a pas encore décollé (futur), retourner 0%
       if (departureTime && now < departureTime) {
         return 0;
       }
@@ -157,8 +157,23 @@ export default function FlightCard({ flightData }: FlightCardProps) {
   // Calculer le pourcentage de progression basé sur le statut (fallback)
   const getProgressPercentage = () => {
     const status = (flightData?.status || "").toLowerCase();
+    
+    // Vérifier d'abord si le vol est dans le futur
+    const now = new Date().getTime();
+    const departureTime = flightData.departure?.scheduledTimeLocal
+      ? new Date(flightData.departure.scheduledTimeLocal).getTime()
+      : flightData.departure?.actualTimeLocal
+      ? new Date(flightData.departure.actualTimeLocal).getTime()
+      : null;
+    
+    // Si le vol n'a pas encore décollé (futur), retourner 0%
+    if (departureTime && now < departureTime) {
+      return 0;
+    }
+    
     switch (status) {
       case "scheduled":
+      case "expected":
         return 0;
       case "boarding":
         return 15;
@@ -176,7 +191,12 @@ export default function FlightCard({ flightData }: FlightCardProps) {
       case "cancelled":
         return 0;
       default:
-        return 25;
+        // Par défaut, vérifier si le vol est dans le futur
+        if (departureTime && now < departureTime) {
+          return 0;
+        }
+        // Si on ne peut pas déterminer, retourner 0 au lieu de 25
+        return 0;
     }
   };
 
@@ -186,13 +206,13 @@ export default function FlightCard({ flightData }: FlightCardProps) {
     setRealTimeProgress(progress);
   }, [currentTime, flightData]);
 
-  // Calculer le temps restant estimé
+  // Calculer le temps restant estimé ou la durée du vol
   const getEstimatedTimeRemaining = () => {
     try {
       const now = currentTime.getTime();
       
-      // Vérifier que arrival existe
-      if (!flightData?.arrival) {
+      // Vérifier que arrival et departure existent
+      if (!flightData?.arrival || !flightData?.departure) {
         return "N/A";
       }
       
@@ -216,6 +236,13 @@ export default function FlightCard({ flightData }: FlightCardProps) {
         }
       }
 
+      // Calculer l'heure de départ (actual ou scheduled)
+      const departureTime = flightData.departure.actualTimeLocal
+        ? new Date(flightData.departure.actualTimeLocal).getTime()
+        : flightData.departure.scheduledTimeLocal
+        ? new Date(flightData.departure.scheduledTimeLocal).getTime()
+        : null;
+
       // Utiliser l'heure d'arrivée (actual, estimated, ou scheduled)
       const arrivalTime = flightData.arrival.actualTimeLocal
         ? new Date(flightData.arrival.actualTimeLocal).getTime()
@@ -229,6 +256,50 @@ export default function FlightCard({ flightData }: FlightCardProps) {
         return "N/A";
       }
 
+      // Si le vol est dans le futur (n'a pas encore décollé), afficher la durée prévue
+      if (departureTime && now < departureTime) {
+        const flightDuration = arrivalTime - departureTime;
+        
+        // Vérifier que la durée est positive (les dates sont dans le bon ordre)
+        if (flightDuration <= 0) {
+          // Si la durée est négative ou nulle, essayer avec les heures scheduled uniquement
+          const scheduledDeparture = flightData.departure.scheduledTimeLocal
+            ? new Date(flightData.departure.scheduledTimeLocal).getTime()
+            : null;
+          const scheduledArrival = flightData.arrival.scheduledTimeLocal
+            ? new Date(flightData.arrival.scheduledTimeLocal).getTime()
+            : null;
+          
+          if (scheduledDeparture && scheduledArrival && scheduledArrival > scheduledDeparture) {
+            const scheduledDuration = scheduledArrival - scheduledDeparture;
+            const hours = Math.floor(scheduledDuration / (1000 * 60 * 60));
+            const minutes = Math.floor(
+              (scheduledDuration % (1000 * 60 * 60)) / (1000 * 60)
+            );
+            
+            if (hours > 0) {
+              return `${hours}h ${minutes}m`;
+            } else {
+              return `${minutes}m`;
+            }
+          }
+          
+          return "N/A";
+        }
+        
+        const hours = Math.floor(flightDuration / (1000 * 60 * 60));
+        const minutes = Math.floor(
+          (flightDuration % (1000 * 60 * 60)) / (1000 * 60)
+        );
+        
+        if (hours > 0) {
+          return `${hours}h ${minutes}m`;
+        } else {
+          return `${minutes}m`;
+        }
+      }
+
+      // Pour les vols en cours, calculer le temps restant
       const timeRemaining = arrivalTime - now;
 
       // Ne dire "Arrived" que si vraiment arrivé (statut ou heure réelle passée)
