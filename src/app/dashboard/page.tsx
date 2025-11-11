@@ -431,14 +431,24 @@ export default function DashboardPage() {
         return;
       }
 
-      const statusMap = new Map(
-        data.statuses.map((s: any) => [s.registration, s])
+      // Type pour les statuts retournés par l'API
+      type FleetStatusFromDB = {
+        registration: string;
+        status: string;
+        message: string;
+        location: string;
+        flightInfo?: any;
+        updatedAt?: string;
+      };
+
+      const statusMap: Map<string, FleetStatusFromDB> = new Map(
+        data.statuses.map((s: FleetStatusFromDB) => [s.registration, s] as [string, FleetStatusFromDB])
       );
 
       // Mapper les statuts aux avions
       setFleetAircraft((prev) =>
         prev.map((aircraft) => {
-          const savedStatus = statusMap.get(aircraft.registration);
+          const savedStatus: FleetStatusFromDB | undefined = statusMap.get(aircraft.registration);
           if (savedStatus) {
             console.log(`[Dashboard] Loading status for ${aircraft.registration}:`, savedStatus);
             // Normaliser le statut : simplifier à seulement "in_flight" ou "on_ground"
@@ -500,7 +510,7 @@ export default function DashboardPage() {
               ...aircraft,
               status: {
                 registration: savedStatus.registration,
-                date: new Date(savedStatus.updatedAt).toISOString().split("T")[0],
+                date: savedStatus.updatedAt ? new Date(savedStatus.updatedAt).toISOString().split("T")[0] : new Date().toISOString().split("T")[0],
                 status: dynamicStatus as AircraftStatus["status"],
                 message: savedStatus.message || "",
                 location: savedStatus.location || "",
@@ -932,18 +942,6 @@ export default function DashboardPage() {
         return (
           <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-green-100 text-green-800 uppercase tracking-wide">
             On Ground
-          </span>
-        );
-      case "scheduled":
-        return (
-          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-yellow-100 text-yellow-800 uppercase tracking-wide">
-            Scheduled
-          </span>
-        );
-      case "no_flights":
-        return (
-          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-gray-100 text-gray-800 uppercase tracking-wide">
-            No Flights
           </span>
         );
       default:
