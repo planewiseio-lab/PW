@@ -539,17 +539,42 @@ export const GET = withFlightBrowseAccess(
 
       // Collecter TOUS les résultats de tous les candidats pour filtrer ensuite
       const allFlights: any[] = [];
-      let foundExactMatch = false; // Flag pour arrêter si on trouve un vol avec la date exacte
+      let foundExactDateMatch = false; // Flag pour savoir si on a trouvé un vol avec la date exacte
 
       console.log(`[FlightAPI] Trying ${candidates.length} API candidates:`, candidates.map(c => c.split('?')[0]));
       
-      for (const pathPart of candidates) {
-        // Si on a déjà trouvé un vol avec la date exacte, arrêter la recherche
-        if (foundExactMatch && dateLocal) {
-          console.log(`[FlightAPI] Exact match found, skipping remaining variations`);
-          break;
+      // Séparer les candidats par type : date exacte, jour suivant, sans date
+      const exactDateCandidates: string[] = [];
+      const nextDayCandidates: string[] = [];
+      const noDateCandidates: string[] = [];
+      
+      if (dateLocal) {
+        const requestedDateObj = new Date(dateLocal);
+        const nextDay = new Date(requestedDateObj);
+        nextDay.setDate(nextDay.getDate() + 1);
+        const nextDayStr = nextDay.toISOString().split('T')[0];
+        
+        for (const candidate of candidates) {
+          if (candidate.includes(`/${dateLocal}`)) {
+            exactDateCandidates.push(candidate);
+          } else if (candidate.includes(`/${nextDayStr}`)) {
+            nextDayCandidates.push(candidate);
+          } else if (!candidate.includes('/202') && !candidate.includes('/20')) {
+            noDateCandidates.push(candidate);
+          }
         }
-
+        
+        console.log(`[FlightAPI] Categorized candidates:`, {
+          exactDate: exactDateCandidates.length,
+          nextDay: nextDayCandidates.length,
+          noDate: noDateCandidates.length,
+        });
+      } else {
+        noDateCandidates.push(...candidates);
+      }
+      
+      // Fonction pour traiter un candidat
+      const processCandidate = async (pathPart: string): Promise<boolean> => {
         console.log(`[FlightAPI] Trying API call: ${pathPart}`);
         const resp = await callAero(pathPart);
         console.log(`[AeroDataBox] Response: ${resp.status} from ${resp.url}`);
@@ -557,15 +582,14 @@ export const GET = withFlightBrowseAccess(
         // Si 204 (pas de contenu), continuer sans erreur et sans parser
         if (resp.status === 204) {
           console.log(`[FlightAPI] No content (204) for ${pathPart}, continuing`);
-          continue;
+          return false; // Pas de résultats
         }
 
-        // Si 5xx, arrêter
+        // Si 5xx, arrêter et retourner une erreur
         if (resp.status >= 500) {
-          return NextResponse.json(
-            { error: "AeroDataBox server error" },
-            { status: resp.status }
-          );
+          console.log(`[FlightAPI] Server error ${resp.status} for ${pathPart}`);
+          // Ne pas lancer d'exception, mais retourner false pour continuer avec d'autres candidats
+          return false;
         }
 
         if (resp.ok) {
@@ -573,7 +597,7 @@ export const GET = withFlightBrowseAccess(
             // Vérifier que resp.text n'est pas vide avant de parser
             if (!resp.text || resp.text.trim().length === 0) {
               console.log(`[FlightAPI] Empty response body for ${pathPart}`);
-              continue;
+              return false;
             }
             const data = JSON.parse(resp.text);
             const flights = Array.isArray(data)
@@ -585,38 +609,74 @@ export const GET = withFlightBrowseAccess(
               `[FlightAPI] Found ${flights.length} flights from ${pathPart}`
             );
             
-            // Si on a une date et qu'on trouve un vol, vérifier si c'est un match exact
-            if (dateLocal && flights.length > 0) {
-              const exactMatch = flights.find((flight: any) => {
-                const depLocalTime =
-                  flight.departure?.scheduledTime?.local ||
-                  flight.departure?.revisedTime?.local ||
-                  flight.dep?.scheduledTime?.local ||
-                  flight.dep?.revisedTime?.local;
-                if (!depLocalTime) return false;
-                const depLocalDate = depLocalTime.match(/^\d{4}-\d{2}-\d{2}/)?.[0];
-                return depLocalDate === dateLocal;
-              });
-              
-              if (exactMatch) {
-                foundExactMatch = true;
-                console.log(`[FlightAPI] ✅ Found exact date match from ${pathPart}`);
+            if (flights.length > 0) {
+              // Si on a une date, vérifier si c'est un match exact
+              if (dateLocal) {
+                const exactMatch = flights.find((flight: any) => {
+                  const depLocalTime =
+                    flight.departure?.scheduledTime?.local ||
+                    flight.departure?.revisedTime?.local ||
+                    flight.dep?.scheduledTime?.local ||
+                    flight.dep?.revisedTime?.local;
+                  if (!depLocalTime) return false;
+                  const depLocalDate = depLocalTime.match(/^\d{4}-\d{2}-\d{2}/)?.[0];
+                  return depLocalDate === dateLocal;
+                });
+                
+                if (exactMatch) {
+                  foundExactDateMatch = true;
+                  console.log(`[FlightAPI] ✅ Found exact date match from ${pathPart}`);
+                }
               }
+              
+              allFlights.push(...flights);
+              return true; // Résultats trouvés
             }
-            
-            allFlights.push(...flights);
-            
-            // Si on a trouvé des vols et qu'on n'a pas de date spécifique, arrêter
-            if (!dateLocal && allFlights.length > 0) {
-              console.log(`[FlightAPI] Found flights without date filter, stopping search`);
-              break;
-            }
+            return false; // Pas de résultats
           } catch (e) {
             console.log(
               `[FlightAPI] Failed to parse response from ${pathPart}: ${e}`
             );
-            // Continuer même si le parsing échoue (peut être une réponse vide)
-            continue;
+            return false;
+          }
+        }
+        return false;
+      };
+      
+      // Traiter d'abord les candidats avec la date exacte
+      if (dateLocal && exactDateCandidates.length > 0) {
+        console.log(`[FlightAPI] Processing ${exactDateCandidates.length} exact date candidates...`);
+        for (const candidate of exactDateCandidates) {
+          await processCandidate(candidate);
+          // Si on a trouvé un match exact, on peut arrêter de chercher la date exacte
+          // mais on continue quand même pour collecter tous les résultats possibles
+        }
+      }
+      
+      // Si on n'a pas trouvé de match exact ET qu'on a une date, essayer le jour suivant
+      if (dateLocal && !foundExactDateMatch && nextDayCandidates.length > 0) {
+        console.log(`[FlightAPI] No exact match found, trying ${nextDayCandidates.length} next day candidates...`);
+        for (const candidate of nextDayCandidates) {
+          await processCandidate(candidate);
+        }
+      }
+      
+      // Si on n'a toujours pas de résultats et qu'on a une date, essayer sans date
+      if (dateLocal && allFlights.length === 0 && noDateCandidates.length > 0) {
+        console.log(`[FlightAPI] Still no results, trying ${noDateCandidates.length} no-date candidates...`);
+        for (const candidate of noDateCandidates) {
+          const hasResults = await processCandidate(candidate);
+          // Si on trouve des résultats sans date, arrêter
+          if (hasResults && allFlights.length > 0) {
+            break;
+          }
+        }
+      } else if (!dateLocal && noDateCandidates.length > 0) {
+        // Si pas de date spécifiée, essayer tous les candidats sans date
+        for (const candidate of noDateCandidates) {
+          const hasResults = await processCandidate(candidate);
+          if (hasResults && allFlights.length > 0) {
+            break;
           }
         }
       }
