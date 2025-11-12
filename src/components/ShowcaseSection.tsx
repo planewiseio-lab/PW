@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, CSSProperties } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import Image from "next/image";
 
@@ -127,7 +127,7 @@ export default function ShowcaseSection() {
                     imageRendering: "crisp-edges",
                     WebkitImageRendering: "crisp-edges",
                     msImageRendering: "crisp-edges",
-                  }}
+                  } as CSSProperties}
                   sizes="(max-width: 768px) 100vw, (max-width: 1200px) 90vw, 80vw"
                   priority={currentSlide === 0}
                   quality={100}
