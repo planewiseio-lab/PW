@@ -46,3 +46,4 @@ Après avoir créé la table et généré Prisma, le dashboard devrait :
 - Permettre de mettre à jour les statuts via le bouton "Update Fleet Status"
 
 
+

@@ -43,16 +43,16 @@ export default function AboutUsPage() {
                   returns information or is invalid.
                 </li>
                 <li>
-                  <strong>2 credits:</strong> For each Flight Board - Arrivals
-                  or Departures search returning up to 25 results for an
-                  airport.
-                </li>
-                <li className="ml-6 list-none">
-                  Each additional set of 25 results costs 2 extra credits.
+                  <strong>2 credits:</strong> For each Flight Board Arrivals and
+                  departures.
                 </li>
                 <li>
-                  <strong>4 credits:</strong> For each flight history request
-                  of an aircraft covering a 14-day period.
+                  <strong>2 credits:</strong> For each plane status update in
+                  the dashboard.
+                </li>
+                <li>
+                  <strong>4 credits:</strong> For each flight history request of
+                  an aircraft covering a 14-day period.
                 </li>
                 <li>
                   <strong>0 credits:</strong> For images displayed during an
@@ -67,9 +67,7 @@ export default function AboutUsPage() {
               </h3>
               <ul className="list-disc pl-6 space-y-2">
                 <li>Plan your searches carefully to maximize usage.</li>
-                <li>
-                  Remember that complex searches consume more credits.
-                </li>
+                <li>Remember that complex searches consume more credits.</li>
                 <li>
                   Your remaining credits are displayed in your account dashboard
                   for easy tracking.
@@ -114,8 +112,8 @@ export default function AboutUsPage() {
               </p>
               <p>
                 By purchasing or subscribing to any paid service offered by
-                PlaneWise ("the Service"), you agree to the terms of this
-                Refund Policy.
+                PlaneWise ("the Service"), you agree to the terms of this Refund
+                Policy.
               </p>
             </div>
 
@@ -134,8 +132,8 @@ export default function AboutUsPage() {
             <div>
               <h3 className="text-xl font-semibold mb-4">3. Paid Plans</h3>
               <p className="mb-4">
-                Payments for subscriptions or credits made through PlaneWise
-                are generally non-refundable, except in the following cases:
+                Payments for subscriptions or credits made through PlaneWise are
+                generally non-refundable, except in the following cases:
               </p>
               <ul className="list-disc pl-6 mb-4">
                 <li>Duplicate payments caused by a billing error;</li>
@@ -144,8 +142,8 @@ export default function AboutUsPage() {
                   features after purchase;
                 </li>
                 <li>
-                  Unauthorized or fraudulent transactions verified by our payment
-                  processor.
+                  Unauthorized or fraudulent transactions verified by our
+                  payment processor.
                 </li>
               </ul>
               <p>
@@ -195,8 +193,8 @@ export default function AboutUsPage() {
                 refund for the current billing period.
               </p>
               <p>
-                To avoid being charged for the next cycle, cancellations must
-                be submitted at least 24 hours before renewal.
+                To avoid being charged for the next cycle, cancellations must be
+                submitted at least 24 hours before renewal.
               </p>
             </div>
 
@@ -250,7 +248,8 @@ export default function AboutUsPage() {
               <ul className="list-disc pl-6 space-y-2">
                 <li>
                   <strong>Encrypted connections:</strong> All data transmitted
-                  between your device and PlaneWise is encrypted using HTTPS/TLS.
+                  between your device and PlaneWise is encrypted using
+                  HTTPS/TLS.
                 </li>
                 <li>
                   <strong>Secure storage:</strong> User data is stored securely
@@ -270,8 +269,8 @@ export default function AboutUsPage() {
             </div>
 
             <p>
-              We continuously review and improve our security practices to ensure
-              your data is safe while using PlaneWise.
+              We continuously review and improve our security practices to
+              ensure your data is safe while using PlaneWise.
             </p>
 
             <div>
@@ -296,4 +295,3 @@ export default function AboutUsPage() {
     </main>
   );
 }
-

@@ -242,47 +242,47 @@ export function GuestQuotaExceededModal() {
         </button>
 
         {/* Header */}
-        <div className="text-center p-8 border-b border-gray-200">
-          <div className="inline-flex items-center justify-center w-20 h-20 bg-orange-100 rounded-full mb-6">
-            <Zap className="w-10 h-10 text-orange-600" />
+        <div className="text-center p-4 sm:p-6 md:p-8 border-b border-gray-200">
+          <div className="inline-flex items-center justify-center w-16 h-16 sm:w-20 sm:h-20 bg-orange-100 rounded-full mb-4 sm:mb-6">
+            <Zap className="w-8 h-8 sm:w-10 sm:h-10 text-orange-600" />
           </div>
-          <h1 className="text-4xl font-bold text-gray-900 mb-4">
+          <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-gray-900 mb-2 sm:mb-4 px-2">
             Guest Limit Reached
           </h1>
-          <p className="text-xl text-gray-600 max-w-2xl mx-auto">
+          <p className="text-sm sm:text-base md:text-xl text-gray-600 max-w-2xl mx-auto px-2">
             You've used all your {guestLimit} anonymous requests in the last
-            24h. Log in to continue and get 50 credits per month (Free plan)!
+            24h. Log in to get 50 credits/month (Free plan)!
           </p>
         </div>
 
         {/* Current Status */}
-        <div className="bg-gray-50 p-8">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-4">
-              <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center">
-                <Zap className="w-6 h-6 text-gray-600" />
+        <div className="bg-gray-50 p-4 sm:p-6 md:p-8">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div className="flex items-center space-x-3 sm:space-x-4">
+              <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gray-100 rounded-full flex items-center justify-center flex-shrink-0">
+                <Zap className="w-5 h-5 sm:w-6 sm:h-6 text-gray-600" />
               </div>
               <div>
-                <h3 className="text-lg font-semibold text-gray-900">
+                <h3 className="text-base sm:text-lg font-semibold text-gray-900">
                   Current: Guest Access
                 </h3>
-                <p className="text-gray-600">
-                  {guestLimit} requests per 24h • Anonymous browsing
+                <p className="text-sm sm:text-base text-gray-600">
+                  {guestLimit} requests/24h
                 </p>
               </div>
             </div>
-            <div className="text-right">
-              <div className="text-2xl font-bold text-orange-600">
+            <div className="text-left sm:text-right">
+              <div className="text-2xl sm:text-3xl font-bold text-orange-600">
                 {guestRemaining}
               </div>
-              <div className="text-sm text-gray-500">requests remaining</div>
+              <div className="text-xs sm:text-sm text-gray-500">requests remaining</div>
 
               {/* Countdown - juste sous "requests remaining" */}
               {(timeRemaining > 0 || guestTtl > 0) && (
                 <div className="mt-2 pt-2 border-t border-gray-300">
-                  <div className="flex items-center justify-end space-x-2">
+                  <div className="flex items-center sm:justify-end space-x-2">
                     <svg
-                      className="w-4 h-4 text-gray-500"
+                      className="w-4 h-4 text-gray-500 flex-shrink-0"
                       fill="none"
                       viewBox="0 0 24 24"
                       stroke="currentColor"
@@ -294,10 +294,10 @@ export function GuestQuotaExceededModal() {
                         d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
                       />
                     </svg>
-                    <span className="text-xs text-gray-600">
-                      Quota resets in:
+                    <span className="text-xs text-gray-600 whitespace-nowrap">
+                      Resets in:
                     </span>
-                    <span className="text-sm font-bold text-orange-600">
+                    <span className="text-sm font-bold text-orange-600 whitespace-nowrap">
                       {formatTimeRemaining(
                         timeRemaining > 0
                           ? timeRemaining
@@ -330,7 +330,7 @@ export function GuestQuotaExceededModal() {
               <div className="space-y-3 mb-6 flex-1">
                 <div className="flex items-center space-x-3">
                   <CheckCircle className="w-4 h-4 text-green-500 flex-shrink-0" />
-                  <span className="text-sm text-gray-700">Aircraft lookup</span>
+                  <span className="text-sm text-gray-700">Aircraft Lookup and history</span>
                 </div>
                 <div className="flex items-center space-x-3">
                   <CheckCircle className="w-4 h-4 text-green-500 flex-shrink-0" />
@@ -345,12 +345,8 @@ export function GuestQuotaExceededModal() {
                 <div className="flex items-center space-x-3">
                   <CheckCircle className="w-4 h-4 text-green-500 flex-shrink-0" />
                   <span className="text-sm text-gray-700">
-                    Basic specs & photos
+                    Personal fleet max 1 aircraft
                   </span>
-                </div>
-                <div className="flex items-center space-x-3">
-                  <CheckCircle className="w-4 h-4 text-green-500 flex-shrink-0" />
-                  <span className="text-sm text-gray-700">User dashboard</span>
                 </div>
                 <div className="flex items-center space-x-3">
                   <CheckCircle className="w-4 h-4 text-green-500 flex-shrink-0" />
@@ -359,7 +355,7 @@ export function GuestQuotaExceededModal() {
               </div>
 
               <div className="text-center text-sm text-gray-500 mb-4">
-                50 credits per month
+                50 Credits
               </div>
 
               <Link
@@ -388,7 +384,7 @@ export function GuestQuotaExceededModal() {
               <div className="space-y-3 mb-6 flex-1">
                 <div className="flex items-center space-x-3">
                   <CheckCircle className="w-4 h-4 text-green-500 flex-shrink-0" />
-                  <span className="text-sm text-gray-700">Aircraft lookup</span>
+                  <span className="text-sm text-gray-700">Aircraft Lookup and history</span>
                 </div>
                 <div className="flex items-center space-x-3">
                   <CheckCircle className="w-4 h-4 text-green-500 flex-shrink-0" />
@@ -403,21 +399,17 @@ export function GuestQuotaExceededModal() {
                 <div className="flex items-center space-x-3">
                   <CheckCircle className="w-4 h-4 text-green-500 flex-shrink-0" />
                   <span className="text-sm text-gray-700">
-                    Basic specs & photos
+                    Personal fleet max 5 aircraft
                   </span>
                 </div>
                 <div className="flex items-center space-x-3">
                   <CheckCircle className="w-4 h-4 text-green-500 flex-shrink-0" />
-                  <span className="text-sm text-gray-700">User dashboard</span>
-                </div>
-                <div className="flex items-center space-x-3">
-                  <CheckCircle className="w-4 h-4 text-green-500 flex-shrink-0" />
-                  <span className="text-sm text-gray-700">Ads</span>
+                  <span className="text-sm text-gray-700">No ads</span>
                 </div>
               </div>
 
               <div className="text-center text-sm text-gray-500 mb-4">
-                350 credits per month
+                350 Credits
               </div>
 
               <Link
@@ -503,7 +495,7 @@ export function GuestQuotaExceededModal() {
               <div className="space-y-3 mb-6 flex-1">
                 <div className="flex items-center space-x-3">
                   <CheckCircle className="w-4 h-4 text-green-500 flex-shrink-0" />
-                  <span className="text-sm text-gray-700">Aircraft lookup</span>
+                  <span className="text-sm text-gray-700">Aircraft Lookup and history</span>
                 </div>
                 <div className="flex items-center space-x-3">
                   <CheckCircle className="w-4 h-4 text-green-500 flex-shrink-0" />
@@ -518,23 +510,17 @@ export function GuestQuotaExceededModal() {
                 <div className="flex items-center space-x-3">
                   <CheckCircle className="w-4 h-4 text-green-500 flex-shrink-0" />
                   <span className="text-sm text-gray-700">
-                    Basic specs & photos
+                    Personal fleet max 15 aircraft
                   </span>
                 </div>
                 <div className="flex items-center space-x-3">
                   <CheckCircle className="w-4 h-4 text-green-500 flex-shrink-0" />
-                  <span className="text-sm text-gray-700">User dashboard</span>
-                </div>
-                <div className="flex items-center space-x-3">
-                  <CheckCircle className="w-4 h-4 text-green-500 flex-shrink-0" />
-                  <span className="text-sm text-gray-700">
-                    Priority processing
-                  </span>
+                  <span className="text-sm text-gray-700">No ads</span>
                 </div>
               </div>
 
               <div className="text-center text-sm text-gray-500 mb-4">
-                750 requests per month
+                750 Credits
               </div>
 
               <Link

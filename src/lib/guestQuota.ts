@@ -21,9 +21,17 @@ export interface GuestUsage {
 /**
  * Extrait l'IP client depuis les headers de la requête
  * En développement, normalise toutes les variantes de localhost vers 127.0.0.1
+ * 
+ * SÉCURITÉ : En production, Vercel/Cloudflare ajoutent automatiquement les headers sécurisés.
+ * Les headers x-forwarded-for et x-real-ip sont fiables uniquement s'ils proviennent du proxy.
+ * Un client malveillant peut falsifier ces headers, mais en production derrière Vercel,
+ * ces headers sont automatiquement sécurisés et ne peuvent pas être falsifiés par le client.
  */
 export function getClientIp(req: NextRequest): string {
-  // 1. Vérifier x-forwarded-for (premier élément)
+  // En production sur Vercel, l'IP réelle est dans x-forwarded-for ou x-real-ip
+  // Ces headers sont sécurisés par Vercel et ne peuvent pas être falsifiés par le client
+  
+  // 1. Vérifier x-forwarded-for (premier élément - IP réelle du client)
   const forwardedFor = req.headers.get("x-forwarded-for");
   if (forwardedFor) {
     const ips = forwardedFor.split(",").map((ip) => ip.trim());
@@ -34,11 +42,14 @@ export function getClientIp(req: NextRequest): string {
       if (process.env.NODE_ENV === "development" && (normalized === "::1" || normalized.includes("::"))) {
         return "127.0.0.1";
       }
-      return normalized;
+      // Valider que l'IP est valide avant de la retourner
+      if (isValidIp(normalized)) {
+        return normalized;
+      }
     }
   }
 
-  // 2. Vérifier x-real-ip
+  // 2. Vérifier x-real-ip (IP réelle du client, souvent utilisé par les proxies)
   const realIp = req.headers.get("x-real-ip");
   if (realIp && realIp !== "unknown") {
     const normalized = normalizeIp(realIp);
@@ -46,7 +57,10 @@ export function getClientIp(req: NextRequest): string {
     if (process.env.NODE_ENV === "development" && (normalized === "::1" || normalized.includes("::"))) {
       return "127.0.0.1";
     }
-    return normalized;
+    // Valider que l'IP est valide avant de la retourner
+    if (isValidIp(normalized)) {
+      return normalized;
+    }
   }
 
   // 3. Essayer de détecter l'IP depuis la connexion (pour localhost IPv6)
@@ -55,8 +69,35 @@ export function getClientIp(req: NextRequest): string {
     return "127.0.0.1";
   }
 
-  // 4. Dernier recours
+  // 4. Dernier recours (ne devrait jamais arriver en production)
+  console.warn("[Guest Quota] ⚠️ Could not determine client IP, using fallback");
   return "127.0.0.1";
+}
+
+/**
+ * Valide qu'une adresse IP est valide (IPv4 ou IPv6)
+ */
+function isValidIp(ip: string): boolean {
+  if (!ip || ip.length === 0) return false;
+  
+  // IPv4 validation (plus stricte)
+  const ipv4Regex = /^(\d{1,3}\.){3}\d{1,3}$/;
+  if (ipv4Regex.test(ip)) {
+    const parts = ip.split(".");
+    return parts.every(part => {
+      const num = parseInt(part, 10);
+      return num >= 0 && num <= 255;
+    });
+  }
+  
+  // IPv6 validation (format simplifié)
+  if (ip.includes(":")) {
+    // Format IPv6 basique (peut être amélioré)
+    const ipv6Regex = /^([0-9a-fA-F]{0,4}:){2,7}[0-9a-fA-F]{0,4}$/;
+    return ipv6Regex.test(ip) || ip === "::1";
+  }
+  
+  return false;
 }
 
 /**

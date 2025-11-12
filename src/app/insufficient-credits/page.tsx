@@ -35,7 +35,7 @@ export default function InsufficientCreditsPage() {
                     Current Plan: Free
                   </h3>
                   <p className="text-gray-600">
-                    5 requests per day • Daily renewal
+                    50 credits per month • Monthly renewal
                   </p>
                 </div>
               </div>
@@ -64,7 +64,7 @@ export default function InsufficientCreditsPage() {
               <div className="space-y-4 mb-8 flex-1">
                 <div className="flex items-center space-x-3">
                   <CheckCircle className="w-5 h-5 text-green-500 flex-shrink-0" />
-                  <span className="text-gray-700">Aircraft lookup</span>
+                  <span className="text-gray-700">Aircraft Lookup and history</span>
                 </div>
                 <div className="flex items-center space-x-3">
                   <CheckCircle className="w-5 h-5 text-green-500 flex-shrink-0" />
@@ -76,11 +76,7 @@ export default function InsufficientCreditsPage() {
                 </div>
                 <div className="flex items-center space-x-3">
                   <CheckCircle className="w-5 h-5 text-green-500 flex-shrink-0" />
-                  <span className="text-gray-700">Basic specs & photos</span>
-                </div>
-                <div className="flex items-center space-x-3">
-                  <CheckCircle className="w-5 h-5 text-green-500 flex-shrink-0" />
-                  <span className="text-gray-700">Community support</span>
+                  <span className="text-gray-700">Personal fleet max 1 aircraft</span>
                 </div>
                 <div className="flex items-center space-x-3">
                   <CheckCircle className="w-5 h-5 text-green-500 flex-shrink-0" />
@@ -89,7 +85,7 @@ export default function InsufficientCreditsPage() {
               </div>
 
               <div className="text-center text-sm text-gray-500 mb-4">
-                5 requests per day
+                50 Credits
               </div>
 
               <Link
@@ -117,7 +113,7 @@ export default function InsufficientCreditsPage() {
               <div className="space-y-4 mb-8 flex-1">
                 <div className="flex items-center space-x-3">
                   <CheckCircle className="w-5 h-5 text-green-500 flex-shrink-0" />
-                  <span className="text-gray-700">Aircraft lookup</span>
+                  <span className="text-gray-700">Aircraft Lookup and history</span>
                 </div>
                 <div className="flex items-center space-x-3">
                   <CheckCircle className="w-5 h-5 text-green-500 flex-shrink-0" />
@@ -129,20 +125,16 @@ export default function InsufficientCreditsPage() {
                 </div>
                 <div className="flex items-center space-x-3">
                   <CheckCircle className="w-5 h-5 text-green-500 flex-shrink-0" />
-                  <span className="text-gray-700">Basic specs & photos</span>
+                  <span className="text-gray-700">Personal fleet max 5 aircraft</span>
                 </div>
                 <div className="flex items-center space-x-3">
                   <CheckCircle className="w-5 h-5 text-green-500 flex-shrink-0" />
-                  <span className="text-gray-700">Community support</span>
-                </div>
-                <div className="flex items-center space-x-3">
-                  <CheckCircle className="w-5 h-5 text-green-500 flex-shrink-0" />
-                  <span className="text-gray-700">Ads</span>
+                  <span className="text-gray-700">No ads</span>
                 </div>
               </div>
 
               <div className="text-center text-sm text-gray-500 mb-4">
-                350 credits per month
+                350 Credits
               </div>
 
               <Link
@@ -227,7 +219,7 @@ export default function InsufficientCreditsPage() {
               <div className="space-y-4 mb-8 flex-1">
                 <div className="flex items-center space-x-3">
                   <CheckCircle className="w-5 h-5 text-green-500 flex-shrink-0" />
-                  <span className="text-gray-700">Aircraft lookup</span>
+                  <span className="text-gray-700">Aircraft Lookup and history</span>
                 </div>
                 <div className="flex items-center space-x-3">
                   <CheckCircle className="w-5 h-5 text-green-500 flex-shrink-0" />
@@ -239,20 +231,16 @@ export default function InsufficientCreditsPage() {
                 </div>
                 <div className="flex items-center space-x-3">
                   <CheckCircle className="w-5 h-5 text-green-500 flex-shrink-0" />
-                  <span className="text-gray-700">Basic specs & photos</span>
+                  <span className="text-gray-700">Personal fleet max 15 aircraft</span>
                 </div>
                 <div className="flex items-center space-x-3">
                   <CheckCircle className="w-5 h-5 text-green-500 flex-shrink-0" />
-                  <span className="text-gray-700">Community support</span>
-                </div>
-                <div className="flex items-center space-x-3">
-                  <CheckCircle className="w-5 h-5 text-green-500 flex-shrink-0" />
-                  <span className="text-gray-700">Priority processing</span>
+                  <span className="text-gray-700">No ads</span>
                 </div>
               </div>
 
               <div className="text-center text-sm text-gray-500 mb-4">
-                750 requests per month
+                750 Credits
               </div>
 
               <Link

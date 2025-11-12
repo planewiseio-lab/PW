@@ -51,3 +51,4 @@ CREATE POLICY "Users can delete their own fleet status"
 COMMENT ON TABLE public.fleet_status IS 'Stores the current status of aircraft in user fleets';
 
 
+

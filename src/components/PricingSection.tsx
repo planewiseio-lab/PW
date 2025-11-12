@@ -41,11 +41,10 @@ export default function PricingSection() {
               price: "$0",
               note: "/mo",
               perks: [
-                "Aircraft lookup",
+                "Aircraft Lookup and history",
                 "Flight history",
                 "Airport information",
-                "Basic specs & photos",
-                "Community support",
+                "Personal fleet max 1 aircraft",
                 "Ads",
               ],
               cta: {
@@ -60,12 +59,11 @@ export default function PricingSection() {
               price: "$5.99",
               note: "/mo",
               perks: [
-                "Aircraft lookup",
+                "Aircraft Lookup and history",
                 "Flight history",
                 "Airport information",
-                "Basic specs & photos",
-                "Community support",
-                "Ads",
+                "Personal fleet max 5 aircraft",
+                "No ads",
               ],
               cta: {
                 href: "/checkout?plan=basic",
@@ -80,12 +78,11 @@ export default function PricingSection() {
               oldPrice: "$12.99",
               note: "/mo",
               perks: [
-                "Aircraft lookup",
+                "Aircraft Lookup and history",
                 "Flight history",
                 "Airport information",
-                "Basic specs & photos",
-                "Community support",
-                "Priority processing",
+                "Personal fleet max 15 aircraft",
+                "No ads",
               ],
               cta: {
                 href: "/checkout?plan=pro",

@@ -12,51 +12,15 @@ import {
   X,
 } from "lucide-react";
 
-function formatTimeRemaining(seconds: number): string {
-  if (seconds <= 0) return "0s";
-
-  const hours = Math.floor(seconds / 3600);
-  const minutes = Math.floor((seconds % 3600) / 60);
-  const secs = seconds % 60;
-
-  if (hours > 0) {
-    return `${hours}h ${minutes}m ${secs}s`;
-  } else if (minutes > 0) {
-    return `${minutes}m ${secs}s`;
-  } else {
-    return `${secs}s`;
-  }
-}
-
 export function FreeCreditsExceededModal() {
   const [isOpen, setIsOpen] = useState(false);
   const [creditsRemaining, setCreditsRemaining] = useState(0);
-  const [freeUserTtl, setFreeUserTtl] = useState(0); // TTL en secondes
-  const [timeRemaining, setTimeRemaining] = useState(0); // Temps restant en secondes
 
   useEffect(() => {
     const handleCreditsExceeded = (event: CustomEvent) => {
       console.log("[FreeCreditsExceededModal] Event received:", event.detail);
-      const ttl = event.detail?.freeUserTtl ?? event.detail?.ttl ?? 0;
-      console.log(
-        "[FreeCreditsExceededModal] TTL:",
-        ttl,
-        "Full event detail:",
-        event.detail
-      );
       setCreditsRemaining(
         event.detail?.creditsRemaining ?? event.detail?.freeUserRemaining ?? 0
-      );
-      setFreeUserTtl(ttl);
-      // Initialiser timeRemaining avec ttl immédiatement
-      if (ttl > 0) {
-        setTimeRemaining(ttl);
-      }
-      console.log(
-        "[FreeCreditsExceededModal] States set - freeUserTtl:",
-        ttl,
-        "timeRemaining:",
-        ttl
       );
       setIsOpen(true);
     };
@@ -81,31 +45,6 @@ export function FreeCreditsExceededModal() {
       window.removeEventListener("keydown", handleKeyDown);
     };
   }, [isOpen]);
-
-  // Mettre à jour le countdown chaque seconde
-  useEffect(() => {
-    if (!isOpen) return;
-
-    // Initialiser timeRemaining avec freeUserTtl si nécessaire (au premier render ou si timeRemaining est 0)
-    if (timeRemaining <= 0 && freeUserTtl > 0) {
-      setTimeRemaining(freeUserTtl);
-    }
-
-    // Utiliser le temps actuel pour vérifier si on doit démarrer le countdown
-    const currentTime =
-      timeRemaining > 0 ? timeRemaining : freeUserTtl > 0 ? freeUserTtl : 0;
-    if (currentTime <= 0) return;
-
-    const countdownInterval = setInterval(() => {
-      setTimeRemaining((prev) => {
-        const current = prev > 0 ? prev : freeUserTtl > 0 ? freeUserTtl : 0;
-        if (current <= 0) return 0;
-        return current - 1;
-      });
-    }, 1000);
-
-    return () => clearInterval(countdownInterval);
-  }, [isOpen, freeUserTtl]);
 
   if (!isOpen) return null;
 
@@ -135,71 +74,37 @@ export function FreeCreditsExceededModal() {
         </button>
 
         {/* Header */}
-        <div className="text-center p-8 border-b border-gray-200">
-          <div className="inline-flex items-center justify-center w-20 h-20 bg-orange-100 rounded-full mb-6">
-            <Zap className="w-10 h-10 text-orange-600" />
+        <div className="text-center p-4 sm:p-6 md:p-8 border-b border-gray-200">
+          <div className="inline-flex items-center justify-center w-16 h-16 sm:w-20 sm:h-20 bg-orange-100 rounded-full mb-4 sm:mb-6">
+            <Zap className="w-8 h-8 sm:w-10 sm:h-10 text-orange-600" />
           </div>
-          <h1 className="text-4xl font-bold text-gray-900 mb-4">
-            Monthly Credits Exhausted
+          <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-gray-900 mb-2 sm:mb-4 px-2">
+            Credits Exhausted
           </h1>
-          <p className="text-xl text-gray-600 max-w-2xl mx-auto">
-            You've used all your 50 monthly credits. Upgrade to Pro plan for 750
-            monthly credits and unlimited access!
+          <p className="text-sm sm:text-base md:text-xl text-gray-600 max-w-2xl mx-auto px-2">
+            You've used all your 50 monthly credits. Upgrade for more!
           </p>
         </div>
 
         {/* Current Status */}
-        <div className="bg-gray-50 p-8">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-4">
-              <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
-                <Star className="w-6 h-6 text-blue-600" />
+        <div className="bg-gray-50 p-4 sm:p-6 md:p-8">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div className="flex items-center space-x-3 sm:space-x-4">
+              <div className="w-10 h-10 sm:w-12 sm:h-12 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0">
+                <Star className="w-5 h-5 sm:w-6 sm:h-6 text-blue-600" />
               </div>
               <div>
-                <h3 className="text-lg font-semibold text-gray-900">
+                <h3 className="text-base sm:text-lg font-semibold text-gray-900">
                   Current Plan: Free
                 </h3>
-                <p className="text-gray-600">
-                  50 credits per month • Monthly renewal
+                <p className="text-sm sm:text-base text-gray-600">
+                  50 credits/month
                 </p>
               </div>
             </div>
-            <div className="text-right">
-              <div className="text-2xl font-bold text-red-600">0</div>
-              <div className="text-sm text-gray-500">credits remaining</div>
-
-              {/* Countdown - juste sous "credits remaining" */}
-              {(timeRemaining > 0 || freeUserTtl > 0) && (
-                <div className="mt-2 pt-2 border-t border-gray-300">
-                  <div className="flex items-center justify-end space-x-2">
-                    <svg
-                      className="w-4 h-4 text-gray-500"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
-                      />
-                    </svg>
-                    <span className="text-xs text-gray-600">
-                      Quota resets in:
-                    </span>
-                    <span className="text-sm font-bold text-orange-600">
-                      {formatTimeRemaining(
-                        timeRemaining > 0
-                          ? timeRemaining
-                          : freeUserTtl > 0
-                          ? freeUserTtl
-                          : 0
-                      )}
-                    </span>
-                  </div>
-                </div>
-              )}
+            <div className="text-left sm:text-right">
+              <div className="text-2xl sm:text-3xl font-bold text-red-600">0</div>
+              <div className="text-xs sm:text-sm text-gray-500">credits remaining</div>
             </div>
           </div>
         </div>
@@ -221,7 +126,7 @@ export function FreeCreditsExceededModal() {
               <div className="space-y-3 mb-6 flex-1">
                 <div className="flex items-center space-x-3">
                   <CheckCircle className="w-4 h-4 text-green-500 flex-shrink-0" />
-                  <span className="text-sm text-gray-700">Aircraft lookup</span>
+                  <span className="text-sm text-gray-700">Aircraft Lookup and history</span>
                 </div>
                 <div className="flex items-center space-x-3">
                   <CheckCircle className="w-4 h-4 text-green-500 flex-shrink-0" />
@@ -236,13 +141,7 @@ export function FreeCreditsExceededModal() {
                 <div className="flex items-center space-x-3">
                   <CheckCircle className="w-4 h-4 text-green-500 flex-shrink-0" />
                   <span className="text-sm text-gray-700">
-                    Basic specs & photos
-                  </span>
-                </div>
-                <div className="flex items-center space-x-3">
-                  <CheckCircle className="w-4 h-4 text-green-500 flex-shrink-0" />
-                  <span className="text-sm text-gray-700">
-                    Community support
+                    Personal fleet max 1 aircraft
                   </span>
                 </div>
                 <div className="flex items-center space-x-3">
@@ -252,7 +151,7 @@ export function FreeCreditsExceededModal() {
               </div>
 
               <div className="text-center text-sm text-gray-500 mb-4">
-                50 credits per month
+                50 Credits
               </div>
 
               <div className="w-full bg-gray-300 text-gray-500 py-3 px-4 rounded-lg font-semibold flex items-center justify-center space-x-2 cursor-not-allowed">
@@ -276,7 +175,7 @@ export function FreeCreditsExceededModal() {
               <div className="space-y-3 mb-6 flex-1">
                 <div className="flex items-center space-x-3">
                   <CheckCircle className="w-4 h-4 text-green-500 flex-shrink-0" />
-                  <span className="text-sm text-gray-700">Aircraft lookup</span>
+                  <span className="text-sm text-gray-700">Aircraft Lookup and history</span>
                 </div>
                 <div className="flex items-center space-x-3">
                   <CheckCircle className="w-4 h-4 text-green-500 flex-shrink-0" />
@@ -291,23 +190,17 @@ export function FreeCreditsExceededModal() {
                 <div className="flex items-center space-x-3">
                   <CheckCircle className="w-4 h-4 text-green-500 flex-shrink-0" />
                   <span className="text-sm text-gray-700">
-                    Basic specs & photos
+                    Personal fleet max 5 aircraft
                   </span>
                 </div>
                 <div className="flex items-center space-x-3">
                   <CheckCircle className="w-4 h-4 text-green-500 flex-shrink-0" />
-                  <span className="text-sm text-gray-700">
-                    Community support
-                  </span>
-                </div>
-                <div className="flex items-center space-x-3">
-                  <CheckCircle className="w-4 h-4 text-green-500 flex-shrink-0" />
-                  <span className="text-sm text-gray-700">Ads</span>
+                  <span className="text-sm text-gray-700">No ads</span>
                 </div>
               </div>
 
               <div className="text-center text-sm text-gray-500 mb-4">
-                350 credits per month
+                350 Credits
               </div>
 
               <Link
@@ -393,7 +286,7 @@ export function FreeCreditsExceededModal() {
               <div className="space-y-3 mb-6 flex-1">
                 <div className="flex items-center space-x-3">
                   <CheckCircle className="w-4 h-4 text-green-500 flex-shrink-0" />
-                  <span className="text-sm text-gray-700">Aircraft lookup</span>
+                  <span className="text-sm text-gray-700">Aircraft Lookup and history</span>
                 </div>
                 <div className="flex items-center space-x-3">
                   <CheckCircle className="w-4 h-4 text-green-500 flex-shrink-0" />
@@ -408,25 +301,17 @@ export function FreeCreditsExceededModal() {
                 <div className="flex items-center space-x-3">
                   <CheckCircle className="w-4 h-4 text-green-500 flex-shrink-0" />
                   <span className="text-sm text-gray-700">
-                    Basic specs & photos
+                    Personal fleet max 15 aircraft
                   </span>
                 </div>
                 <div className="flex items-center space-x-3">
                   <CheckCircle className="w-4 h-4 text-green-500 flex-shrink-0" />
-                  <span className="text-sm text-gray-700">
-                    Community support
-                  </span>
-                </div>
-                <div className="flex items-center space-x-3">
-                  <CheckCircle className="w-4 h-4 text-green-500 flex-shrink-0" />
-                  <span className="text-sm text-gray-700">
-                    Priority processing
-                  </span>
+                  <span className="text-sm text-gray-700">No ads</span>
                 </div>
               </div>
 
               <div className="text-center text-sm text-gray-500 mb-4">
-                750 requests per month
+                750 Credits
               </div>
 
               <Link

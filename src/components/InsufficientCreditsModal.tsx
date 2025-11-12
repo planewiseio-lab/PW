@@ -59,55 +59,58 @@ export function InsufficientCreditsModal({
       {/* Modal */}
       <div className="relative bg-white rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
         {/* Header */}
-        <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
-          <div className="flex items-center space-x-3">
-            <div className="w-10 h-10 bg-red-100 rounded-full flex items-center justify-center">
-              <CreditCard className="w-5 h-5 text-red-600" />
+        <div className="sticky top-0 bg-white border-b border-gray-200 px-4 sm:px-6 py-3 sm:py-4">
+          <div className="flex items-start justify-between gap-3">
+            <div className="flex items-center space-x-2 sm:space-x-3 min-w-0 flex-1">
+              <div className="w-8 h-8 sm:w-10 sm:h-10 bg-red-100 rounded-full flex items-center justify-center flex-shrink-0">
+                <CreditCard className="w-4 h-4 sm:w-5 sm:h-5 text-red-600" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <h2 className="text-lg sm:text-xl font-bold text-gray-900">
+                  Insufficient Credits
+                </h2>
+                <p className="text-xs sm:text-sm text-gray-600 truncate">
+                  {currentCredits} credits • {plan} plan
+                </p>
+              </div>
             </div>
-            <div>
-              <h2 className="text-xl font-bold text-gray-900">
-                Insufficient Credits
-              </h2>
-              <p className="text-sm text-gray-600">
-                {currentCredits} credits remaining on your {plan} plan
-              </p>
-            </div>
+            <button
+              onClick={onClose}
+              className="p-2 hover:bg-gray-100 rounded-full transition-colors flex-shrink-0"
+              aria-label="Close modal"
+            >
+              <X className="w-5 h-5 text-gray-500" />
+            </button>
           </div>
-          <button
-            onClick={onClose}
-            className="p-2 hover:bg-gray-100 rounded-full transition-colors"
-          >
-            <X className="w-5 h-5 text-gray-500" />
-          </button>
         </div>
 
         {/* Content */}
-        <div className="p-6">
+        <div className="p-4 sm:p-6">
           {/* Current Status */}
-          <div className="bg-gray-50 rounded-xl p-6 mb-8">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-4">
-                <div className="w-12 h-12 bg-gray-200 rounded-full flex items-center justify-center">
-                  <Zap className="w-6 h-6 text-gray-600" />
+          <div className="bg-gray-50 rounded-xl p-4 sm:p-6 mb-6 sm:mb-8">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+              <div className="flex items-center space-x-3 sm:space-x-4">
+                <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gray-200 rounded-full flex items-center justify-center flex-shrink-0">
+                  <Zap className="w-5 h-5 sm:w-6 sm:h-6 text-gray-600" />
                 </div>
                 <div>
-                  <h3 className="text-lg font-semibold text-gray-900">
+                  <h3 className="text-base sm:text-lg font-semibold text-gray-900">
                     Current Plan: {plan}
                   </h3>
-                  <p className="text-gray-600">
+                  <p className="text-sm sm:text-base text-gray-600">
                     {plan === "Free"
-                      ? "50 credits per month • Monthly renewal"
+                      ? "50 credits/month"
                       : plan === "Basic"
-                      ? "350 credits per month • Monthly renewal"
-                      : "750 credits per month • Monthly renewal"}
+                      ? "350 credits/month"
+                      : "750 credits/month"}
                   </p>
                 </div>
               </div>
-              <div className="text-right">
-                <div className="text-3xl font-bold text-red-600">
+              <div className="text-left sm:text-right">
+                <div className="text-2xl sm:text-3xl font-bold text-red-600">
                   {currentCredits}
                 </div>
-                <div className="text-sm text-gray-500">credits remaining</div>
+                <div className="text-xs sm:text-sm text-gray-500">credits remaining</div>
               </div>
             </div>
           </div>
@@ -128,24 +131,28 @@ export function InsufficientCreditsModal({
               <div className="space-y-3 mb-6">
                 <div className="flex items-center space-x-3">
                   <CheckCircle className="w-4 h-4 text-green-500 flex-shrink-0" />
-                  <span className="text-sm text-gray-700">Basic lookup</span>
+                  <span className="text-sm text-gray-700">Aircraft Lookup and history</span>
                 </div>
                 <div className="flex items-center space-x-3">
                   <CheckCircle className="w-4 h-4 text-green-500 flex-shrink-0" />
-                  <span className="text-sm text-gray-700">
-                    Basic specs & photos
-                  </span>
+                  <span className="text-sm text-gray-700">Flight history</span>
                 </div>
                 <div className="flex items-center space-x-3">
                   <CheckCircle className="w-4 h-4 text-green-500 flex-shrink-0" />
-                  <span className="text-sm text-gray-700">
-                    Community support
-                  </span>
+                  <span className="text-sm text-gray-700">Airport information</span>
+                </div>
+                <div className="flex items-center space-x-3">
+                  <CheckCircle className="w-4 h-4 text-green-500 flex-shrink-0" />
+                  <span className="text-sm text-gray-700">Personal fleet max 1 aircraft</span>
+                </div>
+                <div className="flex items-center space-x-3">
+                  <CheckCircle className="w-4 h-4 text-green-500 flex-shrink-0" />
+                  <span className="text-sm text-gray-700">Ads</span>
                 </div>
               </div>
 
               <div className="text-center text-sm text-gray-500">
-                5 requests per day
+                50 Credits
               </div>
             </div>
 
@@ -162,7 +169,7 @@ export function InsufficientCreditsModal({
                 </div>
                 <h3 className="text-xl font-bold text-gray-900 mb-2">Basic</h3>
                 <div className="text-3xl font-bold text-blue-600 mb-1">
-                  $9.99
+                  $5.99
                 </div>
                 <div className="text-gray-600 text-sm">/mo</div>
               </div>
@@ -170,26 +177,28 @@ export function InsufficientCreditsModal({
               <div className="space-y-3 mb-6">
                 <div className="flex items-center space-x-3">
                   <CheckCircle className="w-4 h-4 text-green-500 flex-shrink-0" />
-                  <span className="text-sm text-gray-700">
-                    Everything in Free
-                  </span>
+                  <span className="text-sm text-gray-700">Aircraft Lookup and history</span>
                 </div>
                 <div className="flex items-center space-x-3">
                   <CheckCircle className="w-4 h-4 text-green-500 flex-shrink-0" />
-                  <span className="text-sm text-gray-700">
-                    7-day detailed flight history
-                  </span>
+                  <span className="text-sm text-gray-700">Flight history</span>
                 </div>
                 <div className="flex items-center space-x-3">
                   <CheckCircle className="w-4 h-4 text-green-500 flex-shrink-0" />
-                  <span className="text-sm text-gray-700">
-                    Detailed airport flight board
-                  </span>
+                  <span className="text-sm text-gray-700">Airport information</span>
+                </div>
+                <div className="flex items-center space-x-3">
+                  <CheckCircle className="w-4 h-4 text-green-500 flex-shrink-0" />
+                  <span className="text-sm text-gray-700">Personal fleet max 5 aircraft</span>
+                </div>
+                <div className="flex items-center space-x-3">
+                  <CheckCircle className="w-4 h-4 text-green-500 flex-shrink-0" />
+                  <span className="text-sm text-gray-700">No ads</span>
                 </div>
               </div>
 
               <div className="text-center text-sm text-gray-500 mb-4">
-                350 credits per month
+                350 Credits
               </div>
 
               <button
@@ -201,17 +210,17 @@ export function InsufficientCreditsModal({
               </button>
             </div>
 
-            {/* Advance Plan */}
+            {/* Pro Plan */}
             <div className="bg-white border-2 border-gray-200 rounded-xl p-6 hover:border-gray-300 transition-colors">
               <div className="text-center mb-6">
                 <div className="inline-flex items-center justify-center w-12 h-12 bg-gray-100 rounded-full mb-3">
                   <Star className="w-6 h-6 text-gray-600" />
                 </div>
                 <h3 className="text-xl font-bold text-gray-900 mb-2">
-                  Advance
+                  Pro
                 </h3>
                 <div className="text-3xl font-bold text-gray-900 mb-1">
-                  $14.99
+                  $9.99
                 </div>
                 <div className="text-gray-600 text-sm">/mo</div>
               </div>
@@ -219,33 +228,35 @@ export function InsufficientCreditsModal({
               <div className="space-y-3 mb-6">
                 <div className="flex items-center space-x-3">
                   <CheckCircle className="w-4 h-4 text-green-500 flex-shrink-0" />
-                  <span className="text-sm text-gray-700">
-                    Everything in Basic
-                  </span>
+                  <span className="text-sm text-gray-700">Aircraft Lookup and history</span>
                 </div>
                 <div className="flex items-center space-x-3">
                   <CheckCircle className="w-4 h-4 text-green-500 flex-shrink-0" />
-                  <span className="text-sm text-gray-700">
-                    Priority processing
-                  </span>
+                  <span className="text-sm text-gray-700">Flight history</span>
                 </div>
                 <div className="flex items-center space-x-3">
                   <CheckCircle className="w-4 h-4 text-green-500 flex-shrink-0" />
-                  <span className="text-sm text-gray-700">
-                    Higher monthly request limit
-                  </span>
+                  <span className="text-sm text-gray-700">Airport information</span>
+                </div>
+                <div className="flex items-center space-x-3">
+                  <CheckCircle className="w-4 h-4 text-green-500 flex-shrink-0" />
+                  <span className="text-sm text-gray-700">Personal fleet max 15 aircraft</span>
+                </div>
+                <div className="flex items-center space-x-3">
+                  <CheckCircle className="w-4 h-4 text-green-500 flex-shrink-0" />
+                  <span className="text-sm text-gray-700">No ads</span>
                 </div>
               </div>
 
               <div className="text-center text-sm text-gray-500 mb-4">
-                750 credits per month
+                750 Credits
               </div>
 
               <button
-                onClick={() => handleUpgrade("advance")}
+                onClick={() => handleUpgrade("pro")}
                 className="w-full bg-gray-900 text-white py-3 px-4 rounded-lg font-semibold hover:bg-black transition-colors flex items-center justify-center space-x-2"
               >
-                <span>Choose Advance</span>
+                <span>Choose Pro</span>
                 <ArrowRight className="w-4 h-4" />
               </button>
             </div>

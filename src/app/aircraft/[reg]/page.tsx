@@ -11,6 +11,7 @@ import { getImagesData } from "@/lib/globalApiCache";
 import { useAircraftData } from "@/hooks/useAircraftData";
 import { fetchImagesData } from "@/lib/clientRequestDeduplication";
 import { createClient } from "@/lib/supabase/client";
+import { useUserStatus } from "@/contexts/UserStatusContext";
 
 /* ==========================================================
    TYPES & HELPERS GÉNÉRAUX
@@ -413,28 +414,20 @@ function AircraftCard({
   const [isAddingToFavorites, setIsAddingToFavorites] = useState(false);
   const [favoriteAdded, setFavoriteAdded] = useState(false);
   const [favoriteRemoved, setFavoriteRemoved] = useState(false);
-  const [user, setUser] = useState<any>(null);
+  const { user, subscription } = useUserStatus();
   const [showTooltip, setShowTooltip] = useState(false);
   const [isHovering, setIsHovering] = useState(false);
   const [isAlreadyFavorite, setIsAlreadyFavorite] = useState(false);
 
-  // Vérifier si l'utilisateur est connecté et si l'avion est déjà en favori
+  // Vérifier si l'avion est déjà en favori
   useEffect(() => {
     let isMounted = true;
     
-    const getUserAndCheckFavorite = async () => {
-      try {
-        const supabase = createClient();
-        const {
-          data: { user },
-        } = await supabase.auth.getUser();
-        
-        if (!isMounted) return;
-
-        setUser(user);
-
-        // Si l'utilisateur est connecté, vérifier si cet avion est déjà en favori
-        if (user && data?.registration) {
+    const checkFavorite = async () => {
+      // Si l'utilisateur est connecté, vérifier si cet avion est déjà en favori
+      if (user && data?.registration) {
+        try {
+          const supabase = createClient();
           const { data: favorites, error } = await supabase
             .from("user_favorites")
             .select("id")
@@ -447,19 +440,19 @@ function AircraftCard({
           if (!error && favorites && favorites.length > 0) {
             setIsAlreadyFavorite(true);
           }
+        } catch (error) {
+          if (!isMounted) return;
+          console.error("Error checking favorites:", error);
         }
-      } catch (error) {
-        if (!isMounted) return;
-        console.error("Error getting user or checking favorites:", error);
       }
     };
     
-    getUserAndCheckFavorite();
+    checkFavorite();
     
     return () => {
       isMounted = false;
     };
-  }, [data.registration]);
+  }, [user, data?.registration]);
 
   // Afficher le tooltip après 7 secondes de consultation
   useEffect(() => {
@@ -538,10 +531,34 @@ function AircraftCard({
         return;
       }
 
-      // Limiter à 5 avions maximum pour le dashboard 2.0 (flotte)
-      if (currentFavorites && currentFavorites.length >= 5) {
+      // Fonction pour obtenir la limite d'avions selon le plan
+      const getFleetLimit = (): number => {
+        if (!subscription) return 1; // Par défaut 1 pour FREE ou pas d'abonnement
+        
+        const plan = subscription.plan?.toUpperCase();
+        const status = subscription.status?.toUpperCase();
+        const renewsAt = subscription.renewsAt ? new Date(subscription.renewsAt) : null;
+        const now = new Date();
+        
+        // Vérifier si le plan est actif ou annulé mais encore valide (renewsAt dans le futur)
+        const isPlanValid = renewsAt && renewsAt > now && (status === "ACTIVE" || status === "CANCELED");
+        
+        if (plan === "BASIC" && isPlanValid) {
+          return 5;
+        } else if (plan === "PRO" && isPlanValid) {
+          return 15;
+        }
+        
+        // Par défaut 1 pour FREE ou plan expiré
+        return 1;
+      };
+
+      const fleetLimit = getFleetLimit();
+
+      // Limiter selon le plan de l'utilisateur
+      if (currentFavorites && currentFavorites.length >= fleetLimit) {
         alert(
-          "❌ Fleet limit reached! You have reached the maximum of 5 aircraft in your fleet.\n\n" +
+          `❌ Fleet limit reached! You have reached the maximum of ${fleetLimit} aircraft in your fleet.\n\n` +
             "Please remove an aircraft from your dashboard before adding a new one.\n\n" +
             "Go to: https://planewise.io/dashboard"
         );

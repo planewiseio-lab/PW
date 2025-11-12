@@ -948,12 +948,10 @@ function AccountSettingsContent() {
                           note: "/mo",
                           credits: "50 credits/month",
                           perks: [
-                            "50 credits per month",
-                            "Aircraft lookup",
+                            "Aircraft Lookup and history",
                             "Flight history",
                             "Airport information",
-                            "Basic specs & photos",
-                            "Community support",
+                            "Personal fleet max 1 aircraft",
                             "Ads",
                           ],
                           cta: {
@@ -969,12 +967,11 @@ function AccountSettingsContent() {
                           price: "$5.99",
                           note: "/mo",
                           perks: [
-                            "Aircraft lookup",
+                            "Aircraft Lookup and history",
                             "Flight history",
                             "Airport information",
-                            "Basic specs & photos",
-                            "Community support",
-                            "Ads",
+                            "Personal fleet max 5 aircraft",
+                            "No ads",
                           ],
                           cta: {
                             href: "/checkout?plan=basic",
@@ -990,12 +987,11 @@ function AccountSettingsContent() {
                           oldPrice: "$12.99",
                           note: "/mo",
                           perks: [
-                            "Aircraft lookup",
+                            "Aircraft Lookup and history",
                             "Flight history",
                             "Airport information",
-                            "Basic specs & photos",
-                            "Community support",
-                            "Priority processing",
+                            "Personal fleet max 15 aircraft",
+                            "No ads",
                           ],
                           cta: {
                             href: "/checkout?plan=pro",
@@ -1120,9 +1116,9 @@ function AccountSettingsContent() {
                             </motion.p>
                           </div>
                           <p className="mt-3 text-sm text-gray-600">
-                            {i === 0 && "50 credits per month"}
-                            {i === 1 && "350 credits per month"}
-                            {i === 2 && "750 credits per month"}
+                            {planCode === "FREE" && "50 credits per month"}
+                            {planCode === "BASIC" && "350 credits per month"}
+                            {planCode === "PRO" && "750 credits per month"}
                           </p>
                           <ul className="mt-5 space-y-2 text-sm text-gray-700 flex-1">
                             {p.perks.map((perk) => (

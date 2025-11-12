@@ -273,6 +273,7 @@ interface AircraftStatus {
   status: "in_flight" | "on_ground";
   message: string;
   location: string;
+  updatedAt?: string;
   flightInfo?: {
     number: string;
     departure?: {
@@ -313,7 +314,8 @@ export default function DashboardPage() {
   const [refreshing, setRefreshing] = useState(false);
   const [creditBalance, setCreditBalance] = useState<number | null>(null);
   const [selectedAircraft, setSelectedAircraft] = useState<Set<string>>(new Set());
-  const { user, isLoading } = useUserStatus();
+  const [refreshTimestamp, setRefreshTimestamp] = useState(Date.now());
+  const { user, isLoading, subscription } = useUserStatus();
   const router = useRouter();
   
   const favoritesLoadingRef = useRef(false);
@@ -322,11 +324,37 @@ export default function DashboardPage() {
   const CACHE_DURATION = 3000; // Cache de 3 secondes
   const CREDITS_PER_AIRCRAFT = 2; // 2 crédits par avion
 
+  // Fonction pour obtenir la limite d'avions selon le plan
+  const getFleetLimit = (): number => {
+    if (!subscription) return 1; // Par défaut 1 pour FREE ou pas d'abonnement
+    
+    const plan = subscription.plan?.toUpperCase();
+    const status = subscription.status?.toUpperCase();
+    const renewsAt = subscription.renewsAt ? new Date(subscription.renewsAt) : null;
+    const now = new Date();
+    
+    // Vérifier si le plan est actif ou annulé mais encore valide (renewsAt dans le futur)
+    const isPlanValid = renewsAt && renewsAt > now && (status === "ACTIVE" || status === "CANCELED");
+    
+    if (plan === "BASIC" && isPlanValid) {
+      return 5;
+    } else if (plan === "PRO" && isPlanValid) {
+      return 15;
+    }
+    
+    // Par défaut 1 pour FREE ou plan expiré
+    return 1;
+  };
+
+  const fleetLimit = getFleetLimit();
+
   // Fonction pour charger les avions de la flotte
   // Cette fonction charge les informations de BASE depuis user_favorites
   // Ces infos proviennent de la requête API tier 1 effectuée lors de l'ajout en favoris
   // (type, manufacturer, model, airline, seats, age, engines, hex, etc.)
   const loadFleetAircraft = async (userId: string) => {
+    // Recalculer la limite à chaque chargement au cas où la subscription aurait changé
+    const currentLimit = getFleetLimit();
     console.log("[Dashboard] loadFleetAircraft called for user:", userId);
     
     if (favoritesLoadingRef.current) {
@@ -384,7 +412,7 @@ export default function DashboardPage() {
           hex: item.aircraft_hex, // Depuis API tier 1
           addedDate: new Date(item.created_at).toISOString().split("T")[0],
           // Les statuts détaillés (status, location, flightInfo) seront ajoutés par loadFleetStatusesFromDB
-        })) || []).slice(0, 5); // Limiter à 5 avions
+        })) || []).slice(0, currentLimit); // Limiter selon le plan
 
       console.log("[Dashboard] Formatted favorites:", formattedFavorites.length, "aircraft");
       console.log("[Dashboard] Formatted favorites data:", formattedFavorites);
@@ -514,6 +542,7 @@ export default function DashboardPage() {
                 status: dynamicStatus as AircraftStatus["status"],
                 message: savedStatus.message || "",
                 location: savedStatus.location || "",
+                updatedAt: savedStatus.updatedAt,
                 flightInfo: savedStatus.flightInfo || null,
               },
             };
@@ -547,15 +576,21 @@ export default function DashboardPage() {
 
       const statusData: AircraftStatus = await response.json();
 
+      // Ajouter updatedAt si non présent (utiliser l'heure actuelle car le statut vient d'être mis à jour)
+      const statusWithUpdatedAt: AircraftStatus = {
+        ...statusData,
+        updatedAt: statusData.updatedAt || new Date().toISOString(),
+      };
+
       setFleetAircraft((prev) =>
         prev.map((a) =>
           a.id === aircraft.id
-            ? { ...a, status: statusData, statusLoading: false }
+            ? { ...a, status: statusWithUpdatedAt, statusLoading: false }
             : a
         )
       );
 
-      return statusData;
+      return statusWithUpdatedAt;
     } catch (error: any) {
       console.error(`Error loading status for ${aircraft.registration}:`, error);
       setFleetAircraft((prev) =>
@@ -684,6 +719,24 @@ export default function DashboardPage() {
       return;
     }
 
+    // Vérifier si le dernier refresh date de moins de 8h
+    const now = new Date();
+    const eightHoursAgo = now.getTime() - (8 * 60 * 60 * 1000);
+    const recentlyRefreshedAircraft: string[] = [];
+    
+    selectedAircraftList.forEach((aircraft) => {
+      if (aircraft.status?.updatedAt) {
+        try {
+          const lastUpdate = new Date(aircraft.status.updatedAt).getTime();
+          if (lastUpdate > eightHoursAgo) {
+            recentlyRefreshedAircraft.push(aircraft.registration);
+          }
+        } catch (e) {
+          console.error("Error parsing updatedAt:", e);
+        }
+      }
+    });
+
     // Récupérer le solde de crédits (toujours rafraîchir pour avoir la valeur à jour)
     const balance = await fetchCreditBalance();
     const totalCost = selectedAircraftList.length * CREDITS_PER_AIRCRAFT;
@@ -702,14 +755,24 @@ export default function DashboardPage() {
       return;
     }
 
-    // Confirmation simple avec window.confirm
-    const confirmed = window.confirm(
-      `Update Fleet Status\n\n` +
+    // Construire le message de confirmation
+    let confirmMessage = `Update Fleet Status\n\n` +
       `Selected aircraft: ${selectedAircraftList.length}\n` +
       `This will cost ${totalCost} credits from your balance.\n` +
-      `Your current balance: ${balance} credits\n\n` +
-      `Do you want to continue?`
-    );
+      `Your current balance: ${balance} credits\n`;
+    
+    // Ajouter l'avertissement si des avions ont été rafraîchis récemment
+    if (recentlyRefreshedAircraft.length > 0) {
+      confirmMessage += `\n⚠️ WARNING:\n` +
+        `The following aircraft were refreshed less than 8 hours ago:\n` +
+        `${recentlyRefreshedAircraft.join(", ")}\n\n` +
+        `There is a risk that the data may remain similar.\n\n`;
+    }
+    
+    confirmMessage += `Do you want to continue?`;
+
+    // Confirmation simple avec window.confirm
+    const confirmed = window.confirm(confirmMessage);
 
     if (!confirmed) {
       return;
@@ -721,6 +784,8 @@ export default function DashboardPage() {
       await loadAircraftStatuses(selectedAircraftList);
       // Rafraîchir le solde après la mise à jour
       await fetchCreditBalance();
+      // Désélectionner automatiquement les avions après le refresh
+      setSelectedAircraft(new Set());
     } finally {
       setRefreshing(false);
     }
@@ -734,7 +799,7 @@ export default function DashboardPage() {
     }
   }, [isLoading, user, router]);
 
-  // Charger les avions quand l'utilisateur est disponible
+  // Charger les avions quand l'utilisateur est disponible ou quand la subscription change
   useEffect(() => {
     console.log("[Dashboard] useEffect triggered - isLoading:", isLoading, "user:", user?.id, "lastLoadedUserId:", lastLoadedUserIdRef.current);
     if (user?.id) {
@@ -748,7 +813,19 @@ export default function DashboardPage() {
     } else {
       console.log("[Dashboard] No user ID available yet");
     }
-  }, [user?.id, isLoading]);
+  }, [user?.id, isLoading, subscription?.plan, subscription?.status, subscription?.renewsAt]);
+
+  // Force re-render every minute to update stale status messages
+  useEffect(() => {
+    if (fleetAircraft.length === 0) return;
+
+    const interval = setInterval(() => {
+      // Update timestamp to force re-render and re-evaluate stale status messages
+      setRefreshTimestamp(Date.now());
+    }, 60000); // Every minute
+
+    return () => clearInterval(interval);
+  }, [fleetAircraft.length]);
 
   // Recalculer dynamiquement les statuts toutes les minutes
   useEffect(() => {
@@ -977,10 +1054,10 @@ export default function DashboardPage() {
             My Fleet Dashboard
           </h1>
           <p className="text-sm sm:text-base text-gray-600">
-            Track your fleet of up to 5 aircraft in real-time
+            Track your fleet of up to {fleetLimit} aircraft in real-time
           </p>
           <div className="text-sm text-gray-500 mt-2">
-            {fleetAircraft.length} / 5 aircraft
+            {fleetAircraft.length} / {fleetLimit} aircraft
           </div>
         </div>
         
@@ -1073,7 +1150,7 @@ export default function DashboardPage() {
       </div>
 
       {/* Fleet Limit Warning */}
-      {fleetAircraft.length >= 5 && (
+      {fleetAircraft.length >= fleetLimit && (
         <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6">
           <div className="flex items-center gap-2">
             <svg
@@ -1089,7 +1166,7 @@ export default function DashboardPage() {
             </svg>
             <p className="text-sm text-yellow-800">
               <span className="font-semibold">Fleet limit reached:</span> You have{" "}
-              {fleetAircraft.length} aircraft in your fleet. Maximum allowed is 5.
+              {fleetAircraft.length} aircraft in your fleet. Maximum allowed is {fleetLimit}.
               Please remove an aircraft to add a new one.
             </p>
           </div>
@@ -1118,7 +1195,18 @@ export default function DashboardPage() {
                           {/* Section 1: Immatriculation */}
                           <div className="bg-[#178cf2] px-3 sm:px-4 md:px-6 py-3 sm:py-4">
                             <div className="flex items-center justify-between gap-2">
-                              <div className="flex items-center gap-3 flex-1 min-w-0">
+                              <div 
+                                className="flex items-center gap-3 flex-1 min-w-0 sm:cursor-default cursor-pointer"
+                                onClick={(e) => {
+                                  // Sur mobile, cliquer sur le header sélectionne le checkbox au lieu d'ouvrir le lien
+                                  const isMobile = window.innerWidth < 640; // sm breakpoint
+                                  if (isMobile) {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    toggleAircraftSelection(aircraft.id);
+                                  }
+                                }}
+                              >
                                 {/* Checkbox élégant pour sélectionner l'avion */}
                                 <label className="relative flex items-center cursor-pointer flex-shrink-0 group">
                                   <input
@@ -1152,6 +1240,15 @@ export default function DashboardPage() {
                                 <Link
                                   href={`/aircraft/${aircraft.registration}`}
                                   className="text-2xl sm:text-3xl md:text-4xl font-black text-white hover:text-blue-100 transition-colors break-all flex-1"
+                                  onClick={(e) => {
+                                    // Sur mobile, empêcher la navigation et laisser le parent gérer le clic
+                                    const isMobile = window.innerWidth < 640;
+                                    if (isMobile) {
+                                      e.preventDefault();
+                                      e.stopPropagation();
+                                      return false;
+                                    }
+                                  }}
                                 >
                                   {aircraft.registration}
                                 </Link>
@@ -1395,6 +1492,38 @@ export default function DashboardPage() {
                                     // Utiliser l'heure d'arrivée si disponible, sinon l'heure de départ
                                     const timeToUse = arrivalTime || departureTime;
 
+                                    // Vérifier si le statut est "on_ground" depuis plus de 24 heures
+                                    const checkIfStale = () => {
+                                      const now = new Date();
+                                      let referenceTime: Date | null = null;
+                                      
+                                      // Utiliser l'heure d'arrivée si disponible (quand l'avion a atterri)
+                                      if (arrivalTime) {
+                                        try {
+                                          referenceTime = new Date(arrivalTime);
+                                        } catch (e) {
+                                          console.error("Error parsing arrivalTime:", e);
+                                        }
+                                      }
+                                      // Sinon, utiliser updatedAt (quand le statut a été mis à jour)
+                                      else if (aircraft.status.updatedAt) {
+                                        try {
+                                          referenceTime = new Date(aircraft.status.updatedAt);
+                                        } catch (e) {
+                                          console.error("Error parsing updatedAt:", e);
+                                        }
+                                      }
+                                      
+                                      if (!referenceTime) return false;
+                                      
+                                      const diffMs = now.getTime() - referenceTime.getTime();
+                                      const diffHours = diffMs / (1000 * 60 * 60);
+                                      
+                                      return diffHours > 24;
+                                    };
+                                    
+                                    const isStale = checkIfStale();
+
                                     return (
                                       <div className="w-full">
                                         {/* Titre ON GROUND - Numéro de vol */}
@@ -1425,6 +1554,18 @@ export default function DashboardPage() {
                                                     Since
                                                   </span>
                                                   <LiveCountdown arrivalTime={arrivalTime} />
+                                                  
+                                                  {/* Message discret si statut obsolète (> 24h) */}
+                                                  {isStale && (
+                                                    <div className="mt-3 flex items-center justify-center">
+                                                      <div className="inline-flex items-center gap-1.5 px-2.5 py-1.5 bg-amber-50 border border-amber-200 rounded-md text-xs text-amber-700">
+                                                        <svg className="w-3.5 h-3.5 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                                        </svg>
+                                                        <span>Consider refreshing to get the latest aircraft position</span>
+                                                      </div>
+                                                    </div>
+                                                  )}
                                                 </div>
                                               )}
                                             </>
@@ -1434,6 +1575,18 @@ export default function DashboardPage() {
                                           {!airport && (
                                             <div className="text-base text-gray-600">
                                               {aircraft.status.message || "Location unknown"}
+                                            </div>
+                                          )}
+                                          
+                                          {/* Message discret si statut obsolète (> 24h) et pas d'arrivalTime */}
+                                          {!arrivalTime && isStale && (
+                                            <div className="mt-3 flex items-center justify-center">
+                                              <div className="inline-flex items-center gap-1.5 px-2.5 py-1.5 bg-amber-50 border border-amber-200 rounded-md text-xs text-amber-700">
+                                                <svg className="w-3.5 h-3.5 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                                </svg>
+                                                <span>Consider refreshing to get the latest aircraft position</span>
+                                              </div>
                                             </div>
                                           )}
                                         </div>

@@ -119,8 +119,8 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* Showcase - Chargé après le contenu principal - Masqué sur mobile */}
-      <div className="hidden sm:block" suppressHydrationWarning>
+      {/* Showcase - Chargé après le contenu principal */}
+      <div suppressHydrationWarning>
         <SectionDivider className="my-8 sm:my-10" />
         <ShowcaseSection />
         <SectionDivider className="my-8 sm:my-10" />
