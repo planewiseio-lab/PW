@@ -1506,7 +1506,7 @@ export default function DashboardPage() {
                                         }
                                       }
                                       // Sinon, utiliser updatedAt (quand le statut a été mis à jour)
-                                      else if (aircraft.status.updatedAt) {
+                                      else if (aircraft.status?.updatedAt) {
                                         try {
                                           referenceTime = new Date(aircraft.status.updatedAt);
                                         } catch (e) {
