@@ -514,6 +514,12 @@ function AircraftCard({
 
   // Fonction pour ajouter aux favoris
   const addToFavorites = async () => {
+    if (!user) {
+      alert("Please login or register to add aircraft to your favorites!");
+      window.location.href = "/login";
+      return;
+    }
+
     setIsAddingToFavorites(true);
 
     try {
@@ -602,6 +608,10 @@ function AircraftCard({
 
   // Fonction pour retirer des favoris
   const removeFromFavorites = async () => {
+    if (!user) {
+      return;
+    }
+
     setIsAddingToFavorites(true);
 
     try {
