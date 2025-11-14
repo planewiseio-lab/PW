@@ -114,7 +114,7 @@ const nextConfig: NextConfig = {
               "img-src 'self' data: https: *.wikimedia.org *.commons.wikimedia.org *.googleusercontent.com *.staticflickr.com *.flickr.com https://pagead2.googlesyndication.com https://*.googlesyndication.com",
               "font-src 'self' fonts.gstatic.com",
               "connect-src 'self' https://prod.api.market https://commons.wikimedia.org https://ssqqbcniphbdjttxgcug.supabase.co https://accounts.google.com https://oauth2.googleapis.com https://pagead2.googlesyndication.com https://*.googlesyndication.com https://*.adtrafficquality.google https://*.google.com https://*.doubleclick.net https://api.stripe.com https://js.stripe.com",
-              "frame-src 'self' https://accounts.google.com https://tpc.googlesyndication.com https://googleads.g.doubleclick.net https://js.stripe.com https://hooks.stripe.com",
+              "frame-src 'self' https://accounts.google.com https://tpc.googlesyndication.com https://googleads.g.doubleclick.net https://js.stripe.com https://hooks.stripe.com https://*.adtrafficquality.google https://www.google.com https://*.google.com",
               "frame-ancestors 'none'",
               "base-uri 'self'",
               "form-action 'self'",
