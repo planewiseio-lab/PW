@@ -23,6 +23,12 @@ function useIsMobile() {
 export default function ShowcaseSection() {
   const [currentSlide, setCurrentSlide] = useState(0);
   const [isHovered, setIsHovered] = useState(false);
+  const [isLightboxOpen, setIsLightboxOpen] = useState(false);
+  const [lightboxSlide, setLightboxSlide] = useState(0);
+  const [zoomLevel, setZoomLevel] = useState(1);
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
+  const [imagePosition, setImagePosition] = useState({ x: 0, y: 0 });
   const isMobile = useIsMobile();
 
   // Nombre d'images disponibles (ajustez selon vos besoins)
@@ -34,38 +40,118 @@ export default function ShowcaseSection() {
   const slideTexts = [
     {
       title: "Aircraft Information",
-      description: "Track your fleet of aircraft in your dashboard with real-time status updates. Monitor aircraft that are in flight with live position tracking and flight progress."
+      description:
+        "Track your fleet of aircraft in your dashboard with real-time status updates. Monitor aircraft that are in flight with live position tracking and flight progress.",
     },
     {
       title: "Fleet Dashboard",
-      description: "Monitor your aircraft fleet in your dashboard. View aircraft that are on ground with their current location and arrival information."
+      description:
+        "Monitor your aircraft fleet in your dashboard. View aircraft that are on ground with their current location and arrival information.",
     },
     {
       title: "Aircraft Lookup",
-      description: "Search by registration to view detailed aircraft information including specifications, photos, operator details, and comprehensive aircraft data."
+      description:
+        "Search by registration to view detailed aircraft information including specifications, photos, operator details, and comprehensive aircraft data.",
     },
     {
       title: "Flight History",
-      description: "View the 7-day flight history of any aircraft. Track all flights, routes, destinations, and comprehensive historical data for detailed analysis."
+      description:
+        "View the 7-day flight history of any aircraft. Track all flights, routes, destinations, and comprehensive historical data for detailed analysis.",
     },
     {
       title: "Flight Details",
-      description: "View detailed information for any flight including real-time status, departure and arrival times, progress tracking, and estimated arrival times."
+      description:
+        "View detailed information for any flight including real-time status, departure and arrival times, progress tracking, and estimated arrival times.",
     },
     {
       title: "Airport Board",
-      description: "View real-time airport boards with current departures and arrivals. Track all flights for any airport with gates, status updates, and flight information."
-    }
+      description:
+        "View real-time airport boards with current departures and arrivals. Track all flights for any airport with gates, status updates, and flight information.",
+    },
   ];
 
   // Auto-rotate slides
   useEffect(() => {
-    if (isHovered) return;
+    if (isHovered || isLightboxOpen) return;
     const interval = setInterval(() => {
       setCurrentSlide((prev) => (prev + 1) % totalSlides);
     }, 5000); // Change toutes les 5 secondes
     return () => clearInterval(interval);
-  }, [isHovered, totalSlides]);
+  }, [isHovered, isLightboxOpen, totalSlides]);
+
+  // Gérer ESC pour fermer le lightbox
+  useEffect(() => {
+    if (!isLightboxOpen) return;
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        setIsLightboxOpen(false);
+      }
+    };
+    window.addEventListener("keydown", handleEscape);
+    return () => window.removeEventListener("keydown", handleEscape);
+  }, [isLightboxOpen]);
+
+  // Ouvrir le lightbox avec l'image actuelle
+  const openLightbox = (slideIndex: number) => {
+    setLightboxSlide(slideIndex);
+    setZoomLevel(1); // Réinitialiser le zoom
+    setIsLightboxOpen(true);
+  };
+
+  // Fonctions de zoom
+  const zoomIn = () => {
+    setZoomLevel((prev) => Math.min(5, prev + 0.5));
+  };
+
+  const zoomOut = () => {
+    setZoomLevel((prev) => Math.max(1, prev - 0.5));
+  };
+
+  // Réinitialiser le zoom et la position quand on change d'image
+  useEffect(() => {
+    if (isLightboxOpen) {
+      setZoomLevel(1);
+      setImagePosition({ x: 0, y: 0 });
+    }
+  }, [lightboxSlide, isLightboxOpen]);
+
+  // Gérer le drag de l'image
+  const handleMouseDown = (e: React.MouseEvent) => {
+    if (zoomLevel > 1 && e.button === 0) {
+      // Seulement le clic gauche
+      e.preventDefault();
+      setIsDragging(true);
+      setDragStart({
+        x: e.clientX - imagePosition.x,
+        y: e.clientY - imagePosition.y,
+      });
+    }
+  };
+
+  const handleMouseMove = (e: React.MouseEvent) => {
+    if (isDragging && zoomLevel > 1) {
+      const newX = e.clientX - dragStart.x;
+      const newY = e.clientY - dragStart.y;
+
+      // Limiter le déplacement pour que l'image ne sorte pas complètement
+      const maxOffset = 200; // Ajustez selon vos besoins
+      setImagePosition({
+        x: Math.max(-maxOffset, Math.min(maxOffset, newX)),
+        y: Math.max(-maxOffset, Math.min(maxOffset, newY)),
+      });
+    }
+  };
+
+  const handleMouseUp = () => {
+    setIsDragging(false);
+  };
+
+  // Réinitialiser la position quand on change le zoom
+  useEffect(() => {
+    if (zoomLevel === 1) {
+      setImagePosition({ x: 0, y: 0 });
+    }
+  }, [zoomLevel]);
 
   // Obtenir le chemin de l'image selon le device
   const getImagePath = (index: number) => {
@@ -101,12 +187,12 @@ export default function ShowcaseSection() {
       >
         {/* Slide Container */}
         <div className="relative overflow-hidden rounded-xl sm:rounded-2xl bg-white">
-          <div 
-            className="relative w-full bg-white" 
-            style={{ 
+          <div
+            className="relative w-full bg-white"
+            style={{
               aspectRatio: isMobile ? "3/4" : "16/9",
               minHeight: isMobile ? "600px" : "auto",
-              maxHeight: isMobile ? "80vh" : "none"
+              maxHeight: isMobile ? "80vh" : "none",
             }}
           >
             <AnimatePresence mode="wait">
@@ -116,22 +202,19 @@ export default function ShowcaseSection() {
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
                 transition={{ duration: 0.5 }}
-                className="absolute inset-0 bg-white"
+                className="absolute inset-0 bg-white cursor-pointer z-0"
+                onClick={() => openLightbox(currentSlide)}
               >
                 <Image
                   src={getImagePath(currentSlide)}
                   alt={`Showcase ${currentSlide + 1}`}
                   fill
-                  className={isMobile ? "object-cover" : "object-contain"}
-                  style={{
-                    imageRendering: "crisp-edges",
-                    WebkitImageRendering: "crisp-edges",
-                    msImageRendering: "crisp-edges",
-                  } as CSSProperties}
-                  sizes="(max-width: 768px) 100vw, (max-width: 1200px) 90vw, 80vw"
+                  className={`${
+                    isMobile ? "object-cover" : "object-contain"
+                  } pointer-events-none`}
+                  sizes="(max-width: 768px) 100vw, (max-width: 1536px) 1152px, 1152px"
                   priority={currentSlide === 0}
-                  quality={100}
-                  unoptimized={true}
+                  quality={95}
                 />
               </motion.div>
             </AnimatePresence>
@@ -139,9 +222,10 @@ export default function ShowcaseSection() {
 
           {/* Navigation Arrows */}
           <button
-            onClick={() =>
-              setCurrentSlide((prev) => (prev - 1 + totalSlides) % totalSlides)
-            }
+            onClick={(e) => {
+              e.stopPropagation();
+              setCurrentSlide((prev) => (prev - 1 + totalSlides) % totalSlides);
+            }}
             className={`absolute top-1/2 -translate-y-1/2 min-w-[44px] min-h-[44px] w-11 h-11 bg-white/95 hover:bg-white rounded-full shadow-lg border border-gray-200 flex items-center justify-center text-gray-700 hover:text-gray-900 transition opacity-80 hover:opacity-100 z-10 ${
               isMobile ? "left-2" : "left-4"
             }`}
@@ -162,7 +246,10 @@ export default function ShowcaseSection() {
             </svg>
           </button>
           <button
-            onClick={() => setCurrentSlide((prev) => (prev + 1) % totalSlides)}
+            onClick={(e) => {
+              e.stopPropagation();
+              setCurrentSlide((prev) => (prev + 1) % totalSlides);
+            }}
             className={`absolute top-1/2 -translate-y-1/2 min-w-[44px] min-h-[44px] w-11 h-11 bg-white/95 hover:bg-white rounded-full shadow-lg border border-gray-200 flex items-center justify-center text-gray-700 hover:text-gray-900 transition opacity-80 hover:opacity-100 z-10 ${
               isMobile ? "right-2" : "right-4"
             }`}
@@ -201,27 +288,227 @@ export default function ShowcaseSection() {
           </motion.div>
         </AnimatePresence>
 
-        {/* Dots Indicator */}
-        <div className="flex justify-center mt-6 gap-2">
-          {Array.from({ length: totalSlides }).map((_, index) => (
-            <button
-              key={index}
-              onClick={() => setCurrentSlide(index)}
-              className={`min-w-[44px] min-h-[44px] rounded-full transition flex items-center justify-center ${
-                index === currentSlide
-                  ? "bg-[#178cf2] w-8"
-                  : "bg-gray-300 hover:bg-gray-400 w-2 h-2"
-              }`}
-              aria-label={`Go to slide ${index + 1}`}
-              aria-current={index === currentSlide ? "true" : undefined}
-            >
-              {index === currentSlide && (
-                <span className="sr-only">Current slide</span>
-              )}
-            </button>
-          ))}
+        {/* Dots Indicator - Cliquables pour ouvrir le lightbox */}
+        <div className="flex flex-col items-center mt-6 gap-3">
+          <div className="flex justify-center gap-2">
+            {Array.from({ length: totalSlides }).map((_, index) => (
+              <button
+                key={index}
+                onClick={() => {
+                  setCurrentSlide(index);
+                  openLightbox(index);
+                }}
+                className={`min-w-[44px] min-h-[44px] rounded-full transition flex items-center justify-center cursor-pointer ${
+                  index === currentSlide
+                    ? "bg-[#178cf2] w-8"
+                    : "bg-gray-300 hover:bg-gray-400 w-2 h-2"
+                }`}
+                aria-label={`View slide ${index + 1} in fullscreen`}
+                aria-current={index === currentSlide ? "true" : undefined}
+              >
+                {index === currentSlide && (
+                  <span className="sr-only">Current slide</span>
+                )}
+              </button>
+            ))}
+          </div>
+          <p className="text-xs sm:text-sm text-gray-500 text-center">
+            Click on the image to view in fullscreen
+          </p>
         </div>
       </div>
+
+      {/* Lightbox Modal */}
+      <AnimatePresence>
+        {isLightboxOpen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 bg-white/95 backdrop-blur-sm flex items-center justify-center p-4"
+            onClick={() => setIsLightboxOpen(false)}
+          >
+            {/* Image en grand */}
+            <div
+              className="relative w-full max-w-7xl max-h-[90vh] flex items-center justify-center overflow-hidden"
+              onClick={(e) => e.stopPropagation()}
+              onMouseMove={handleMouseMove}
+              onMouseUp={handleMouseUp}
+              onMouseLeave={handleMouseUp}
+            >
+              {/* Contrôles zoom - En haut de l'image, centrés */}
+              <div className="absolute top-2 left-1/2 -translate-x-1/2 z-[60] flex items-center gap-2 pointer-events-auto">
+                {/* Bouton zoom out */}
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    zoomOut();
+                  }}
+                  disabled={zoomLevel <= 1}
+                  className="w-10 h-10 bg-gray-200/80 hover:bg-gray-300/90 disabled:opacity-50 disabled:cursor-not-allowed rounded-full flex items-center justify-center text-gray-700 hover:text-gray-900 transition shadow-md"
+                  aria-label="Zoom out"
+                >
+                  <svg
+                    className="w-5 h-5"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM13 10H7"
+                    />
+                  </svg>
+                </button>
+
+                {/* Bouton zoom in */}
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    zoomIn();
+                  }}
+                  disabled={zoomLevel >= 5}
+                  className="w-10 h-10 bg-gray-200/80 hover:bg-gray-300/90 disabled:opacity-50 disabled:cursor-not-allowed rounded-full flex items-center justify-center text-gray-700 hover:text-gray-900 transition shadow-md"
+                  aria-label="Zoom in"
+                >
+                  <svg
+                    className="w-5 h-5"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v6m3-3H7"
+                    />
+                  </svg>
+                </button>
+              </div>
+
+              {/* Bouton fermer - Coin droit */}
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setIsLightboxOpen(false);
+                  setZoomLevel(1);
+                  setImagePosition({ x: 0, y: 0 });
+                }}
+                className="absolute top-2 right-2 z-[60] w-10 h-10 bg-gray-200/80 hover:bg-gray-300/90 rounded-full flex items-center justify-center text-gray-700 hover:text-gray-900 transition shadow-md pointer-events-auto"
+                aria-label="Close lightbox"
+              >
+                <svg
+                  className="w-5 h-5"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M6 18L18 6M6 6l12 12"
+                  />
+                </svg>
+              </button>
+              <div
+                className="relative w-full h-full"
+                style={{ maxHeight: "90vh" }}
+              >
+                <AnimatePresence mode="wait">
+                  <motion.div
+                    key={lightboxSlide}
+                    initial={{ opacity: 0, scale: 0.9 }}
+                    animate={{
+                      opacity: 1,
+                      scale: zoomLevel,
+                      x: imagePosition.x,
+                      y: imagePosition.y,
+                    }}
+                    exit={{ opacity: 0, scale: 0.9 }}
+                    transition={{ duration: 0.3 }}
+                    className="relative w-full h-full origin-center"
+                    style={{
+                      aspectRatio: "16/9",
+                      maxHeight: "90vh",
+                      cursor:
+                        zoomLevel > 1
+                          ? isDragging
+                            ? "grabbing"
+                            : "grab"
+                          : "default",
+                    }}
+                    onMouseDown={handleMouseDown}
+                  >
+                    <Image
+                      src={getImagePath(lightboxSlide)}
+                      alt={`Showcase ${lightboxSlide + 1} - ${
+                        slideTexts[lightboxSlide]?.title || ""
+                      }`}
+                      fill
+                      className="object-contain"
+                      sizes="100vw"
+                      quality={100}
+                      priority
+                    />
+                  </motion.div>
+                </AnimatePresence>
+
+                {/* Navigation dans le lightbox */}
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setLightboxSlide(
+                      (prev) => (prev - 1 + totalSlides) % totalSlides
+                    );
+                  }}
+                  className="absolute left-4 top-1/2 -translate-y-1/2 w-12 h-12 bg-gray-200/80 hover:bg-gray-300/90 rounded-full flex items-center justify-center text-gray-700 hover:text-gray-900 transition z-20"
+                  aria-label="Previous image"
+                >
+                  <svg
+                    className="w-6 h-6"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M15 19l-7-7 7-7"
+                    />
+                  </svg>
+                </button>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setLightboxSlide((prev) => (prev + 1) % totalSlides);
+                  }}
+                  className="absolute right-4 top-1/2 -translate-y-1/2 w-12 h-12 bg-gray-200/80 hover:bg-gray-300/90 rounded-full flex items-center justify-center text-gray-700 hover:text-gray-900 transition z-20"
+                  aria-label="Next image"
+                >
+                  <svg
+                    className="w-6 h-6"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M9 5l7 7-7 7"
+                    />
+                  </svg>
+                </button>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </section>
   );
 }
