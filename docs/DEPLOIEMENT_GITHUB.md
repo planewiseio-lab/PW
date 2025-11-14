@@ -77,6 +77,7 @@ git push -u origin master
 ⚠️ **IMPORTANT :** Ne jamais commiter les fichiers `.env.local` ou contenant des clés API !
 
 Les fichiers suivants sont automatiquement ignorés grâce à `.gitignore` :
+
 - `.env.local`
 - `.env`
 - `node_modules/`
@@ -139,4 +140,3 @@ Vercel se connectera automatiquement à GitHub et déploiera à chaque push.
 - [Documentation GitHub](https://docs.github.com)
 - [Documentation Git](https://git-scm.com/doc)
 - [Documentation Vercel](https://vercel.com/docs)
-
