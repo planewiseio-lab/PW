@@ -1,0 +1,118 @@
+@import "tailwindcss";
+
+/* S'assurer que la barre de recherche reste visible pendant les animations */
+[data-layout-id="searchCluster"] {
+  z-index: 100 !important;
+}
+
+/* === Thème : mêmes couleurs que ton index.html === */
+@theme {
+  --color-brand-50: #f5fbff;
+  --color-brand-100: #e7f5ff;
+  --color-brand-200: #cfeaff;
+  --color-brand-300: #a6dbff;
+  --color-brand-400: #6fc4ff;
+  --color-brand-500: #3aa9ff;
+  --color-brand-600: #178cf2;
+  --color-brand-700: #0f6cc1;
+  --color-brand-800: #0f5494;
+  --color-brand-900: #0f4476;
+  --font-sans: var(--font-comfortaa), system-ui, ui-sans-serif, "Segoe UI",
+    Roboto, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji";
+
+  /* on utilise Comfortaa comme police par défaut */
+  --font-sans: var(--font-comfortaa), system-ui, ui-sans-serif, Segoe UI, Roboto,
+    Helvetica, Arial, Apple Color Emoji, Segoe UI Emoji;
+}
+/* Quand la lightbox est ouverte, neutraliser le header */
+.lb-open header,
+.lb-open .site-header,
+.lb-open [data-header] {
+  pointer-events: none !important;
+}
+
+/* Masquer l'icône de calendrier native sur mobile pour les champs date */
+@media (max-width: 768px) {
+  input[type="date"]::-webkit-calendar-picker-indicator {
+    display: none !important;
+    -webkit-appearance: none !important;
+    appearance: none !important;
+    opacity: 0 !important;
+    position: absolute !important;
+    width: 0 !important;
+    height: 0 !important;
+    pointer-events: none !important;
+    background: none !important;
+    cursor: default !important;
+  }
+  
+  input[type="date"]::-webkit-calendar-picker-indicator::before {
+    content: "" !important;
+    display: none !important;
+  }
+  
+  input[type="date"]::-webkit-inner-spin-button {
+    display: none !important;
+    -webkit-appearance: none !important;
+    appearance: none !important;
+  }
+  
+  input[type="date"]::-webkit-outer-spin-button {
+    display: none !important;
+    -webkit-appearance: none !important;
+    appearance: none !important;
+  }
+  
+  input[type="date"] {
+    -webkit-appearance: none !important;
+    appearance: none !important;
+    position: relative;
+  }
+  
+  /* Cibler spécifiquement le champ date mobile */
+  #flight-date-picker-mobile::-webkit-calendar-picker-indicator {
+    display: none !important;
+    opacity: 0 !important;
+    width: 0 !important;
+    height: 0 !important;
+    pointer-events: none !important;
+    background: transparent !important;
+    -webkit-appearance: none !important;
+    appearance: none !important;
+  }
+}
+
+/* === Boutons primaires avec la même couleur que Login === */
+.btn-primary-sm {
+  @apply text-white px-3 py-1.5 text-sm font-medium rounded-lg transition-colors duration-200;
+  background-color: #178cf2;
+}
+
+.btn-primary-sm:hover {
+  filter: brightness(1.1);
+}
+
+.btn-primary-md {
+  @apply text-white px-4 py-2 text-sm font-medium rounded-lg transition-colors duration-200;
+  background-color: #178cf2;
+  color: #ffffff; /* Assurer un contraste suffisant */
+}
+
+.btn-primary-md:hover {
+  filter: brightness(1.1);
+}
+
+.btn-primary-md:disabled {
+  background-color: #93c5fd; /* Couleur plus claire pour disabled mais toujours lisible */
+  color: #ffffff;
+  opacity: 1; /* Éviter double opacité */
+}
+
+.btn-primary-lg {
+  @apply text-white px-6 py-3 text-base font-medium rounded-lg transition-colors duration-200;
+  background-color: #178cf2;
+}
+
+.btn-primary-lg:hover {
+  filter: brightness(1.1);
+}
