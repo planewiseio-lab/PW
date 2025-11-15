@@ -8,7 +8,8 @@ import {
 import { monitorCronJobs } from "@/lib/cron/scheduler";
 import { logCronExecution } from "@/lib/cron/logCronExecution";
 
-export async function POST(request: NextRequest) {
+// Fonction partagée pour gérer les appels cron (GET ou POST)
+async function handleCronRequest(request: NextRequest) {
   const startTime = Date.now();
   const timestamp = new Date().toISOString();
   
@@ -18,25 +19,40 @@ export async function POST(request: NextRequest) {
   console.log(`[FREE-CREDITS-CRON] 📍 Path: /api/cron/free-credits`);
   console.log(`[FREE-CREDITS-CRON] 🌍 Environment: ${process.env.NODE_ENV || "unknown"}`);
   console.log(`[FREE-CREDITS-CRON] 🔐 Vercel: ${process.env.VERCEL ? "YES" : "NO"}`);
+  
+  // Log tous les headers pour déboguer
+  const userAgent = request.headers.get("user-agent");
+  const authHeader = request.headers.get("authorization");
+  const cronSecretHeader = request.headers.get("x-cron-secret");
+  const xVercelSignature = request.headers.get("x-vercel-signature");
+  
+  console.log(`[FREE-CREDITS-CRON] 📋 Headers:`);
+  console.log(`  - User-Agent: ${userAgent}`);
+  console.log(`  - Authorization: ${authHeader ? "***" : "none"}`);
+  console.log(`  - x-cron-secret: ${cronSecretHeader ? "***" : "none"}`);
+  console.log(`  - x-vercel-signature: ${xVercelSignature ? "***" : "none"}`);
   console.log("=".repeat(80));
 
   try {
-    // Vérifier si c'est un appel Vercel Cron (avec CRON_SECRET)
-    const authHeader = request.headers.get("authorization");
+    // Vérifier si c'est un appel Vercel Cron
     const cronSecret = process.env.CRON_SECRET;
-    const cronSecretHeader = request.headers.get("x-cron-secret");
     const isDevelopment = process.env.NODE_ENV === "development" || !process.env.VERCEL;
+    
+    // Vercel Cron envoie User-Agent: vercel-cron/1.0
+    const isVercelCronUserAgent = userAgent === "vercel-cron/1.0";
     
     // Vérifier si c'est un appel depuis Vercel Cron
     const isVercelCron = 
+      isVercelCronUserAgent || // User-Agent identifie Vercel Cron
       (cronSecret && (
         authHeader === `Bearer ${cronSecret}` ||
         cronSecretHeader === cronSecret
-      )) || isDevelopment;
+      )) || 
+      isDevelopment;
 
     if (isVercelCron) {
       // Appel depuis Vercel Cron - exécuter directement
-      console.log("[FREE-CREDITS-CRON] ✅ Authenticated as Vercel Cron");
+      console.log(`[FREE-CREDITS-CRON] ✅ Authenticated as Vercel Cron (User-Agent: ${userAgent || "none"})`);
       
       // Enregistrer le début de l'exécution
       const logEntry = await logCronExecution({
@@ -132,7 +148,16 @@ export async function POST(request: NextRequest) {
     }
 
     console.log(`[FREE-CREDITS-CRON] ✅ Authenticated as admin: ${user.id}`);
-    const body = await request.json().catch(() => ({}));
+    
+    // Pour GET, pas de body. Pour POST, essayer de parser le body
+    let body = {};
+    if (request.method === "POST") {
+      try {
+        body = await request.json();
+      } catch {
+        // Body vide ou invalide, utiliser les valeurs par défaut
+      }
+    }
     const { action = "refresh", force = false } = body;
 
     let result;
@@ -194,48 +219,12 @@ export async function POST(request: NextRequest) {
   }
 }
 
+export async function POST(request: NextRequest) {
+  return handleCronRequest(request);
+}
+
 export async function GET(request: NextRequest) {
-  try {
-    const supabase = await createClient();
-    const {
-      data: { user },
-      error,
-    } = await supabase.auth.getUser();
-
-    if (error || !user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    // Vérifier si l'utilisateur est admin
-    const isAdmin =
-      user.user_metadata?.role === "admin" ||
-      user.app_metadata?.role === "admin";
-
-    if (!isAdmin) {
-      return NextResponse.json(
-        { error: "Admin access required" },
-        { status: 403 }
-      );
-    }
-
-    // GET pour vérifier le statut
-    const result = await checkFreeCreditsStatus();
-    const monitor = await monitorCronJobs();
-
-    return NextResponse.json({
-      success: true,
-      timestamp: new Date().toISOString(),
-      status: result,
-      monitor,
-    });
-  } catch (error) {
-    console.error("Error checking FREE credits status:", error);
-    return NextResponse.json(
-      {
-        error: "Internal server error",
-        details: error instanceof Error ? error.message : "Unknown error",
-      },
-      { status: 500 }
-    );
-  }
+  // GET peut être appelé par Vercel Cron ou par un admin
+  // On utilise la même fonction que POST
+  return handleCronRequest(request);
 }
