@@ -538,6 +538,23 @@ model usage_events {
   @@schema("public")
 }
 
+model cron_job_logs {
+  id          String    @id @default(dbgenerated("gen_random_uuid()"))
+  jobName     String    @map("jobName")
+  status      String    // "success", "error", "running"
+  startedAt   DateTime  @default(now()) @map("startedAt")
+  completedAt DateTime? @map("completedAt")
+  duration    Int?      // Duration in milliseconds
+  result      Json?     // Result data
+  error       String?   // Error message if failed
+  metadata    Json?     // Additional metadata
+
+  @@index([jobName, startedAt])
+  @@index([status])
+  @@map("cron_job_logs")
+  @@schema("public")
+}
+
 enum Plan {
   FREE
   PRO

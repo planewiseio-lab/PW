@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { cleanupExpiredCache } from "@/lib/supabaseCache";
+import { logCronExecution } from "@/lib/cron/logCronExecution";
 
 /**
  * Cron job pour nettoyer les données expirées/anciennes
@@ -14,6 +15,17 @@ import { cleanupExpiredCache } from "@/lib/supabaseCache";
  * - Sessions Supabase expirées (sessions, refresh_tokens)
  */
 export async function POST(request: NextRequest) {
+  const startTime = Date.now();
+  const timestamp = new Date().toISOString();
+  
+  // Log de démarrage très visible pour Vercel
+  console.log("=".repeat(80));
+  console.log(`[CLEANUP-CRON] 🚀 STARTING at ${timestamp}`);
+  console.log(`[CLEANUP-CRON] 📍 Path: /api/cron/cleanup`);
+  console.log(`[CLEANUP-CRON] 🌍 Environment: ${process.env.NODE_ENV || "unknown"}`);
+  console.log(`[CLEANUP-CRON] 🔐 Vercel: ${process.env.VERCEL ? "YES" : "NO"}`);
+  console.log("=".repeat(80));
+
   try {
     // Vérifier le secret Vercel Cron (pour la sécurité)
     const authHeader = request.headers.get("authorization");
@@ -25,7 +37,7 @@ export async function POST(request: NextRequest) {
 
     // En développement, permettre l'accès sans vérification
     if (isDevelopment) {
-      console.log("[CLEANUP] 🔧 Development mode - skipping authentication");
+      console.log("[CLEANUP-CRON] 🔧 Development mode - skipping authentication");
     } 
     // En production, vérifier le secret
     else if (cronSecret) {
@@ -36,22 +48,31 @@ export async function POST(request: NextRequest) {
         cronSecretHeader === cronSecret;
       
       if (!isValidSecret) {
+        console.error("[CLEANUP-CRON] ❌ Invalid CRON_SECRET");
         return NextResponse.json(
           { error: "Unauthorized" },
           { status: 401 }
         );
       }
+      console.log("[CLEANUP-CRON] ✅ Authenticated with CRON_SECRET");
     } else {
       // Production sans secret = erreur (sécurité)
-      console.error("[CLEANUP] ❌ CRON_SECRET not configured in production");
+      console.error("[CLEANUP-CRON] ❌ CRON_SECRET not configured in production");
       return NextResponse.json(
         { error: "CRON_SECRET not configured" },
         { status: 500 }
       );
     }
 
-    const startTime = Date.now();
-    const report = {
+    // Enregistrer le début de l'exécution
+    const logEntry = await logCronExecution({
+      jobName: "cleanup",
+      status: "running",
+      metadata: { source: "vercel-cron", timestamp },
+    });
+
+    try {
+      const report = {
       timestamp: new Date().toISOString(),
       cache: { deleted: 0, error: null as string | null },
       apiRequests: { deleted: 0, error: null as string | null },
@@ -191,25 +212,99 @@ export async function POST(request: NextRequest) {
       report.sessions.deleted +
       report.refreshTokens.deleted;
 
-    console.log(`[CLEANUP] ✅ Cleanup completed in ${report.duration}ms`);
-    console.log(`[CLEANUP] 📊 Total entries deleted: ${totalDeleted}`);
+      const totalDuration = Date.now() - startTime;
+      
+      // Mettre à jour le log avec le résultat
+      if (logEntry) {
+        const { updateCronLog } = await import("@/lib/cron/logCronExecution");
+        await updateCronLog(logEntry.id, {
+          status: "success",
+          result: { report, summary: { totalDeleted, duration: `${totalDuration}ms` } },
+          duration: totalDuration,
+        });
+      } else {
+        // Si la création a échoué, créer un nouveau log
+        await logCronExecution({
+          jobName: "cleanup",
+          status: "success",
+          result: { report, summary: { totalDeleted, duration: `${totalDuration}ms` } },
+          duration: totalDuration,
+          metadata: { source: "vercel-cron", timestamp },
+        });
+      }
+      
+      console.log("=".repeat(80));
+      console.log(`[CLEANUP-CRON] ✅ COMPLETED in ${totalDuration}ms`);
+      console.log(`[CLEANUP-CRON] 📊 Total entries deleted: ${totalDeleted}`);
+      console.log(`[CLEANUP-CRON] 📋 Report:`, JSON.stringify(report, null, 2));
+      console.log("=".repeat(80));
 
-    return NextResponse.json({
-      success: true,
-      message: "Database cleanup completed",
-      report,
-      summary: {
-        totalDeleted,
-        duration: `${report.duration}ms`,
-      },
-    });
+      return NextResponse.json({
+        success: true,
+        message: "Database cleanup completed",
+        timestamp,
+        report,
+        summary: {
+          totalDeleted,
+          duration: `${totalDuration}ms`,
+        },
+      });
+    } catch (error) {
+      const totalDuration = Date.now() - startTime;
+      const errorMessage = error instanceof Error ? error.message : "Unknown error";
+      
+      // Mettre à jour le log avec l'erreur
+      if (logEntry) {
+        const { updateCronLog } = await import("@/lib/cron/logCronExecution");
+        await updateCronLog(logEntry.id, {
+          status: "error",
+          error: errorMessage,
+          duration: totalDuration,
+        });
+      } else {
+        // Si la création a échoué, créer un nouveau log
+        await logCronExecution({
+          jobName: "cleanup",
+          status: "error",
+          error: errorMessage,
+          duration: totalDuration,
+          metadata: { source: "vercel-cron", timestamp },
+        });
+      }
+      
+      console.error("=".repeat(80));
+      console.error(`[CLEANUP-CRON] 💥 ERROR after ${totalDuration}ms`);
+      console.error(`[CLEANUP-CRON] Error:`, error);
+      console.error("=".repeat(80));
+      
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Internal server error",
+          details: errorMessage,
+          timestamp,
+          duration: `${totalDuration}ms`,
+        },
+        { status: 500 }
+      );
+    }
   } catch (error) {
-    console.error("[CLEANUP] 💥 Fatal error during cleanup:", error);
+    // Catch global pour les erreurs non gérées
+    const totalDuration = Date.now() - startTime;
+    const errorMessage = error instanceof Error ? error.message : "Unknown error";
+    
+    console.error("=".repeat(80));
+    console.error(`[CLEANUP-CRON] 💥 FATAL ERROR after ${totalDuration}ms`);
+    console.error(`[CLEANUP-CRON] Error:`, error);
+    console.error("=".repeat(80));
+    
     return NextResponse.json(
       {
         success: false,
         error: "Internal server error",
-        details: error instanceof Error ? error.message : "Unknown error",
+        details: errorMessage,
+        timestamp,
+        duration: `${totalDuration}ms`,
       },
       { status: 500 }
     );
