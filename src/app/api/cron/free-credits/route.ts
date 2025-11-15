@@ -150,7 +150,7 @@ async function handleCronRequest(request: NextRequest) {
     console.log(`[FREE-CREDITS-CRON] ✅ Authenticated as admin: ${user.id}`);
     
     // Pour GET, pas de body. Pour POST, essayer de parser le body
-    let body = {};
+    let body: { action?: string; force?: boolean } = {};
     if (request.method === "POST") {
       try {
         body = await request.json();
