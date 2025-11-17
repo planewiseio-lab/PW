@@ -1,7 +1,7 @@
 "use client";
 
 import { createClient } from "@/lib/supabase/client";
-import { useEffect, useState, useRef, Fragment } from "react";
+import { useEffect, useState, useRef, Fragment, useMemo, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { useUserStatus } from "@/contexts/UserStatusContext";
 import Link from "next/link";
@@ -38,7 +38,8 @@ function LiveCountdown({ arrivalTime }: { arrivalTime: string }) {
     };
     
     updateTime();
-    const interval = setInterval(updateTime, 1000);
+    // Réduire la fréquence à 2 secondes pour améliorer les performances (suffisant pour l'affichage)
+    const interval = setInterval(updateTime, 2000);
     
     return () => clearInterval(interval);
   }, [arrivalTime]);
@@ -86,7 +87,8 @@ function FlightTimeCountdown({ departureTime }: { departureTime: string }) {
     };
 
     updateTime();
-    const interval = setInterval(updateTime, 1000);
+    // Réduire la fréquence à 2 secondes pour améliorer les performances
+    const interval = setInterval(updateTime, 2000);
 
     return () => clearInterval(interval);
   }, [departureTime]);
@@ -139,7 +141,8 @@ function useFlightProgress(departureTime: string, arrivalTime: string) {
     };
 
     updateProgress();
-    const interval = setInterval(updateProgress, 1000);
+    // Réduire la fréquence à 5 secondes pour le progress (moins critique)
+    const interval = setInterval(updateProgress, 5000);
 
     return () => clearInterval(interval);
   }, [departureTime, arrivalTime]);
@@ -325,8 +328,8 @@ export default function DashboardPage() {
   const CREDITS_PER_AIRCRAFT = 2; // 2 crédits par avion
   const mountedRef = useRef(false);
 
-  // Fonction pour obtenir la limite d'avions selon le plan
-  const getFleetLimit = (): number => {
+  // Fonction pour obtenir la limite d'avions selon le plan - mémorisée pour éviter les recalculs
+  const fleetLimit = useMemo((): number => {
     if (!subscription) return 1; // Par défaut 1 pour FREE ou pas d'abonnement
     
     const plan = subscription.plan?.toUpperCase();
@@ -345,17 +348,15 @@ export default function DashboardPage() {
     
     // Par défaut 1 pour FREE ou plan expiré
     return 1;
-  };
-
-  const fleetLimit = getFleetLimit();
+  }, [subscription?.plan, subscription?.status, subscription?.renewsAt]);
 
   // Fonction pour charger les avions de la flotte
   // Cette fonction charge les informations de BASE depuis user_favorites
   // Ces infos proviennent de la requête API tier 1 effectuée lors de l'ajout en favoris
   // (type, manufacturer, model, airline, seats, age, engines, hex, etc.)
   const loadFleetAircraft = async (userId: string, forceReload: boolean = false) => {
-    // Recalculer la limite à chaque chargement au cas où la subscription aurait changé
-    const currentLimit = getFleetLimit();
+    // Utiliser la limite mémorisée (recalculée automatiquement si subscription change)
+    const currentLimit = fleetLimit;
     console.log("[Dashboard] loadFleetAircraft called for user:", userId, "forceReload:", forceReload);
     
     if (favoritesLoadingRef.current && !forceReload) {
@@ -430,10 +431,13 @@ export default function DashboardPage() {
       
       // Charger les statuts détaillés depuis fleet_status (mis à jour toutes les 12h)
       // Ces statuts contiennent la position détaillée, le statut actuel, et les infos de vol
-      // Attendre un peu pour s'assurer que l'état est mis à jour
-      setTimeout(() => {
-        loadFleetStatusesFromDB(formattedFavorites);
-      }, 100);
+      // Utiliser requestAnimationFrame pour s'assurer que le rendu est terminé avant de charger les statuts
+      requestAnimationFrame(() => {
+        // Utiliser un setTimeout pour garantir que l'état est bien mis à jour
+        setTimeout(() => {
+          loadFleetStatusesFromDB(formattedFavorites);
+        }, 50);
+      });
     } catch (error) {
       console.error("Error loading favorites:", error);
       setLoading(false);
@@ -485,63 +489,39 @@ export default function DashboardPage() {
       );
 
       // Mapper les statuts aux avions de manière atomique
+      // TOUJOURS utiliser aircraftList comme source de vérité pour garantir que tous les avions sont affichés
       setFleetAircraft((prev) => {
-        // Vérifier que prev contient bien tous les avions attendus
-        if (prev.length !== aircraftList.length) {
-          console.warn(`[Dashboard] Mismatch: prev has ${prev.length} aircraft, expected ${aircraftList.length}`);
-        }
+        // Créer une map des avions existants pour préserver les données déjà chargées (images, etc.)
+        const prevMap = new Map(prev.map(a => [a.id, a]));
         
-        return prev.map((aircraft) => {
+        // Utiliser aircraftList comme source de vérité pour garantir tous les avions
+        return aircraftList.map((aircraft) => {
+          // Récupérer l'avion existant s'il existe, sinon utiliser le nouveau
+          const existingAircraft = prevMap.get(aircraft.id) || aircraft;
+          
           const savedStatus: FleetStatusFromDB | undefined = statusMap.get(aircraft.registration);
           if (savedStatus) {
-            console.log(`[Dashboard] Loading status for ${aircraft.registration}:`, savedStatus);
-            // Normaliser le statut : simplifier à seulement "in_flight" ou "on_ground"
+            // Utiliser la même logique de mapping que ci-dessous
             let normalizedStatus = (() => {
               const s = savedStatus.status?.toLowerCase() || "";
-              // Seul "in_flight" reste "in_flight", tout le reste devient "on_ground"
               if (s === "in_flight" || s === "inflight" || s === "in flight") {
                 return "in_flight";
               }
-              // Tout le reste (on_ground, scheduled, no_flights, unknown) devient "on_ground"
               return "on_ground";
             })();
             
-            console.log(`[Dashboard] Normalized status for ${aircraft.registration}: "${savedStatus.status}" → "${normalizedStatus}" (message: "${savedStatus.message}")`);
-            
-            // Recalculer dynamiquement le statut basé sur l'heure actuelle
             let dynamicStatus = normalizedStatus;
             const now = new Date();
             
             if (savedStatus.flightInfo) {
               const { departure, arrival } = savedStatus.flightInfo;
-              
-              // Si on a les heures de départ et d'arrivée, recalculer le statut
               if (departure?.time && arrival?.time) {
                 try {
                   const depTime = new Date(departure.time);
                   const arrTime = new Date(arrival.time);
-                  
-                  // Vol en cours (départé mais pas encore arrivé)
                   if (now >= depTime && now < arrTime) {
                     dynamicStatus = "in_flight";
-                  }
-                  // Vol terminé (arrivé)
-                  else if (now >= arrTime) {
-                    dynamicStatus = "on_ground";
-                  }
-                  // Vol futur (pas encore parti)
-                  else if (now < depTime) {
-                    dynamicStatus = "scheduled";
-                  }
-                } catch (e) {
-                  console.error(`[Dashboard] Error recalculating status for ${aircraft.registration}:`, e);
-                }
-              }
-              // Si on a seulement l'heure d'arrivée (vol terminé)
-              else if (arrival?.time && !departure?.time) {
-                try {
-                  const arrTime = new Date(arrival.time);
-                  if (now >= arrTime) {
+                  } else if (now >= arrTime) {
                     dynamicStatus = "on_ground";
                   }
                 } catch (e) {
@@ -551,6 +531,8 @@ export default function DashboardPage() {
             }
             
             return {
+              ...existingAircraft,
+              // Préserver les données de base de l'avion
               ...aircraft,
               status: {
                 registration: savedStatus.registration,
@@ -563,7 +545,11 @@ export default function DashboardPage() {
               },
             };
           }
-          return aircraft;
+          // Si pas de statut, retourner l'avion existant avec les données de base mises à jour
+          return {
+            ...existingAircraft,
+            ...aircraft,
+          };
         });
       });
     } catch (error) {
@@ -694,8 +680,8 @@ export default function DashboardPage() {
     }
   };
 
-  // Fonction pour sélectionner/désélectionner un avion
-  const toggleAircraftSelection = (aircraftId: string) => {
+  // Fonction pour sélectionner/désélectionner un avion - mémorisée avec useCallback
+  const toggleAircraftSelection = useCallback((aircraftId: string) => {
     setSelectedAircraft((prev) => {
       const newSet = new Set(prev);
       if (newSet.has(aircraftId)) {
@@ -705,18 +691,20 @@ export default function DashboardPage() {
       }
       return newSet;
     });
-  };
+  }, []);
 
-  // Fonction pour sélectionner/désélectionner tous les avions
-  const toggleSelectAll = () => {
-    if (selectedAircraft.size === fleetAircraft.length) {
-      // Tout désélectionner
-      setSelectedAircraft(new Set());
-    } else {
-      // Tout sélectionner
-      setSelectedAircraft(new Set(fleetAircraft.map((a) => a.id)));
-    }
-  };
+  // Fonction pour sélectionner/désélectionner tous les avions - mémorisée avec useCallback
+  const toggleSelectAll = useCallback(() => {
+    setSelectedAircraft((prev) => {
+      if (prev.size === fleetAircraft.length) {
+        // Tout désélectionner
+        return new Set();
+      } else {
+        // Tout sélectionner
+        return new Set(fleetAircraft.map((a) => a.id));
+      }
+    });
+  }, [fleetAircraft]);
 
   // Fonction pour rafraîchir les statuts des avions sélectionnés
   const refreshAllStatuses = async () => {
@@ -964,31 +952,48 @@ export default function DashboardPage() {
     }
   };
 
-  // Charger les images pour tous les avions
+  // Charger les images pour tous les avions (en parallèle pour améliorer les performances)
   useEffect(() => {
     if (fleetAircraft.length === 0) return;
 
     const loadImages = async () => {
-      for (const aircraft of fleetAircraft) {
-        // Ne charger que si l'image n'est pas déjà chargée
-        if (!aircraft.imageUrl && !aircraft.imageLoading) {
+      // Charger toutes les images en parallèle au lieu de séquentiellement
+      const imagePromises = fleetAircraft
+        .filter((aircraft) => !aircraft.imageUrl && !aircraft.imageLoading)
+        .map(async (aircraft) => {
+          // Marquer comme en cours de chargement
           setFleetAircraft((prev) =>
             prev.map((a) =>
               a.id === aircraft.id ? { ...a, imageLoading: true } : a
             )
           );
 
-          const imageUrl = await loadAircraftImage(aircraft.registration);
-          
-          setFleetAircraft((prev) =>
-            prev.map((a) =>
-              a.id === aircraft.id
-                ? { ...a, imageUrl: imageUrl || undefined, imageLoading: false }
-                : a
-            )
-          );
-        }
-      }
+          try {
+            const imageUrl = await loadAircraftImage(aircraft.registration);
+            
+            // Mettre à jour avec l'image chargée
+            setFleetAircraft((prev) =>
+              prev.map((a) =>
+                a.id === aircraft.id
+                  ? { ...a, imageUrl: imageUrl || undefined, imageLoading: false }
+                  : a
+              )
+            );
+          } catch (error) {
+            console.error(`Error loading image for ${aircraft.registration}:`, error);
+            // Marquer comme terminé même en cas d'erreur
+            setFleetAircraft((prev) =>
+              prev.map((a) =>
+                a.id === aircraft.id
+                  ? { ...a, imageLoading: false }
+                  : a
+              )
+            );
+          }
+        });
+
+      // Attendre que toutes les images soient chargées (ou échouent)
+      await Promise.allSettled(imagePromises);
     };
 
     loadImages();
@@ -1272,21 +1277,9 @@ export default function DashboardPage() {
                                     )}
                                   </div>
                                 </label>
-                                <Link
-                                  href={`/aircraft/${aircraft.registration}`}
-                                  className="text-2xl sm:text-3xl md:text-4xl font-black text-white hover:text-blue-100 transition-colors break-all flex-1"
-                                  onClick={(e) => {
-                                    // Sur mobile, empêcher la navigation et laisser le parent gérer le clic
-                                    const isMobile = window.innerWidth < 640;
-                                    if (isMobile) {
-                                      e.preventDefault();
-                                      e.stopPropagation();
-                                      return false;
-                                    }
-                                  }}
-                                >
+                                <span className="text-2xl sm:text-3xl md:text-4xl font-black text-white break-all flex-1">
                                   {aircraft.registration}
-                                </Link>
+                                </span>
                               </div>
                               <div className="flex items-center gap-2 flex-shrink-0">
                                 <Link
@@ -1344,11 +1337,8 @@ export default function DashboardPage() {
 
                           {/* Section 2: Image */}
                           <div className="px-3 sm:px-4 md:px-6 py-4 sm:py-6 bg-gray-50">
-                            <Link
-                              href={`/aircraft/${aircraft.registration}`}
-                              className="block group"
-                            >
-                              <div className="relative w-full h-48 md:h-64 lg:h-80 rounded-lg overflow-hidden border-2 border-gray-200 bg-gray-100 shadow-md group-hover:shadow-lg transition-all">
+                            <div className="block group">
+                              <div className="relative w-full h-48 md:h-64 lg:h-80 rounded-lg overflow-hidden border-2 border-gray-200 bg-gray-100 shadow-md transition-all">
                                 {aircraft.imageLoading ? (
                                   <div className="w-full h-full flex items-center justify-center bg-gray-100">
                                     <div className="animate-spin rounded-full h-12 w-12 border-4 border-blue-600 border-t-transparent"></div>
@@ -1376,12 +1366,12 @@ export default function DashboardPage() {
                                         strokeWidth={2}
                                         d="M12 6v6m0 0v6m0-6h6m-6 0H6"
                                       />
-                                    </svg>
-                                  </div>
-                                )}
-                              </div>
-                            </Link>
+                                  </svg>
+                                </div>
+                              )}
+                            </div>
                           </div>
+                        </div>
 
                           {/* Section 3: Infos de l'avion */}
                           <div className="px-3 sm:px-4 md:px-6 py-4 sm:py-6 border-t border-gray-200">

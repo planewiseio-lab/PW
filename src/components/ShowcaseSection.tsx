@@ -39,14 +39,9 @@ export default function ShowcaseSection() {
   // Textes explicatifs pour chaque slide
   const slideTexts = [
     {
-      title: "Aircraft Information",
-      description:
-        "Track your fleet of aircraft in your dashboard with real-time status updates. Monitor aircraft that are in flight with live position tracking and flight progress.",
-    },
-    {
       title: "Fleet Dashboard",
       description:
-        "Monitor your aircraft fleet in your dashboard. View aircraft that are on ground with their current location and arrival information.",
+        "Track your fleet of aircraft in your dashboard with real-time status updates. Monitor aircraft that are in flight or on ground with live position tracking, flight progress, and arrival information.",
     },
     {
       title: "Aircraft Lookup",
@@ -162,9 +157,127 @@ export default function ShowcaseSection() {
     return `/Assets/Showcase${slideNumber}.png`;
   };
 
-  // Ne pas afficher sur mobile
+  // Version mobile avec SVG, titres et descriptions
   if (isMobile) {
-    return null;
+    return (
+      <section className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8 py-12 sm:py-16">
+        <div className="text-center mb-8">
+          <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-gray-900">
+            Everything you need to track aviation
+          </h2>
+          <p className="mt-2 text-sm sm:text-base text-gray-600 max-w-2xl mx-auto">
+            From aircraft details to real-time flight tracking, access
+            comprehensive aviation data in one place.
+          </p>
+        </div>
+
+        {/* Grille de fonctionnalités mobile */}
+        <div className="grid grid-cols-1 gap-6 sm:gap-8">
+          {slideTexts.map((slide, index) => (
+            <div
+              key={index}
+              className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm hover:shadow-md transition-shadow"
+            >
+              <div className="flex items-center gap-4">
+                {/* SVG Icon - Centré verticalement */}
+                <div className="flex-shrink-0 w-12 h-12 sm:w-14 sm:h-14 rounded-lg bg-blue-50 flex items-center justify-center">
+                  {index === 0 && (
+                    // Fleet Dashboard - Icône dashboard/graphique
+                    <svg
+                      className="w-6 h-6 sm:w-7 sm:h-7 text-blue-600"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
+                      />
+                    </svg>
+                  )}
+                  {index === 1 && (
+                    // Aircraft Lookup - Icône recherche
+                    <svg
+                      className="w-6 h-6 sm:w-7 sm:h-7 text-blue-600"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                      />
+                    </svg>
+                  )}
+                  {index === 2 && (
+                    // Flight History - Icône horloge/historique
+                    <svg
+                      className="w-6 h-6 sm:w-7 sm:h-7 text-blue-600"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+                      />
+                    </svg>
+                  )}
+                  {index === 3 && (
+                    // Flight Details - Icône éclair/vitesse
+                    <svg
+                      className="w-6 h-6 sm:w-7 sm:h-7 text-blue-600"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M13 10V3L4 14h7v7l9-11h-7z"
+                      />
+                    </svg>
+                  )}
+                  {index === 4 && (
+                    // Airport Board - Icône bâtiment/aéroport
+                    <svg
+                      className="w-6 h-6 sm:w-7 sm:h-7 text-blue-600"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"
+                      />
+                    </svg>
+                  )}
+                </div>
+
+                {/* Contenu texte */}
+                <div className="flex-1 min-w-0">
+                  <h3 className="text-lg sm:text-xl font-bold text-gray-900 mb-2">
+                    {slide.title}
+                  </h3>
+                  <p className="text-sm sm:text-base text-gray-600 leading-relaxed">
+                    {slide.description}
+                  </p>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
+    );
   }
 
   return (
