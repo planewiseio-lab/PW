@@ -19,7 +19,7 @@ function MaintenanceContent() {
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
 
-  // Vérifier si un token est présent dans l'URL
+  // Check if a token is present in the URL
   useEffect(() => {
     const token = searchParams?.get("token");
     if (token) {
@@ -31,7 +31,7 @@ function MaintenanceContent() {
   const handleAccess = async (token?: string) => {
     const tokenToUse = token || accessToken;
     if (!tokenToUse) {
-      setError("Veuillez entrer un token d'accès");
+      setError("Please enter an access token");
       return;
     }
 
@@ -39,7 +39,7 @@ function MaintenanceContent() {
     setError("");
 
     try {
-      // Vérifier le token via une API route
+      // Verify the token via an API route
       const response = await fetch("/api/test-access", {
         method: "POST",
         headers: {
@@ -51,16 +51,16 @@ function MaintenanceContent() {
       const data = await response.json();
 
       if (response.ok && data.valid) {
-        // Stocker le token dans un cookie pour la session
+        // Store the token in a cookie for the session
         document.cookie = `test_access_token=${tokenToUse}; path=/; max-age=86400; SameSite=Lax`;
-        // Rediriger vers la page d'accueil
+        // Redirect to the home page
         router.push("/");
         router.refresh();
       } else {
-        setError(data.error || "Token invalide");
+        setError(data.error || "Invalid token");
       }
     } catch (err) {
-      setError("Erreur lors de la vérification du token");
+      setError("Error verifying token");
       console.error(err);
     } finally {
       setIsLoading(false);
@@ -116,13 +116,13 @@ function MaintenanceContent() {
             </svg>
           </div>
           <h1 className="text-3xl font-bold text-gray-900 mb-2">
-            Accès Restreint
+            Restricted Access
           </h1>
           <p className="text-gray-600">
-            Le site est actuellement en phase de test.
+            The site is currently in testing phase.
           </p>
           <p className="text-sm text-gray-500 mt-2">
-            Veuillez entrer votre token d'accès pour continuer.
+            Please enter your access token to continue.
           </p>
         </div>
 
@@ -138,14 +138,14 @@ function MaintenanceContent() {
               htmlFor="token"
               className="block text-sm font-medium text-gray-700 mb-2"
             >
-              Token d'accès
+              Access Token
             </label>
             <input
               id="token"
               type="password"
               value={accessToken}
               onChange={(e) => setAccessToken(e.target.value)}
-              placeholder="Entrez votre token d'accès"
+              placeholder="Enter your access token"
               className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               disabled={isLoading}
             />
@@ -187,22 +187,22 @@ function MaintenanceContent() {
                     d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
                   ></path>
                 </svg>
-                Vérification...
+                Verifying...
               </>
             ) : (
-              "Accéder au site"
+              "Access Site"
             )}
           </button>
         </form>
 
         <div className="mt-6 pt-6 border-t border-gray-200">
           <p className="text-xs text-gray-500 text-center">
-            Si vous êtes un testeur autorisé et n'avez pas de token,{" "}
+            If you are an authorized tester and don't have a token,{" "}
             <a
               href="mailto:support@plane-wise.com"
               className="text-blue-600 hover:underline"
             >
-              contactez le support
+              contact support
             </a>
             .
           </p>
@@ -221,7 +221,7 @@ export default function MaintenancePage() {
           <div className="max-w-md w-full bg-white rounded-2xl shadow-xl p-8">
             <div className="text-center">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
-              <p className="mt-2 text-gray-600">Chargement...</p>
+              <p className="mt-2 text-gray-600">Loading...</p>
             </div>
           </div>
         </div>
