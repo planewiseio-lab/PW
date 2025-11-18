@@ -63,8 +63,32 @@ export async function POST(request: NextRequest) {
     }
 
     // Créer le checkout Paddle
+    // Paddle v2 utilise l'endpoint /transactions pour créer un checkout
     const customerId = `user_${user.id}`;
     const customerEmail = user.email || "";
+
+    const requestBody = {
+      items: [
+        {
+          price_id: priceId,
+          quantity: 1,
+        },
+      ],
+      customer_id: customerId,
+      customer_email: customerEmail,
+      custom_data: {
+        user_id: user.id,
+        plan: plan,
+      },
+    };
+
+    console.log("[Paddle Checkout] Creating checkout with:", {
+      url: `${PADDLE_API_URL}/transactions`,
+      plan,
+      priceId,
+      customerId,
+      customerEmail: customerEmail ? "***" : "missing",
+    });
 
     const checkoutResponse = await fetch(
       `${PADDLE_API_URL}/transactions`,
@@ -75,30 +99,36 @@ export async function POST(request: NextRequest) {
           "Content-Type": "application/json",
           "Accept": "application/json",
         },
-        body: JSON.stringify({
-          items: [
-            {
-              price_id: priceId,
-              quantity: 1,
-            },
-          ],
-          customer_id: customerId,
-          customer_email: customerEmail,
-          custom_data: {
-            user_id: user.id,
-            plan: plan,
-          },
-        }),
+        body: JSON.stringify(requestBody),
       }
     );
 
     if (!checkoutResponse.ok) {
       const errorText = await checkoutResponse.text();
-      console.error("Paddle checkout error:", errorText);
+      let errorDetails: any = { raw: errorText };
+      
+      // Essayer de parser l'erreur JSON
+      try {
+        errorDetails = JSON.parse(errorText);
+      } catch {
+        // Si ce n'est pas du JSON, garder le texte brut
+      }
+      
+      console.error("[Paddle Checkout] API Error:", {
+        status: checkoutResponse.status,
+        statusText: checkoutResponse.statusText,
+        error: errorDetails,
+        url: `${PADDLE_API_URL}/transactions`,
+        plan,
+        priceId,
+      });
+      
       return NextResponse.json(
         {
           error: "Failed to create Paddle checkout",
-          details: errorText,
+          details: errorDetails.error?.detail || errorDetails.message || errorText,
+          code: errorDetails.error?.type || errorDetails.code,
+          status: checkoutResponse.status,
         },
         { status: 500 }
       );

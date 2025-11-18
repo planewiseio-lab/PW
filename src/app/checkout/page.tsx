@@ -1,11 +1,18 @@
 "use client";
 
-import { useEffect, useState, Suspense, useRef } from "react";
+import { useEffect, useState, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { motion } from "@/components/LazyMotion";
 import { createClient } from "@/lib/supabase/client";
 import Link from "next/link";
 import Script from "next/script";
+
+// Déclaration globale pour Paddle
+declare global {
+  interface Window {
+    Paddle: any;
+  }
+}
 
 // Mapping des plans pour l'affichage
 const PLAN_DETAILS: Record<
@@ -37,22 +44,28 @@ const PLAN_DETAILS: Record<
   },
 };
 
+// Mapping des plans vers les price IDs Paddle (côté client)
+const PLAN_PRICE_IDS: Record<string, string> = {
+  BASIC: process.env.NEXT_PUBLIC_PADDLE_PRICE_ID_BASIC || "",
+  PRO: process.env.NEXT_PUBLIC_PADDLE_PRICE_ID_PRO || "",
+};
+
 function CheckoutContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const planParam = searchParams.get("plan");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [checkoutId, setCheckoutId] = useState<string | null>(null);
-  const [checkoutUrl, setCheckoutUrl] = useState<string | null>(null);
-  const [variantId, setVariantId] = useState<string | null>(null);
   const [plan, setPlan] = useState<string | null>(null);
+  const [user, setUser] = useState<any>(null);
+  const [paddleReady, setPaddleReady] = useState(false);
   const [currentSubscription, setCurrentSubscription] = useState<{
     plan: string;
     status: string;
     renewsAt?: string;
   } | null>(null);
 
+  // Initialiser Paddle.js et vérifier l'authentification
   useEffect(() => {
     const initializeCheckout = async () => {
       if (!planParam) {
@@ -65,16 +78,18 @@ function CheckoutContent() {
       try {
         const supabase = createClient();
         const {
-          data: { user },
+          data: { user: authUser },
           error: authError,
         } = await supabase.auth.getUser();
 
-        if (authError || !user) {
+        if (authError || !authUser) {
           // Rediriger automatiquement vers /auth avec le redirect
           const redirectUrl = `/checkout?plan=${planParam}`;
           router.replace(`/auth?redirect=${encodeURIComponent(redirectUrl)}`);
           return;
         }
+
+        setUser(authUser);
 
         // Récupérer l'abonnement actuel de l'utilisateur
         try {
@@ -117,134 +132,99 @@ function CheckoutContent() {
 
       setPlan(planCode);
 
-      try {
-        // Appeler l'API pour créer le checkout Paddle
-        const response = await fetch("/api/paddle/create-checkout", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          credentials: "include",
-          body: JSON.stringify({ plan: planCode }),
-        });
-
-        if (!response.ok) {
-          const errorData = await response.json();
-
-          // Vérifier si c'est une erreur d'authentification
-          if (
-            response.status === 401 ||
-            errorData.error === "Authentication required"
-          ) {
-            const redirectUrl = `/checkout?plan=${planParam}`;
-            router.replace(`/auth?redirect=${encodeURIComponent(redirectUrl)}`);
-            return;
-          }
-
-          // Afficher un message d'erreur plus détaillé
-          const errorMessage = errorData.error || "Failed to create checkout";
-          console.error("Checkout error:", errorMessage);
-          throw new Error(errorMessage);
-        }
-
-        const data = await response.json();
-
-        if (!data.checkoutUrl || !data.transactionId) {
-          throw new Error("No checkout data received from server");
-        }
-
-        setCheckoutUrl(data.checkoutUrl);
-        setCheckoutId(data.transactionId);
-        if (data.priceId) {
-          setVariantId(data.priceId);
-        }
-        console.log("[Checkout] Using URL:", data.checkoutUrl);
+      // Vérifier que le price ID est configuré
+      const priceId = PLAN_PRICE_IDS[planCode];
+      if (!priceId) {
+        setError(
+          `Paddle price ID not configured for plan ${planCode}. Please contact support.`
+        );
         setLoading(false);
-      } catch (err: any) {
-        console.error("Error creating checkout:", err);
-
-        // Vérifier si c'est une erreur d'authentification
-        if (
-          err.message === "Authentication required" ||
-          err.message?.includes("Authentication")
-        ) {
-          const redirectUrl = `/checkout?plan=${planParam}`;
-          router.replace(`/auth?redirect=${encodeURIComponent(redirectUrl)}`);
-          return;
-        }
-
-        setError(err.message || "Failed to initialize checkout. Please try again.");
-        setLoading(false);
+        return;
       }
+
+      setLoading(false);
     };
 
     initializeCheckout();
   }, [planParam, router]);
 
-  // Éviter les appels multiples et l'initialisation multiple
-  const checkoutInitialized = useRef(false);
-
-  // Détecter si on est en développement (localhost)
-  const isDevelopment = typeof window !== "undefined" && 
-    (window.location.hostname === "localhost" || 
-     window.location.hostname === "127.0.0.1" ||
-     window.location.hostname.includes("localhost"));
-
-  // Afficher le checkout : iframe en production, redirection en développement
-  useEffect(() => {
-    if (checkoutUrl && !loading && !checkoutInitialized.current) {
-      checkoutInitialized.current = true;
-      
-      // En développement, rediriger directement (Paddle bloque localhost dans les iframes)
-      if (isDevelopment) {
-        console.log("[Paddle] Development mode detected, redirecting to checkout URL:", checkoutUrl);
-        // Petit délai pour permettre à l'utilisateur de voir la page
-        setTimeout(() => {
-          window.location.href = checkoutUrl;
-        }, 500);
-        return;
-      }
-      
-      // En production, utiliser un iframe inline
-      const initCheckout = () => {
-        const container = document.getElementById("paddle-checkout-container");
-        if (!container) {
-          console.warn("[Paddle] Checkout container not found, retrying...");
-          setTimeout(initCheckout, 100);
-          return;
-        }
-        
-        // Vérifier si le checkout n'est pas déjà initialisé
-        if (container.querySelector("iframe")) {
-          console.log("[Paddle] Checkout already initialized in container");
-          return;
-        }
-        
-        // Créer l'iframe directement avec l'URL de checkout
-        console.log("[Paddle] Creating inline checkout iframe with URL:", checkoutUrl);
-        const iframe = document.createElement("iframe");
-        iframe.src = checkoutUrl;
-        iframe.style.width = "100%";
-        iframe.style.minHeight = "650px";
-        iframe.style.border = "none";
-        iframe.style.backgroundColor = "transparent";
-        iframe.setAttribute("allow", "payment");
-        iframe.setAttribute("title", "Paddle Checkout");
-        iframe.setAttribute("loading", "eager");
-        
-        // Gérer le redirection après paiement
-        iframe.onload = () => {
-          console.log("[Paddle] Checkout iframe loaded");
-        };
-        
-        container.appendChild(iframe);
-        console.log("[Paddle] Checkout iframe created successfully");
-      };
-      
-      // Démarrer l'initialisation
-      initCheckout();
+  // Initialiser le checkout inline quand Paddle est prêt
+  const initializeInlineCheckout = () => {
+    if (!plan || !paddleReady || !window.Paddle) {
+      console.warn("[Paddle] Not ready yet", { plan, paddleReady, paddle: !!window.Paddle });
+      return;
     }
-  }, [checkoutUrl, loading, isDevelopment]);
+
+    const priceId = PLAN_PRICE_IDS[plan];
+    if (!priceId) {
+      setError(`Price ID not configured for plan ${plan}`);
+      return;
+    }
+
+    // Vérifier que le conteneur existe
+    const container = document.getElementById("paddle-inline-checkout");
+    if (!container) {
+      console.warn("[Paddle] Checkout container not found, retrying...");
+      setTimeout(initializeInlineCheckout, 100);
+      return;
+    }
+
+    // Vérifier si le checkout n'est pas déjà initialisé
+    if (container.querySelector("iframe") || container.querySelector("[data-paddle-checkout]")) {
+      console.log("[Paddle] Checkout already initialized");
+      return;
+    }
+
+    try {
+      // Préparer les items pour le checkout
+      const items = [
+        {
+          priceId: priceId,
+          quantity: 1,
+        },
+      ];
+
+      // Préparer les informations client si disponibles
+      const customer: any = {};
+      if (user?.email) {
+        customer.email = user.email;
+      }
+
+      console.log("[Paddle Checkout] Initializing inline checkout", {
+        items,
+        customer: customer.email ? "***" : "none",
+        frameTarget: "paddle-inline-checkout",
+      });
+
+      // Ouvrir le checkout inline dans le conteneur
+      window.Paddle.Checkout.open({
+        items,
+        ...(Object.keys(customer).length > 0 ? { customer } : {}),
+        settings: {
+          displayMode: "inline",
+          frameTarget: "paddle-inline-checkout",
+          frameInitialHeight: 650,
+          frameStyle: "width:100%; min-width:312px; background-color: transparent; border: none;",
+        },
+      });
+    } catch (err: any) {
+      console.error("[Paddle Checkout] Error initializing inline checkout:", err);
+      setError(err.message || "Failed to initialize checkout. Please try again.");
+    }
+  };
+
+  // Initialiser automatiquement le checkout inline quand tout est prêt
+  useEffect(() => {
+    if (!loading && plan && paddleReady && user && window.Paddle) {
+      // Petit délai pour s'assurer que le DOM est prêt
+      const timer = setTimeout(() => {
+        initializeInlineCheckout();
+      }, 500);
+      
+      return () => clearTimeout(timer);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loading, plan, paddleReady, user]);
 
   if (loading) {
     return (
@@ -334,14 +314,48 @@ function CheckoutContent() {
         onLoad={() => {
           // Initialiser Paddle.js après le chargement du script
           const paddleToken = process.env.NEXT_PUBLIC_PADDLE_CLIENT_TOKEN;
-          if (paddleToken && (window as any).Paddle) {
-            (window as any).Paddle.Initialize({
-              token: paddleToken,
-            });
-            console.log("[Paddle] Script loaded and initialized");
-          } else {
-            console.warn("[Paddle] Client token not configured or Paddle not available");
+          const paddleEnvironment = process.env.NEXT_PUBLIC_PADDLE_ENVIRONMENT || "production";
+          
+          if (!paddleToken) {
+            console.error("[Paddle] Client token not configured");
+            setError("Paddle is not configured. Please contact support.");
+            return;
           }
+
+          if (!window.Paddle) {
+            console.error("[Paddle] Paddle object not available");
+            setError("Failed to load Paddle. Please refresh the page.");
+            return;
+          }
+
+          // Définir l'environnement si sandbox
+          if (paddleEnvironment === "sandbox") {
+            window.Paddle.Environment.set("sandbox");
+          }
+
+          // Initialiser Paddle avec le token
+          window.Paddle.Initialize({
+            token: paddleToken,
+            eventCallback: (data: any) => {
+              console.log("[Paddle] Event:", data);
+              
+              // Gérer les événements de succès
+              if (data.name === "checkout.completed") {
+                console.log("[Paddle] Checkout completed:", data);
+                // Rediriger vers la page de succès
+                router.push(`/checkout/success?transaction_id=${data.data?.transaction_id || ""}`);
+              }
+              
+              // Gérer les erreurs
+              if (data.name === "checkout.error") {
+                console.error("[Paddle] Checkout error:", data);
+                setError(data.data?.message || "An error occurred during checkout");
+              }
+            },
+          });
+          
+          console.log("[Paddle] Script loaded and initialized");
+          setPaddleReady(true);
         }}
       />
       <div className="min-h-screen bg-white py-12 px-4">
@@ -465,32 +479,25 @@ function CheckoutContent() {
                 </motion.div>
               )}
 
-              {/* Conteneur pour le checkout inline (production) ou message de redirection (développement) */}
+              {/* Conteneur pour le checkout inline */}
               <div className="mb-6">
-                {checkoutUrl && isDevelopment ? (
+                {!paddleReady && !error && (
                   <div className="bg-blue-50 border-2 border-blue-200 text-blue-800 px-6 py-8 rounded-lg text-center">
                     <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
-                    <h3 className="text-lg font-semibold mb-2">Redirecting to secure checkout...</h3>
+                    <h3 className="text-lg font-semibold mb-2">Preparing secure checkout...</h3>
                     <p className="text-sm text-blue-700">
-                      In development mode, we redirect to Paddle's secure checkout page.
-                      <br />
-                      In production, the checkout will be embedded directly on this page.
+                      Loading payment form...
                     </p>
                   </div>
-                ) : (
-                  <>
+                )}
+                {paddleReady && !error && (
+                  <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
                     <div 
-                      id="paddle-checkout-container" 
-                      className="w-full min-h-[650px] bg-white rounded-lg border border-gray-200 overflow-hidden"
+                      id="paddle-inline-checkout" 
+                      className="w-full min-h-[650px]"
                       style={{ minHeight: "650px" }}
                     />
-                    {!checkoutUrl && !loading && (
-                      <div className="flex items-center justify-center py-8">
-                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-                        <p className="ml-3 text-gray-600">Preparing secure checkout...</p>
-                      </div>
-                    )}
-                  </>
+                  </div>
                 )}
               </div>
 
