@@ -543,7 +543,7 @@ function AuthPageContent() {
           <div className="text-center mb-8">
             <Link href="/" className="flex flex-col items-center gap-2">
               <Image
-                src="/Assets/logo.webp"
+                src="/Assets/logo.png"
                 alt="PlaneWise Logo"
                 width={80}
                 height={80}
