@@ -16,20 +16,20 @@ export async function POST(request: NextRequest) {
 
     if (!token) {
       return NextResponse.json(
-        { valid: false, error: "Token requis" },
+        { valid: false, error: "Token required" },
         { status: 400 }
       );
     }
 
-    // Vérifier le token
+    // Verify the token
     if (token === TEST_ACCESS_TOKEN) {
-      // Si une whitelist d'emails est configurée, vérifier l'email
+      // If an email whitelist is configured, verify the email
       if (AUTHORIZED_EMAILS.length > 0 && email) {
         if (!AUTHORIZED_EMAILS.includes(email.toLowerCase())) {
           return NextResponse.json(
             {
               valid: false,
-              error: "Email non autorisé. Contactez le support pour obtenir l'accès.",
+              error: "Email not authorized. Contact support to get access.",
             },
             { status: 403 }
           );
@@ -40,13 +40,13 @@ export async function POST(request: NextRequest) {
     }
 
     return NextResponse.json(
-      { valid: false, error: "Token invalide" },
+      { valid: false, error: "Invalid token" },
       { status: 401 }
     );
   } catch (error) {
     console.error("[Test Access] Error:", error);
     return NextResponse.json(
-      { valid: false, error: "Erreur serveur" },
+      { valid: false, error: "Server error" },
       { status: 500 }
     );
   }
