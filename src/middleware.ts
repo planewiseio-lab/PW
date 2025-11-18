@@ -23,6 +23,37 @@ export async function middleware(request: NextRequest) {
     return res;
   }
 
+  // Vérification du mode test - RESTREINT L'ACCÈS AU SITE
+  const isTestMode = process.env.TEST_MODE === "true";
+  const testAccessToken = process.env.TEST_ACCESS_TOKEN || "test-paddle-2024";
+  const pathname = request.nextUrl.pathname;
+
+  // Routes autorisées même en mode test
+  const allowedPaths = [
+    "/maintenance",
+    "/api/test-access",
+    "/api/health",
+    "/api/metrics",
+  ];
+
+  // Vérifier si on est en mode test et si la route n'est pas autorisée
+  if (isTestMode && !allowedPaths.some((path) => pathname.startsWith(path))) {
+    // Vérifier si l'utilisateur a un token d'accès valide dans les cookies
+    const testToken = request.cookies.get("test_access_token")?.value;
+
+    if (testToken !== testAccessToken) {
+      // Rediriger vers la page de maintenance
+      const maintenanceUrl = new URL("/maintenance", request.url);
+      // Préserver le token dans l'URL si présent
+      if (request.nextUrl.searchParams.get("token")) {
+        maintenanceUrl.searchParams.set("token", request.nextUrl.searchParams.get("token") || "");
+      }
+      const res = NextResponse.redirect(maintenanceUrl);
+      res.headers.set("X-Request-Id", reqId);
+      return res;
+    }
+  }
+
   // Vérifier si Supabase est configuré
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
