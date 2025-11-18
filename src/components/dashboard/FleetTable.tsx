@@ -16,6 +16,8 @@ export interface FleetAircraft {
   hex?: string;
   status?: AircraftStatus;
   lastUpdated?: string;
+  imageUrl?: string;
+  imageLoading?: boolean;
 }
 
 export interface AircraftStatus {
