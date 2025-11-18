@@ -44,11 +44,7 @@ const PLAN_DETAILS: Record<
   },
 };
 
-// Mapping des plans vers les price IDs Paddle (côté client)
-const PLAN_PRICE_IDS: Record<string, string> = {
-  BASIC: process.env.NEXT_PUBLIC_PADDLE_PRICE_ID_BASIC || "",
-  PRO: process.env.NEXT_PUBLIC_PADDLE_PRICE_ID_PRO || "",
-};
+// Les price IDs seront récupérés depuis l'API serveur
 
 function CheckoutContent() {
   const searchParams = useSearchParams();
@@ -59,6 +55,7 @@ function CheckoutContent() {
   const [plan, setPlan] = useState<string | null>(null);
   const [user, setUser] = useState<any>(null);
   const [paddleReady, setPaddleReady] = useState(false);
+  const [priceId, setPriceId] = useState<string | null>(null);
   const [currentSubscription, setCurrentSubscription] = useState<{
     plan: string;
     status: string;
@@ -132,17 +129,55 @@ function CheckoutContent() {
 
       setPlan(planCode);
 
-      // Vérifier que le price ID est configuré
-      const priceId = PLAN_PRICE_IDS[planCode];
-      if (!priceId) {
-        setError(
-          `Paddle price ID not configured for plan ${planCode}. Please contact support.`
-        );
+      // Récupérer le price ID depuis l'API serveur
+      // Utiliser un cache de session pour éviter les appels répétés
+      const cacheKey = `paddle_price_id_${planCode}`;
+      const cachedPriceId = sessionStorage.getItem(cacheKey);
+      
+      if (cachedPriceId) {
+        console.log(`[Checkout] Using cached price ID for ${planCode}`);
+        setPriceId(cachedPriceId);
         setLoading(false);
         return;
       }
 
-      setLoading(false);
+      try {
+        const priceIdResponse = await fetch(
+          `/api/paddle/price-ids?plan=${planCode}`,
+          {
+            credentials: "include",
+            cache: "no-store",
+          }
+        );
+
+        if (!priceIdResponse.ok) {
+          const errorData = await priceIdResponse.json();
+          setError(
+            errorData.error ||
+              `Failed to get price ID for plan ${planCode}. Please contact support.`
+          );
+          setLoading(false);
+          return;
+        }
+
+        const priceIdData = await priceIdResponse.json();
+        if (!priceIdData.priceId) {
+          setError(
+            `Paddle price ID not configured for plan ${planCode}. Please contact support.`
+          );
+          setLoading(false);
+          return;
+        }
+
+        // Mettre en cache pour cette session
+        sessionStorage.setItem(cacheKey, priceIdData.priceId);
+        setPriceId(priceIdData.priceId);
+        setLoading(false);
+      } catch (priceIdErr) {
+        console.error("Error fetching price ID:", priceIdErr);
+        setError("Failed to initialize checkout. Please try again.");
+        setLoading(false);
+      }
     };
 
     initializeCheckout();
@@ -150,14 +185,13 @@ function CheckoutContent() {
 
   // Initialiser le checkout inline quand Paddle est prêt
   const initializeInlineCheckout = () => {
-    if (!plan || !paddleReady || !window.Paddle) {
-      console.warn("[Paddle] Not ready yet", { plan, paddleReady, paddle: !!window.Paddle });
-      return;
-    }
-
-    const priceId = PLAN_PRICE_IDS[plan];
-    if (!priceId) {
-      setError(`Price ID not configured for plan ${plan}`);
+    if (!plan || !priceId || !paddleReady || !window.Paddle) {
+      console.warn("[Paddle] Not ready yet", { 
+        plan, 
+        priceId: !!priceId, 
+        paddleReady, 
+        paddle: !!window.Paddle 
+      });
       return;
     }
 
@@ -179,7 +213,7 @@ function CheckoutContent() {
       // Préparer les items pour le checkout
       const items = [
         {
-          priceId: priceId,
+          priceId: priceId, // Utiliser le priceId depuis l'état
           quantity: 1,
         },
       ];
@@ -215,7 +249,7 @@ function CheckoutContent() {
 
   // Initialiser automatiquement le checkout inline quand tout est prêt
   useEffect(() => {
-    if (!loading && plan && paddleReady && user && window.Paddle) {
+    if (!loading && plan && priceId && paddleReady && user && window.Paddle) {
       // Petit délai pour s'assurer que le DOM est prêt
       const timer = setTimeout(() => {
         initializeInlineCheckout();
@@ -224,7 +258,7 @@ function CheckoutContent() {
       return () => clearTimeout(timer);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [loading, plan, paddleReady, user]);
+  }, [loading, plan, priceId, paddleReady, user]);
 
   if (loading) {
     return (
