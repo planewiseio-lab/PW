@@ -184,7 +184,9 @@ function CheckoutContent() {
   }, [planParam, router]);
 
   // Initialiser le checkout inline quand Paddle est prêt
-  const initializeInlineCheckout = () => {
+  const initializeInlineCheckout = (retryCount = 0) => {
+    const MAX_RETRIES = 20; // Maximum 2 secondes de retry (20 * 100ms)
+    
     if (!plan || !priceId || !paddleReady || !window.Paddle) {
       console.warn("[Paddle] Not ready yet", { 
         plan, 
@@ -195,12 +197,31 @@ function CheckoutContent() {
       return;
     }
 
-    // Vérifier que le conteneur existe
+    // Vérifier que le conteneur existe et est dans le DOM
     const container = document.getElementById("paddle-inline-checkout");
     if (!container) {
-      console.warn("[Paddle] Checkout container not found, retrying...");
-      setTimeout(initializeInlineCheckout, 100);
-      return;
+      if (retryCount < MAX_RETRIES) {
+        console.warn(`[Paddle] Checkout container not found, retrying... (${retryCount + 1}/${MAX_RETRIES})`);
+        setTimeout(() => initializeInlineCheckout(retryCount + 1), 100);
+        return;
+      } else {
+        console.error("[Paddle] Checkout container not found after max retries");
+        setError("Failed to initialize checkout. Please refresh the page.");
+        return;
+      }
+    }
+
+    // Vérifier que le conteneur est vraiment dans le DOM (pas juste créé)
+    if (!container.isConnected) {
+      if (retryCount < MAX_RETRIES) {
+        console.warn(`[Paddle] Container not connected to DOM, retrying... (${retryCount + 1}/${MAX_RETRIES})`);
+        setTimeout(() => initializeInlineCheckout(retryCount + 1), 100);
+        return;
+      } else {
+        console.error("[Paddle] Container not connected to DOM after max retries");
+        setError("Failed to initialize checkout. Please refresh the page.");
+        return;
+      }
     }
 
     // Vérifier si le checkout n'est pas déjà initialisé
@@ -250,10 +271,18 @@ function CheckoutContent() {
   // Initialiser automatiquement le checkout inline quand tout est prêt
   useEffect(() => {
     if (!loading && plan && priceId && paddleReady && user && window.Paddle) {
-      // Petit délai pour s'assurer que le DOM est prêt
-      const timer = setTimeout(() => {
-        initializeInlineCheckout();
-      }, 500);
+      // Utiliser requestAnimationFrame pour s'assurer que le DOM est complètement rendu
+      const initCheckout = () => {
+        requestAnimationFrame(() => {
+          // Double vérification avec un petit délai pour être sûr que le conteneur est dans le DOM
+          setTimeout(() => {
+            initializeInlineCheckout();
+          }, 100);
+        });
+      };
+      
+      // Attendre que le composant soit complètement monté
+      const timer = setTimeout(initCheckout, 300);
       
       return () => clearTimeout(timer);
     }
@@ -513,7 +542,7 @@ function CheckoutContent() {
                 </motion.div>
               )}
 
-              {/* Conteneur pour le checkout inline */}
+              {/* Conteneur pour le checkout inline - TOUJOURS rendu pour éviter les problèmes de timing */}
               <div className="mb-6">
                 {!paddleReady && !error && (
                   <div className="bg-blue-50 border-2 border-blue-200 text-blue-800 px-6 py-8 rounded-lg text-center">
@@ -524,15 +553,12 @@ function CheckoutContent() {
                     </p>
                   </div>
                 )}
-                {paddleReady && !error && (
-                  <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
-                    <div 
-                      id="paddle-inline-checkout" 
-                      className="w-full min-h-[650px]"
-                      style={{ minHeight: "650px" }}
-                    />
-                  </div>
-                )}
+                {/* Conteneur toujours présent dans le DOM, même si pas encore prêt */}
+                <div 
+                  id="paddle-inline-checkout" 
+                  className={`w-full min-h-[650px] ${!paddleReady || error ? "hidden" : ""}`}
+                  style={{ minHeight: "650px" }}
+                />
               </div>
 
               <div className="mt-6 pt-6 border-t border-gray-200">
