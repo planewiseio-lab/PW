@@ -18,7 +18,15 @@ export interface FleetAircraft {
   lastUpdated?: string;
 }
 
-export type AircraftStatus = "active" | "grounded" | "unknown" | "maintenance";
+export interface AircraftStatus {
+  registration: string;
+  date: string;
+  status: "active" | "grounded" | "unknown" | "maintenance" | "in_flight" | "on_ground";
+  message: string;
+  location: string;
+  updatedAt?: string;
+  flightInfo?: any;
+}
 
 interface FleetTableProps {
   fleetAircraft: FleetAircraft[];
@@ -146,20 +154,22 @@ export default function FleetTable({
                 <td className="px-4 py-3">
                   <span
                     className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                      aircraft.status === "active"
+                      aircraft.status?.status === "active" || aircraft.status?.status === "in_flight"
                         ? "bg-green-100 text-green-800"
-                        : aircraft.status === "grounded"
+                        : aircraft.status?.status === "grounded" || aircraft.status?.status === "on_ground"
                         ? "bg-red-100 text-red-800"
-                        : aircraft.status === "maintenance"
+                        : aircraft.status?.status === "maintenance"
                         ? "bg-yellow-100 text-yellow-800"
                         : "bg-gray-100 text-gray-800"
                     }`}
                   >
-                    {aircraft.status || "unknown"}
+                    {aircraft.status?.status || "unknown"}
                   </span>
                 </td>
                 <td className="px-4 py-3 text-sm text-gray-500">
-                  {aircraft.lastUpdated
+                  {aircraft.status?.updatedAt
+                    ? new Date(aircraft.status.updatedAt).toLocaleDateString()
+                    : aircraft.lastUpdated
                     ? new Date(aircraft.lastUpdated).toLocaleDateString()
                     : "Never"}
                 </td>
