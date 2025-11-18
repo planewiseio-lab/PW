@@ -11,15 +11,55 @@ import Image from "next/image";
 // Fonction pour gérer le scroll vers la section pricing
 function useHashScroll() {
   useEffect(() => {
-    // Vérifier si on a un hash dans l'URL
-    if (typeof window !== "undefined" && window.location.hash === "#pricing") {
-      // Attendre que le DOM soit prêt
-      setTimeout(() => {
-        const pricingSection = document.getElementById("pricing");
-        if (pricingSection) {
-          pricingSection.scrollIntoView({ behavior: "smooth", block: "start" });
+    const scrollToPricing = () => {
+      const pricingSection = document.getElementById("pricing");
+      if (pricingSection) {
+        // Utiliser un petit offset pour tenir compte du header fixe
+        const headerOffset = 80;
+        const elementPosition = pricingSection.getBoundingClientRect().top;
+        const offsetPosition = elementPosition + window.pageYOffset - headerOffset;
+
+        window.scrollTo({
+          top: offsetPosition,
+          behavior: "smooth",
+        });
+        return true;
+      }
+      return false;
+    };
+
+    // Fonction pour essayer de scroller avec retry
+    const tryScroll = (maxAttempts = 10, delay = 200) => {
+      let attempts = 0;
+      const interval = setInterval(() => {
+        attempts++;
+        if (scrollToPricing() || attempts >= maxAttempts) {
+          clearInterval(interval);
         }
-      }, 100);
+      }, delay);
+    };
+
+    // Vérifier le hash au chargement initial
+    if (typeof window !== "undefined") {
+      if (window.location.hash === "#pricing") {
+        // Attendre un peu pour que les composants dynamiques se chargent
+        setTimeout(() => {
+          tryScroll();
+        }, 500);
+      }
+
+      // Écouter les changements de hash (navigation avec #pricing)
+      const handleHashChange = () => {
+        if (window.location.hash === "#pricing") {
+          tryScroll();
+        }
+      };
+
+      window.addEventListener("hashchange", handleHashChange);
+
+      return () => {
+        window.removeEventListener("hashchange", handleHashChange);
+      };
     }
   }, []);
 }
