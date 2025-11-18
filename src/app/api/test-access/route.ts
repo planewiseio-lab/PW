@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 
-// Token d'accès pour les testeurs (à changer en production)
-// Vous pouvez aussi utiliser une variable d'environnement
+// Access token for testers (change in production)
+// You can also use an environment variable
 const TEST_ACCESS_TOKEN = process.env.TEST_ACCESS_TOKEN || "test-paddle-2024";
 
-// Liste d'emails autorisés (optionnel)
+// List of authorized emails (optional)
 const AUTHORIZED_EMAILS = process.env.AUTHORIZED_EMAILS
   ? process.env.AUTHORIZED_EMAILS.split(",").map((e) => e.trim())
   : [];
