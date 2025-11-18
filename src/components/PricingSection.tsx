@@ -97,7 +97,7 @@ export default function PricingSection() {
               transition={{ duration: 0.15, ease: "easeOut" }}
               className={`relative rounded-2xl border ${p.wrapClass} bg-white p-6 sm:p-8 shadow-sm hover:shadow-xl transition-all duration-150 flex flex-col cursor-pointer`}
             >
-              {'oldPrice' in p && p.oldPrice && (
+              {('oldPrice' in p && (p as any).oldPrice) && (
                 <motion.div
                   initial={
                     isMobile ? { opacity: 1 } : { opacity: 0, scale: 0.8 }
@@ -113,7 +113,7 @@ export default function PricingSection() {
               )}
               <h3 className="text-xl font-semibold">{p.name}</h3>
               <div className="mt-1 relative">
-                {'oldPrice' in p && p.oldPrice ? (
+                {('oldPrice' in p && (p as any).oldPrice) ? (
                   <div className="flex items-baseline gap-3">
                     <motion.p
                       initial={
