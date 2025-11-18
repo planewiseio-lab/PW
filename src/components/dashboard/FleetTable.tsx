@@ -34,7 +34,7 @@ interface FleetTableProps {
   fleetAircraft: FleetAircraft[];
   selectedAircraft: Set<string>;
   toggleAircraftSelection: (registration: string) => void;
-  removeFavoriteAircraft: (registration: string) => void;
+  removeFavoriteAircraft: (id: string, aircraftRegistration: string) => void;
 }
 
 export default function FleetTable({
@@ -177,7 +177,7 @@ export default function FleetTable({
                 </td>
                 <td className="px-4 py-3 text-sm">
                   <button
-                    onClick={() => removeFavoriteAircraft(aircraft.registration)}
+                    onClick={() => removeFavoriteAircraft(aircraft.id, aircraft.registration)}
                     className="text-red-600 hover:text-red-800 font-medium"
                   >
                     Remove
