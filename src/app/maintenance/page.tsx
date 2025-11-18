@@ -3,14 +3,6 @@
 import { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { motion } from "@/components/LazyMotion";
-import Image from "next/image";
-import dynamic from "next/dynamic";
-import AuthButton from "@/components/AuthButton";
-
-// Lazy load SearchHeader
-const SearchHeader = dynamic(() => import("@/components/SearchHeader"), {
-  ssr: true,
-});
 
 function MaintenanceContent() {
   const router = useRouter();
@@ -51,11 +43,10 @@ function MaintenanceContent() {
       const data = await response.json();
 
       if (response.ok && data.valid) {
-        // Store the token in a cookie for the session
-        document.cookie = `test_access_token=${tokenToUse}; path=/; max-age=86400; SameSite=Lax`;
-        // Redirect to the home page
-        router.push("/");
-        router.refresh();
+        // Cookie is now set by the server in the API response
+        // Use window.location for a full page reload to ensure cookie is read
+        // This is more reliable than router.push for cookie-based auth
+        window.location.href = "/";
       } else {
         setError(data.error || "Invalid token");
       }
@@ -68,31 +59,7 @@ function MaintenanceContent() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
-      {/* Header */}
-      <header className="sticky top-0 z-50 border-b border-black/5 bg-white/70 backdrop-blur-md">
-        <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8 h-14 flex items-center justify-between">
-          <a
-            href="/"
-            className="inline-flex items-center gap-2 hover:opacity-90 transition"
-          >
-            <Image
-              src="/Assets/logo.png"
-              alt="PlaneWise"
-              width={24}
-              height={24}
-              className="h-6 w-auto"
-              priority
-            />
-            <span className="font-semibold">PlaneWise</span>
-          </a>
-          <AuthButton />
-        </div>
-      </header>
-      {/* Search Header */}
-      <SearchHeader />
-      {/* Main Content */}
-      <div className="flex items-center justify-center px-4 py-8">
+    <div className="flex items-center justify-center min-h-[calc(100vh-160px)] px-4 py-8">
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -194,21 +161,7 @@ function MaintenanceContent() {
             )}
           </button>
         </form>
-
-        <div className="mt-6 pt-6 border-t border-gray-200">
-          <p className="text-xs text-gray-500 text-center">
-            If you are an authorized tester and don't have a token,{" "}
-            <a
-              href="mailto:support@plane-wise.com"
-              className="text-blue-600 hover:underline"
-            >
-              contact support
-            </a>
-            .
-          </p>
-        </div>
       </motion.div>
-      </div>
     </div>
   );
 }
@@ -217,7 +170,7 @@ export default function MaintenancePage() {
   return (
     <Suspense
       fallback={
-        <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 px-4">
+        <div className="flex items-center justify-center min-h-[calc(100vh-160px)] px-4">
           <div className="max-w-md w-full bg-white rounded-2xl shadow-xl p-8">
             <div className="text-center">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
@@ -231,4 +184,3 @@ export default function MaintenancePage() {
     </Suspense>
   );
 }
-

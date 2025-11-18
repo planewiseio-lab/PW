@@ -7,7 +7,7 @@ export default function Footer() {
         <p className="text-sm text-gray-500">
           © {new Date().getFullYear()} PlaneWise.io
         </p>
-        <div className="flex items-center gap-4 text-sm">
+        <div className="flex items-center gap-4 text-sm flex-wrap justify-center">
           <a href="/about-us" className="text-gray-600 hover:text-brand-700">
             About Us
           </a>
@@ -16,6 +16,9 @@ export default function Footer() {
           </a>
           <a href="/terms" className="text-gray-600 hover:text-brand-700">
             Terms
+          </a>
+          <a href="/refund-policy" className="text-gray-600 hover:text-brand-700">
+            Refund Policy
           </a>
           <a href="/contact" className="text-gray-600 hover:text-brand-700">
             Contact

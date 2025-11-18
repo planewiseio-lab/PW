@@ -36,7 +36,27 @@ export async function POST(request: NextRequest) {
         }
       }
 
-      return NextResponse.json({ valid: true });
+      // Set the cookie on the server side for better reliability
+      const response = NextResponse.json({ valid: true });
+      
+      // Determine if we're on localhost or production
+      const isLocalhost = process.env.NODE_ENV === "development";
+      
+      response.cookies.set("test_access_token", token, {
+        path: "/",
+        maxAge: 86400, // 24 hours
+        sameSite: "lax",
+        httpOnly: false, // Must be false to be readable by client-side JS if needed
+        // On localhost, don't set domain (allows localhost:3000 to work)
+        // In production, domain will be set automatically by the browser
+        ...(isLocalhost ? {} : { secure: true }), // Secure only in production (HTTPS)
+      });
+
+      if (process.env.NODE_ENV === "development") {
+        console.log("[Test Access] Cookie set successfully for token:", token);
+      }
+
+      return response;
     }
 
     return NextResponse.json(

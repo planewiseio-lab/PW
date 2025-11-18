@@ -33,7 +33,7 @@ export default function TermsPage() {
         <section className="mb-8">
           <h2 className="text-2xl font-semibold mb-4">2. Definitions</h2>
           <p className="mb-4">
-            "PlaneWise", "we", "our", or "us" refers to the operators and
+            "PlaneWise" (the legal business name), "we", "our", or "us" refers to the operators and
             maintainers of the PlaneWise platform and related services.
           </p>
           <p>

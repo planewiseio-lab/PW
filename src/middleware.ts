@@ -41,6 +41,18 @@ export async function middleware(request: NextRequest) {
     // Vérifier si l'utilisateur a un token d'accès valide dans les cookies
     const testToken = request.cookies.get("test_access_token")?.value;
 
+    // Debug: log en développement pour voir ce qui se passe
+    if (process.env.NODE_ENV === "development") {
+      console.log("[Middleware] Test mode active, checking token...");
+      console.log("[Middleware] Cookie token value:", testToken || "missing");
+      console.log("[Middleware] Expected token:", testAccessToken);
+      console.log("[Middleware] Tokens match:", testToken === testAccessToken);
+      console.log("[Middleware] Path:", pathname);
+      // Log all cookies for debugging
+      const allCookies = request.cookies.getAll();
+      console.log("[Middleware] All cookies:", allCookies.map(c => `${c.name}=${c.value}`).join(", "));
+    }
+
     if (testToken !== testAccessToken) {
       // Rediriger vers la page de maintenance
       const maintenanceUrl = new URL("/maintenance", request.url);

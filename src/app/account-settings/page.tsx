@@ -984,7 +984,6 @@ function AccountSettingsContent() {
                           name: "Pro",
                           planCode: "PRO",
                           price: "$15",
-                          oldPrice: "$12.99",
                           note: "/mo",
                           perks: [
                             "Aircraft Lookup and history",
@@ -1048,7 +1047,7 @@ function AccountSettingsContent() {
                               </span>
                             </div>
                           )}
-                          {p.oldPrice && !isCurrent && (
+                          {('oldPrice' in p && (p as any).oldPrice && !isCurrent) ? (
                             <motion.div
                               initial={{ opacity: 0, scale: 0.8 }}
                               animate={{ opacity: 1, scale: 1 }}
@@ -1059,17 +1058,17 @@ function AccountSettingsContent() {
                                 SAVE 23%
                               </span>
                             </motion.div>
-                          )}
+                          ) : null}
                           <h4 className="text-xl font-semibold">{p.name}</h4>
                           <div className="mt-1 relative">
-                            {p.oldPrice && (
+                            {('oldPrice' in p && (p as any).oldPrice) ? (
                               <motion.p
                                 initial={{ opacity: 0, x: -20 }}
                                 animate={{ opacity: 1, x: 0 }}
                                 transition={{ duration: 0.5, delay: 0.1 }}
                                 className="text-lg font-medium text-gray-400 line-through relative mb-1"
                               >
-                                {p.oldPrice}
+                                {(p as any).oldPrice}
                                 <motion.span
                                   animate={{
                                     scale: [1, 1.05, 1],
@@ -1083,16 +1082,16 @@ function AccountSettingsContent() {
                                   className="absolute left-0 right-0 top-0 bottom-0 bg-gradient-to-r from-transparent via-red-200/30 to-transparent"
                                 />
                               </motion.p>
-                            )}
+                            ) : null}
                             <motion.p
                               initial={{ opacity: 0, y: -10 }}
                               animate={{ opacity: 1, y: 0 }}
-                              transition={{ duration: 0.5, delay: p.oldPrice ? 0.2 : 0.1 }}
+                              transition={{ duration: 0.5, delay: ('oldPrice' in p && (p as any).oldPrice) ? 0.2 : 0.1 }}
                               className={`text-3xl font-extrabold ${
-                                p.oldPrice ? "text-blue-600" : ""
+                                ('oldPrice' in p && (p as any).oldPrice) ? "text-blue-600" : ""
                               } relative inline-block`}
                             >
-                              {p.oldPrice && (
+                              {('oldPrice' in p && (p as any).oldPrice) ? (
                                 <motion.span
                                   animate={{
                                     boxShadow: [
@@ -1108,7 +1107,7 @@ function AccountSettingsContent() {
                                   }}
                                   className="absolute inset-0 rounded-lg blur-sm"
                                 />
-                              )}
+                              ) : null}
                               <span className="relative z-10">{p.price}</span>
                               <span className="text-base font-medium text-gray-500">
                                 {p.note}

@@ -78,7 +78,7 @@ export function AdSection({
   const pathname = usePathname() || "/";
 
   // Ne pas afficher les pubs sur les pages légales/informatives
-  const isLegalPage = pathname === "/privacy" || pathname === "/terms" || pathname === "/about-us";
+  const isLegalPage = pathname === "/privacy" || pathname === "/terms" || pathname === "/about-us" || pathname === "/refund-policy";
 
   // Ne pas afficher les pubs si:
   // 1. L'utilisateur a une souscription active

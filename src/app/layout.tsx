@@ -81,8 +81,10 @@ import ErrorBoundary from "@/components/ErrorBoundary";
 import HeadLinks from "@/components/HeadLinks";
 import PWASetup from "@/components/PWASetup";
 import StructuredDataServer from "@/components/StructuredDataServer";
-import BFCacheHandler from "@/components/BFCacheHandler";
 import { AdSection } from "@/components/ads/AdWrapper";
+
+// Lazy load BFCacheHandler - Client Component
+const BFCacheHandler = dynamic(() => import("@/components/BFCacheHandler"));
 import { UserStatusProvider } from "@/contexts/UserStatusContext";
 import { Comfortaa } from "next/font/google";
 import Script from "next/script";

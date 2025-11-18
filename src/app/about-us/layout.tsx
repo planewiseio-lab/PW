@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 export const metadata: Metadata = {
   title: "About Us - PlaneWise",
   description:
-    "Learn about credit usage and refund policy for PlaneWise aviation data platform.",
+    "Learn about credit usage and security for PlaneWise aviation data platform.",
   robots: {
     index: true,
     follow: true,
@@ -11,7 +11,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: "About Us - PlaneWise",
     description:
-      "Learn about credit usage and refund policy for PlaneWise aviation data platform.",
+      "Learn about credit usage and security for PlaneWise aviation data platform.",
     type: "website",
     url: "https://plane-wise.com/about-us",
     images: [

@@ -36,9 +36,11 @@ export default function SearchHeader() {
   const isContactPage = pathname === "/contact";
   const isPrivacyPage = pathname === "/privacy";
   const isTermsPage = pathname === "/terms";
-  const isAboutUsPage = pathname === "/about-us";
+  const isAboutUsPage = pathname === "/about-us" || pathname.startsWith("/about-us/");
+  const isRefundPolicyPage = pathname === "/refund-policy" || pathname.startsWith("/refund-policy/");
   const isResetPasswordPage = pathname === "/auth/reset-password";
   const isAuthCallbackPage = pathname === "/auth/callback";
+  const isMaintenancePage = pathname === "/maintenance";
 
   // Éviter les différences d'hydration
   useEffect(() => {
@@ -71,8 +73,8 @@ export default function SearchHeader() {
     });
   };
 
-  // Pas de SearchHeader sur la home, les pages d'auth, les pages admin, les pages checkout, la page contact, privacy, terms, about-us, la page reset password, et la page auth callback
-  if (isHome || isAuthPage || isAdminPage || isCheckoutPage || isContactPage || isPrivacyPage || isTermsPage || isAboutUsPage || isResetPasswordPage || isAuthCallbackPage) return null;
+  // Pas de SearchHeader sur la home, les pages d'auth, les pages admin, les pages checkout, la page contact, privacy, terms, about-us, refund-policy, la page reset password, la page auth callback, et la page maintenance
+  if (isHome || isAuthPage || isAdminPage || isCheckoutPage || isContactPage || isPrivacyPage || isTermsPage || isAboutUsPage || isRefundPolicyPage || isResetPasswordPage || isAuthCallbackPage || isMaintenancePage) return null;
 
   // Éviter les différences d'hydration - rendu initial avec transition
   if (!isMounted) {
