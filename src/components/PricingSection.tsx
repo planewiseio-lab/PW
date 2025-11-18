@@ -125,7 +125,7 @@ export default function PricingSection() {
                       transition={isMobile ? {} : { duration: 0.5, delay: 0.1 }}
                       className="text-lg font-medium text-gray-400 line-through relative"
                     >
-                      {p.oldPrice}
+                      {(p as any).oldPrice}
                       {!isMobile && (
                         <motion.span
                           animate={{
