@@ -9,8 +9,8 @@ interface UserWithCredits {
   status: string;
   credits: number;
   renewsAt: string;
-  stripeCustomerId: string | null;
-  stripeSubId: string | null;
+  paddleSubscriptionId: string | null;
+  paddleTransactionId: string | null;
   updatedAt: string;
 }
 

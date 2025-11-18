@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef, Suspense, useCallback } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import FlightCard from "@/components/FlightCard";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence } from "@/components/LazyMotion";
 import { fetchFlightData } from "@/lib/flightRequestDeduplication";
 import StructuredData from "@/components/StructuredData";
 

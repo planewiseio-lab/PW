@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { motion } from "framer-motion";
+import { motion } from "@/components/LazyMotion";
 import {
   ArrowRight,
   CreditCard,
@@ -167,7 +167,7 @@ export function FreeCreditsExceededModal() {
                 </div>
                 <h3 className="text-xl font-bold text-gray-900 mb-2">Basic</h3>
                 <div className="text-3xl font-bold text-gray-900 mb-1">
-                  $5.99
+                  $10
                 </div>
                 <div className="text-gray-600 text-sm">/mo</div>
               </div>
@@ -277,7 +277,7 @@ export function FreeCreditsExceededModal() {
                       }}
                       className="absolute inset-0 rounded-lg blur-sm"
                     />
-                    <span className="relative z-10">$9.99</span>
+                    <span className="relative z-10">$15</span>
                   </motion.div>
                 </div>
                 <div className="text-gray-600 text-sm">/mo</div>

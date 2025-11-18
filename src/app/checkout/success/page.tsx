@@ -3,7 +3,7 @@
 import { useEffect, useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { motion } from "framer-motion";
+import { motion } from "@/components/LazyMotion";
 
 function CheckoutSuccessContent() {
   const router = useRouter();

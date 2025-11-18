@@ -487,15 +487,15 @@ model user_subscriptions {
 
 // Credit system models
 model subscriptions {
-  id               String             @id @default(dbgenerated("gen_random_uuid()"))
-  userId           String             @unique @map("userId")
-  plan             Plan               @default(FREE) @map("plan")
-  status           SubscriptionStatus @default(ACTIVE) @map("status")
-  renewsAt         DateTime           @map("renewsAt")
-  stripeCustomerId String?            @map("stripeCustomerId")
-  stripeSubId      String?            @map("stripeSubId")
-  createdAt        DateTime           @default(now()) @map("createdAt")
-  updatedAt        DateTime           @updatedAt @map("updatedAt")
+  id                  String             @id @default(dbgenerated("gen_random_uuid()"))
+  userId              String             @unique @map("userId")
+  plan                Plan               @default(FREE) @map("plan")
+  status              SubscriptionStatus @default(ACTIVE) @map("status")
+  renewsAt            DateTime           @map("renewsAt")
+  paddleSubscriptionId String?            @map("paddleSubscriptionId")
+  paddleTransactionId   String?            @map("paddleTransactionId")
+  createdAt           DateTime           @default(now()) @map("createdAt")
+  updatedAt           DateTime           @updatedAt @map("updatedAt")
 
   @@map("subscriptions")
   @@schema("public")

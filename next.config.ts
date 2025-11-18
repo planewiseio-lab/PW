@@ -72,6 +72,7 @@ const nextConfig: NextConfig = {
     minimumCacheTTL: 60,
     deviceSizes: [640, 750, 828, 1080, 1200, 1920, 2048, 3840],
     imageSizes: [16, 32, 48, 64, 96, 128, 256, 384],
+    qualities: [75, 85, 90, 95, 100], // Qualités supportées pour Next.js 16
     remotePatterns: [
       {
         protocol: "https",
@@ -109,12 +110,12 @@ const nextConfig: NextConfig = {
             key: "Content-Security-Policy",
             value: [
               "default-src 'self'",
-              "script-src 'self' 'unsafe-eval' 'unsafe-inline' https://accounts.google.com https://pagead2.googlesyndication.com https://*.googlesyndication.com https://*.adtrafficquality.google https://js.stripe.com",
-              "style-src 'self' 'unsafe-inline' https://accounts.google.com",
+              "script-src 'self' 'unsafe-eval' 'unsafe-inline' https: data: blob: https://accounts.google.com https://pagead2.googlesyndication.com https://*.googlesyndication.com https://*.adtrafficquality.google https://cdn.paddle.com https://*.paddle.com",
+              "style-src 'self' 'unsafe-inline' https://accounts.google.com https://cdn.paddle.com",
               "img-src 'self' data: https: *.wikimedia.org *.commons.wikimedia.org *.googleusercontent.com *.staticflickr.com *.flickr.com https://pagead2.googlesyndication.com https://*.googlesyndication.com",
               "font-src 'self' fonts.gstatic.com",
-              "connect-src 'self' https://prod.api.market https://commons.wikimedia.org https://ssqqbcniphbdjttxgcug.supabase.co https://accounts.google.com https://oauth2.googleapis.com https://pagead2.googlesyndication.com https://*.googlesyndication.com https://*.adtrafficquality.google https://*.google.com https://*.doubleclick.net https://api.stripe.com https://js.stripe.com",
-              "frame-src 'self' https://accounts.google.com https://tpc.googlesyndication.com https://googleads.g.doubleclick.net https://js.stripe.com https://hooks.stripe.com https://*.adtrafficquality.google https://www.google.com https://*.google.com",
+              "connect-src 'self' https://prod.api.market https://commons.wikimedia.org https://ssqqbcniphbdjttxgcug.supabase.co https://accounts.google.com https://oauth2.googleapis.com https://pagead2.googlesyndication.com https://*.googlesyndication.com https://*.adtrafficquality.google https://*.google.com https://*.doubleclick.net https://api.paddle.com https://*.paddle.com https://checkout-service.paddle.com https://o4505075539902464.ingest.us.sentry.io",
+              "frame-src 'self' https://accounts.google.com https://tpc.googlesyndication.com https://googleads.g.doubleclick.net https://*.adtrafficquality.google https://www.google.com https://*.google.com https://checkout.paddle.com https://buy.paddle.com https://*.paddle.com blob:",
               "frame-ancestors 'none'",
               "base-uri 'self'",
               "form-action 'self'",

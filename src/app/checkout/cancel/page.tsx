@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { motion } from "framer-motion";
+import { motion } from "@/components/LazyMotion";
 
 export default function CheckoutCancelPage() {
   return (
@@ -51,6 +51,9 @@ export default function CheckoutCancelPage() {
     </div>
   );
 }
+
+
+
 
 
 

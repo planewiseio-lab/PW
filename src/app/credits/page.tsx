@@ -1,6 +1,27 @@
 "use client";
 
-import { CreditsSection } from "@/components/credits/CreditsSection";
+import dynamic from "next/dynamic";
+import { Suspense } from "react";
+
+// Lazy load CreditsSection pour améliorer les performances
+// Ce composant est lourd avec plusieurs sous-composants
+const CreditsSection = dynamic(
+  () => import("@/components/credits/CreditsSection").then((mod) => ({
+    default: mod.CreditsSection,
+  })),
+  {
+    ssr: true, // SSR pour le SEO
+    loading: () => (
+      <div className="bg-white rounded-lg shadow p-8">
+        <div className="animate-pulse space-y-4">
+          <div className="h-8 bg-gray-200 rounded w-1/3"></div>
+          <div className="h-32 bg-gray-200 rounded"></div>
+          <div className="h-64 bg-gray-200 rounded"></div>
+        </div>
+      </div>
+    ),
+  }
+);
 
 export default function CreditsPage() {
   return (
@@ -22,7 +43,17 @@ export default function CreditsPage() {
           </p>
         </div>
 
-        <CreditsSection />
+        <Suspense fallback={
+          <div className="bg-white rounded-lg shadow p-8">
+            <div className="animate-pulse space-y-4">
+              <div className="h-8 bg-gray-200 rounded w-1/3"></div>
+              <div className="h-32 bg-gray-200 rounded"></div>
+              <div className="h-64 bg-gray-200 rounded"></div>
+            </div>
+          </div>
+        }>
+          <CreditsSection />
+        </Suspense>
       </div>
     </div>
   );

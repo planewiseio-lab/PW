@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { motion } from "framer-motion";
+import { motion } from "@/components/LazyMotion";
 
 export default function ContactPage() {
   const [name, setName] = useState("");

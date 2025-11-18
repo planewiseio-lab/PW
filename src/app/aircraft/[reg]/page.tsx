@@ -4,7 +4,7 @@ import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
 import { createPortal } from "react-dom";
-import { motion } from "framer-motion";
+import { motion } from "@/components/LazyMotion";
 import { useImagesReady } from "@/hooks/useImagesReady";
 import StructuredData from "@/components/StructuredData";
 import { getImagesData } from "@/lib/globalApiCache";

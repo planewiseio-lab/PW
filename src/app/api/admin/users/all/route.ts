@@ -103,8 +103,8 @@ export async function GET(request: NextRequest) {
         status: subscription.status,
         credits,
         renewsAt: subscription.renewsAt.toISOString(),
-        stripeCustomerId: subscription.stripeCustomerId,
-        stripeSubId: subscription.stripeSubId,
+        paddleSubscriptionId: subscription.paddleSubscriptionId,
+        paddleTransactionId: subscription.paddleTransactionId,
         updatedAt: subscription.updatedAt.toISOString(),
       };
     });

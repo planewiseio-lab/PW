@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence } from "@/components/LazyMotion";
 import Link from "next/link";
 
 type CookieConsent = "accepted" | "rejected" | null;

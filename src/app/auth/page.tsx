@@ -3,8 +3,9 @@
 import { useState, useEffect, Suspense, useCallback } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useRouter, useSearchParams } from "next/navigation";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence } from "@/components/LazyMotion";
 import Link from "next/link";
+import Image from "next/image";
 import PasswordRequirements from "@/components/PasswordRequirements";
 
 type AuthMode = "login" | "register";
@@ -541,10 +542,13 @@ function AuthPageContent() {
           {/* Logo en haut */}
           <div className="text-center mb-8">
             <Link href="/" className="flex flex-col items-center gap-2">
-              <img
-                src="/Assets/logo.png"
+              <Image
+                src="/Assets/logo.webp"
                 alt="PlaneWise Logo"
+                width={80}
+                height={80}
                 className="h-16 w-16 sm:h-20 sm:w-20 object-contain"
+                priority
               />
               <span className="text-2xl sm:text-3xl font-bold text-[#178cf2]">
                 PlaneWise.io
@@ -932,6 +936,26 @@ function AuthPageContent() {
                       className="w-full flex justify-center min-h-[48px]"
                       style={{ minHeight: "48px" }}
                     ></div>
+
+                    {mode === "register" && (
+                      <p className="text-xs text-gray-500 text-center">
+                        By creating an account, you agree to our{" "}
+                        <Link
+                          href="/terms"
+                          className="text-[#178cf2] hover:underline"
+                        >
+                          Terms of Service
+                        </Link>{" "}
+                        and{" "}
+                        <Link
+                          href="/privacy"
+                          className="text-[#178cf2] hover:underline"
+                        >
+                          Privacy Policy
+                        </Link>
+                        .
+                      </p>
+                    )}
                   </div>
                 </motion.form>
               )}

@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { motion } from "framer-motion";
+import { motion } from "@/components/LazyMotion";
 
 interface Plan {
   name: string;
@@ -29,7 +29,7 @@ const plans: Plan[] = [
   },
   {
     name: "Basic",
-    price: "$5.99",
+    price: "$10",
     description: "For aviation enthusiasts",
     features: [
       "Everything in Free",
@@ -44,7 +44,7 @@ const plans: Plan[] = [
   },
   {
     name: "Pro",
-    price: "$9.99",
+    price: "$15",
     oldPrice: "$12.99",
     description: "For professionals",
     features: [

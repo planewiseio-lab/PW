@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef, Suspense } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
-import { motion } from "framer-motion";
+import { motion } from "@/components/LazyMotion";
 import PasswordRequirements from "@/components/PasswordRequirements";
 import { useUserStatus } from "@/contexts/UserStatusContext";
 
@@ -859,7 +859,7 @@ function AccountSettingsContent() {
                             try {
                               setLoadingAction(true);
                               const response = await fetch(
-                                "/api/stripe/create-portal-session",
+                                "/api/paddle/create-portal-session",
                                 {
                                   method: "POST",
                                   credentials: "include",
@@ -873,7 +873,7 @@ function AccountSettingsContent() {
                                 if (errorData.requiresSetup) {
                                   throw new Error(
                                     errorData.error ||
-                                      "Stripe Customer Portal needs to be configured. Please contact support."
+                                      "Paddle Customer Portal needs to be configured. Please contact support."
                                   );
                                 }
                                 
@@ -890,10 +890,10 @@ function AccountSettingsContent() {
                             } catch (err: any) {
                               const errorMessage = err.message || "An error occurred";
                               
-                              // Vérifier si c'est une erreur de configuration Stripe Portal
+                              // Vérifier si c'est une erreur de configuration Paddle Portal
                               if (errorMessage.includes("configuration") || errorMessage.includes("portal")) {
                                 setMessage(
-                                  "Subscription management is not configured yet. Please contact support or configure Stripe Customer Portal in the dashboard."
+                                  "Subscription management is not configured yet. Please contact support or configure Paddle Customer Portal in the dashboard."
                                 );
                               } else {
                                 setMessage(errorMessage);
@@ -964,7 +964,7 @@ function AccountSettingsContent() {
                         {
                           name: "Basic",
                           planCode: "BASIC",
-                          price: "$5.99",
+                          price: "$10",
                           note: "/mo",
                           perks: [
                             "Aircraft Lookup and history",
@@ -983,7 +983,7 @@ function AccountSettingsContent() {
                         {
                           name: "Pro",
                           planCode: "PRO",
-                          price: "$9.99",
+                          price: "$15",
                           oldPrice: "$12.99",
                           note: "/mo",
                           perks: [

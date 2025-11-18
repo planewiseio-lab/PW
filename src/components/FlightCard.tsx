@@ -1,6 +1,6 @@
 "use client";
 
-import { motion } from "framer-motion";
+import { motion } from "@/components/LazyMotion";
 import { useState, useEffect } from "react";
 
 interface FlightData {

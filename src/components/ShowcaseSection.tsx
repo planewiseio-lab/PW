@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, CSSProperties } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence } from "@/components/LazyMotion";
 import Image from "next/image";
 
 // Hook pour détecter mobile
@@ -292,6 +292,19 @@ export default function ShowcaseSection() {
         </p>
       </div>
 
+      {/* Précharger la première image pour le LCP */}
+      <div className="hidden">
+        <Image
+          src={getImagePath(0)}
+          alt="Showcase 1 - Preload"
+          width={770}
+          height={612}
+          priority
+          quality={85}
+          sizes="(max-width: 768px) 100vw, (max-width: 1024px) 770px, 1152px"
+        />
+      </div>
+
       {/* Carousel Container */}
       <div
         className="relative"
@@ -325,9 +338,9 @@ export default function ShowcaseSection() {
                   className={`${
                     isMobile ? "object-cover" : "object-contain"
                   } pointer-events-none`}
-                  sizes="(max-width: 768px) 100vw, (max-width: 1536px) 1152px, 1152px"
+                  sizes="(max-width: 768px) 100vw, (max-width: 1024px) 770px, (max-width: 1536px) 1152px, 1152px"
                   priority={currentSlide === 0}
-                  quality={95}
+                  quality={85}
                 />
               </motion.div>
             </AnimatePresence>

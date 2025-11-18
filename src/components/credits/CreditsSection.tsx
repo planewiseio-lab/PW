@@ -5,10 +5,59 @@ import { usePathname } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { useUserStatus } from "@/contexts/UserStatusContext";
+import dynamic from "next/dynamic";
+
+// Lazy load les composants non-critiques pour améliorer les performances
+// CreditBalanceCard est critique (affiché en premier), donc chargé immédiatement
 import { CreditBalanceCard } from "./CreditBalanceCard";
-import { UsageHistoryTable } from "./UsageHistoryTable";
-import { SubscriptionInfo } from "./SubscriptionInfo";
-import { InsufficientCreditsBanner } from "./InsufficientCreditsBanner";
+
+// UsageHistoryTable peut être lazy loadé (affiché après le chargement initial)
+const UsageHistoryTable = dynamic(
+  () => import("./UsageHistoryTable").then((mod) => ({
+    default: mod.UsageHistoryTable,
+  })),
+  {
+    ssr: true,
+    loading: () => (
+      <div className="bg-white rounded-lg shadow p-6">
+        <div className="animate-pulse space-y-3">
+          <div className="h-6 bg-gray-200 rounded w-1/4"></div>
+          <div className="h-4 bg-gray-200 rounded"></div>
+          <div className="h-4 bg-gray-200 rounded"></div>
+          <div className="h-4 bg-gray-200 rounded"></div>
+        </div>
+      </div>
+    ),
+  }
+);
+
+// SubscriptionInfo peut être lazy loadé
+const SubscriptionInfo = dynamic(
+  () => import("./SubscriptionInfo").then((mod) => ({
+    default: mod.SubscriptionInfo,
+  })),
+  {
+    ssr: true,
+    loading: () => (
+      <div className="bg-white rounded-lg shadow p-6">
+        <div className="animate-pulse space-y-3">
+          <div className="h-6 bg-gray-200 rounded w-1/3"></div>
+          <div className="h-4 bg-gray-200 rounded"></div>
+        </div>
+      </div>
+    ),
+  }
+);
+
+// InsufficientCreditsBanner peut être lazy loadé (affiché conditionnellement)
+const InsufficientCreditsBanner = dynamic(
+  () => import("./InsufficientCreditsBanner").then((mod) => ({
+    default: mod.InsufficientCreditsBanner,
+  })),
+  {
+    ssr: true,
+  }
+);
 
 interface CreditsData {
   balance: number;

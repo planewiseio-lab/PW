@@ -169,7 +169,7 @@ export function InsufficientCreditsModal({
                 </div>
                 <h3 className="text-xl font-bold text-gray-900 mb-2">Basic</h3>
                 <div className="text-3xl font-bold text-blue-600 mb-1">
-                  $5.99
+                  $10
                 </div>
                 <div className="text-gray-600 text-sm">/mo</div>
               </div>
@@ -220,7 +220,7 @@ export function InsufficientCreditsModal({
                   Pro
                 </h3>
                 <div className="text-3xl font-bold text-gray-900 mb-1">
-                  $9.99
+                  $15
                 </div>
                 <div className="text-gray-600 text-sm">/mo</div>
               </div>

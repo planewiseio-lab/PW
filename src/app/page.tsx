@@ -6,6 +6,7 @@ import { useMemo, useState, useTransition, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import SectionDivider from "@/components/layout/SectionDivider";
 import dynamic from "next/dynamic";
+import Image from "next/image";
 
 // Fonction pour gérer le scroll vers la section pricing
 function useHashScroll() {
@@ -88,9 +89,13 @@ export default function HomePage() {
       <section className="relative">
         <div className="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8 py-16 sm:py-24 text-center">
           <div className="flex flex-col items-center mb-4">
-            <img
-              src="/Assets/logo.png"
+            <Image
+              src="/Assets/logo.webp"
               alt="PlaneWise"
+              width={224}
+              height={224}
+              priority
+              fetchPriority="high"
               className="h-32 sm:h-40 md:h-48 lg:h-56 w-auto mb-2"
             />
             <h1

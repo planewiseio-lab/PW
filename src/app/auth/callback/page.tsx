@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useRef, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { motion } from "framer-motion";
+import { motion } from "@/components/LazyMotion";
 import { createClient } from "@/lib/supabase/client";
 
 function AuthCallbackContent() {

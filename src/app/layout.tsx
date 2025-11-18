@@ -1,7 +1,7 @@
 import "./globals.css";
 import type { Metadata } from "next";
-import AOSInit from "@/components/AOSInit";
 import dynamic from "next/dynamic";
+import Image from "next/image";
 
 // Lazy load SearchHeader pour réduire le bundle initial
 // Ce composant utilise framer-motion qui est lourd (~75KB)
@@ -63,18 +63,25 @@ const CookieConsent = dynamic(() => import("@/components/CookieConsent"));
 
 const GoogleAnalytics = dynamic(() => import("@/components/GoogleAnalytics"));
 
+// Lazy load AOSInit - charger uniquement après le rendu initial
+// Note: AOSInit est déjà un composant client, donc pas besoin de ssr: false
+const AOSInit = dynamic(() => import("@/components/AOSInit"));
+
 // Lazy load AuthButton sur mobile pour éviter le chargement de Supabase auth
 const AuthButton = dynamic(() => import("@/components/AuthButton"), {
   ssr: true, // SSR pour le SEO
 });
 
-// Import direct du wrapper client (gère lui-même le ssr: false)
-import ParticlesWrapper from "@/components/ui/ParticlesWrapper";
+// Lazy load ParticlesWrapper - très lourd, charger uniquement après le rendu initial
+// Version optimisée qui ne charge pas sur mobile et utilise requestIdleCallback
+// Note: ParticlesWrapperOptimized est déjà un composant client, donc pas besoin de ssr: false
+const ParticlesWrapper = dynamic(() => import("@/components/ui/ParticlesWrapperOptimized"));
 
 import ErrorBoundary from "@/components/ErrorBoundary";
 import HeadLinks from "@/components/HeadLinks";
 import PWASetup from "@/components/PWASetup";
-import StructuredData from "@/components/StructuredData";
+import StructuredDataServer from "@/components/StructuredDataServer";
+import BFCacheHandler from "@/components/BFCacheHandler";
 import { AdSection } from "@/components/ads/AdWrapper";
 import { UserStatusProvider } from "@/contexts/UserStatusContext";
 import { Comfortaa } from "next/font/google";
@@ -137,11 +144,11 @@ export const metadata: Metadata = {
   manifest: "/manifest.json",
   icons: {
     icon: [
-      { url: "/Assets/logo.png", sizes: "32x32", type: "image/png" },
-      { url: "/Assets/logo.png", sizes: "16x16", type: "image/png" },
+      { url: "/Assets/logo.webp", sizes: "32x32", type: "image/webp" },
+      { url: "/Assets/logo.webp", sizes: "16x16", type: "image/webp" },
     ],
-    apple: [{ url: "/Assets/logo.png", sizes: "180x180", type: "image/png" }],
-    shortcut: "/Assets/logo.png",
+    apple: [{ url: "/Assets/logo.webp", sizes: "180x180", type: "image/webp" }],
+    shortcut: "/Assets/logo.webp",
   },
   other: {
     "format-detection": "telephone=no",
@@ -178,11 +185,11 @@ export default function RootLayout({
   return (
     <html lang="en">
       <head>
-        {/* Script AdSense pour validation de propriété du site */}
+        {/* Script AdSense - Chargé en lazy pour ne pas bloquer le rendu initial */}
         {adsenseId && (
           <Script
             id="adsense-validation"
-            strategy="afterInteractive"
+            strategy="lazyOnload"
             src={`https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=${adsenseId}`}
             crossOrigin="anonymous"
           />
@@ -204,10 +211,13 @@ export default function RootLayout({
                 href="/"
                 className="inline-flex items-center gap-2 hover:opacity-90 transition"
               >
-                <img
-                  src="/Assets/logo.png"
+                <Image
+                  src="/Assets/logo.webp"
                   alt="PlaneWise"
+                  width={24}
+                  height={24}
                   className="h-6 w-auto"
+                  priority
                 />
                 <span className="font-semibold">PlaneWise</span>
               </a>
@@ -218,20 +228,22 @@ export default function RootLayout({
           <SearchHeader />
           {/* Publicité TOP - Juste après le search header */}
           <AdSection positionLabel="TOP (après header site)" />
-          {/* AOS (ne rend rien visuellement) */}
+          {/* AOS - Lazy load uniquement si nécessaire (chargé après rendu initial) */}
           <AOSInit />
           {/* PWA Setup */}
           <PWASetup />
-          {/* Structured Data pour le site web */}
-          <StructuredData type="website" data={{}} />
+          {/* Structured Data pour le site web - Server Component optimisé */}
+          <StructuredDataServer type="website" data={{}} />
+          {/* BFCache Handler - Optimise le back/forward cache */}
+          <BFCacheHandler />
           {/* Contenu des pages : prend toute la place restante */}
           <ErrorBoundary>
             <ClientTransition>
               <main className="relative flex-1 min-h-[calc(100vh-160px)]">
-                {/* Particles Background - Sur toutes les pages (exclut header et footer) */}
+                {/* Particles Background - Optimisé : ne charge pas sur mobile, lazy load sur desktop */}
                 <ParticlesWrapper
                   className="absolute inset-0 z-0 pointer-events-none"
-                  quantity={150}
+                  quantity={100}
                   ease={80}
                   color="#178cf2"
                   size={0.6}

@@ -1,6 +1,6 @@
 "use client";
 
-import { motion } from "framer-motion";
+import { motion } from "@/components/LazyMotion";
 import { useState, useEffect } from "react";
 
 // Hook pour détecter mobile et réduire les animations
@@ -56,7 +56,7 @@ export default function PricingSection() {
             } as const,
             {
               name: "Basic",
-              price: "$5.99",
+              price: "$10",
               note: "/mo",
               perks: [
                 "Aircraft Lookup and history",
@@ -74,7 +74,7 @@ export default function PricingSection() {
             } as const,
             {
               name: "Pro",
-              price: "$9.99",
+              price: "$15",
               oldPrice: "$12.99",
               note: "/mo",
               perks: [

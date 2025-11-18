@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef, Suspense } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useRouter, useSearchParams } from "next/navigation";
-import { motion } from "framer-motion";
+import { motion } from "@/components/LazyMotion";
 import PasswordRequirements from "@/components/PasswordRequirements";
 
 function ResetPasswordContent() {

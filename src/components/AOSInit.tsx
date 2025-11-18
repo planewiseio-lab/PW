@@ -21,8 +21,17 @@ export default function AOSInit() {
       }
     };
 
-    // Charger seulement après un délai pour éviter le blocage du rendu initial
-    const timer = setTimeout(loadAOS, 100);
+    // Charger seulement après le rendu initial pour ne pas bloquer le LCP
+    // Utiliser requestIdleCallback si disponible, sinon setTimeout avec délai plus long
+    const loadAOSDelayed = () => {
+      if (typeof window !== "undefined" && "requestIdleCallback" in window) {
+        requestIdleCallback(loadAOS, { timeout: 2000 });
+      } else {
+        setTimeout(loadAOS, 500);
+      }
+    };
+    
+    const timer = setTimeout(loadAOSDelayed, 0);
 
     return () => {
       mounted = false;

@@ -17,3 +17,6 @@ CREATE INDEX IF NOT EXISTS "cron_job_logs_jobName_startedAt_idx" ON "cron_job_lo
 -- CreateIndex
 CREATE INDEX IF NOT EXISTS "cron_job_logs_status_idx" ON "cron_job_logs"("status");
 
+
+
+

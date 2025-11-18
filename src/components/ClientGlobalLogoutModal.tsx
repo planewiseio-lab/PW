@@ -3,14 +3,28 @@
 import { useState, useEffect } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence } from "@/components/LazyMotion";
 import { validateUser } from "@/lib/auth-utils";
 
 export default function ClientGlobalLogoutModal() {
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [userEmail, setUserEmail] = useState<string | null>(null);
   const router = useRouter();
-  const supabase = createClient();
+  
+  // Vérifier que Supabase est configuré avant de créer le client
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  
+  // Ne pas créer le client si les variables ne sont pas définies
+  let supabase = null;
+  try {
+    if (supabaseUrl && supabaseAnonKey) {
+      supabase = createClient();
+    }
+  } catch (error) {
+    console.warn("Supabase client could not be created:", error);
+    supabase = null;
+  }
 
   useEffect(() => {
     // Écouter les événements de déconnexion depuis n'importe où dans l'app

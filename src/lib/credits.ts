@@ -1,6 +1,5 @@
 import { prisma } from "@/lib/prisma";
 import { ActionType, CreditReason, Plan, SubscriptionStatus } from "@prisma/client";
-import Stripe from "stripe";
 import { randomUUID } from "crypto";
 
 export class InsufficientCreditsError extends Error {
@@ -378,7 +377,7 @@ export async function chargeMultipleCredits(opts: {
 
 /**
  * Ensure top-up is applied based on subscription plan and timing
- * For paid plans, checks Stripe subscription status and downgrades to FREE if expired
+ * For paid plans, checks Lemon Squeezy subscription status and downgrades to FREE if expired
  * IMPORTANT: Uses a transaction to ensure credits are only granted once per month,
  * even if called multiple times simultaneously (prevents race conditions)
  */
@@ -407,50 +406,22 @@ export async function ensureMonthlyTopUp(userId: string): Promise<void> {
     let finalPlan = subscription.plan;
     let finalStatus = subscription.status;
 
-    // For paid plans (PRO/BASIC), verify Stripe subscription status
-    if (subscription.plan !== Plan.FREE && subscription.stripeSubId) {
-      try {
-        const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-          apiVersion: "2024-12-18.acacia" as any, // Version plus récente que les types Stripe
-        });
-
-        const stripeSubscription = await stripe.subscriptions.retrieve(
-          subscription.stripeSubId
+    // For paid plans (PRO/BASIC), verify Paddle subscription status
+    // Note: With Paddle, subscription status is managed via webhooks
+    // We only check if the subscription exists in our DB and its status
+    if (subscription.plan !== Plan.FREE && subscription.paddleSubscriptionId) {
+      // Paddle manages subscription status via webhooks
+      // If the subscription status in our DB is CANCELED, downgrade to FREE
+      if (subscription.status === SubscriptionStatus.CANCELED) {
+        console.log(
+          `[Top-up] Paddle subscription ${subscription.paddleSubscriptionId} is cancelled, downgrading user ${userId} to FREE plan`
         );
-
-        // Check if subscription is expired/canceled/unpaid/past_due
-        if (
-          stripeSubscription.status === "canceled" ||
-          stripeSubscription.status === "unpaid" ||
-          stripeSubscription.status === "incomplete_expired" ||
-          stripeSubscription.status === "past_due"
-        ) {
-          // Subscription expired/canceled - downgrade to FREE
-          console.log(
-            `[Top-up] Stripe subscription ${subscription.stripeSubId} is ${stripeSubscription.status}, downgrading user ${userId} to FREE plan`
-          );
-          finalPlan = Plan.FREE;
-          finalStatus = SubscriptionStatus.CANCELED;
-        } else if (stripeSubscription.status === "active") {
-          // Subscription is active, keep the plan
-          finalPlan = subscription.plan;
-          finalStatus = SubscriptionStatus.ACTIVE;
-        }
-      } catch (error: any) {
-        // If subscription not found in Stripe, consider it expired
-        if (error?.code === "resource_missing") {
-          console.log(
-            `[Top-up] Stripe subscription ${subscription.stripeSubId} not found, downgrading user ${userId} to FREE plan`
-          );
-          finalPlan = Plan.FREE;
-          finalStatus = SubscriptionStatus.CANCELED;
-        } else {
-          console.error(
-            `[Top-up] Error checking Stripe subscription for user ${userId}:`,
-            error
-          );
-          // On error, keep current plan but log warning
-        }
+        finalPlan = Plan.FREE;
+        finalStatus = SubscriptionStatus.CANCELED;
+      } else {
+        // Subscription is active (managed by webhooks), keep the plan
+        finalPlan = subscription.plan;
+        finalStatus = SubscriptionStatus.ACTIVE;
       }
     }
 
@@ -604,9 +575,9 @@ export async function ensureMonthlyTopUp(userId: string): Promise<void> {
         plan: finalPlan,
         status: finalStatus,
         renewsAt: nextRenewal, // Update renewal date to prevent multiple top-ups
-        // If downgraded to FREE, clear Stripe subscription ID
+        // If downgraded to FREE, clear Paddle subscription ID
         ...(finalPlan === Plan.FREE && subscription.plan !== Plan.FREE
-          ? { stripeSubId: null }
+          ? { paddleSubscriptionId: null }
           : {}),
       },
     });

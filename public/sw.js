@@ -74,12 +74,12 @@ self.addEventListener("fetch", (event) => {
     return; // Laisser passer sans interception
   }
 
-  // Ignorer les requêtes Stripe - laisser passer directement pour éviter les problèmes de CSP
+  // Ignorer les requêtes Paddle - laisser passer directement pour éviter les problèmes de CSP
   if (
-    url.hostname.includes("stripe.com") ||
-    url.hostname.includes("js.stripe.com") ||
-    url.hostname.includes("api.stripe.com") ||
-    url.hostname.includes("hooks.stripe.com")
+    url.hostname.includes("paddle.com") ||
+    url.hostname.includes("cdn.paddle.com") ||
+    url.hostname.includes("api.paddle.com") ||
+    url.hostname.includes("checkout.paddle.com")
   ) {
     return; // Laisser passer sans interception
   }

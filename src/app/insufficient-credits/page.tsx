@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { motion } from "framer-motion";
+import { motion } from "@/components/LazyMotion";
 import { ArrowRight, CreditCard, Zap, Star, CheckCircle } from "lucide-react";
 
 export default function InsufficientCreditsPage() {
@@ -105,7 +105,7 @@ export default function InsufficientCreditsPage() {
                 </div>
                 <h3 className="text-2xl font-bold text-gray-900 mb-2">Basic</h3>
                 <div className="text-4xl font-bold text-gray-900 mb-2">
-                  $5.99
+                  $10
                 </div>
                 <div className="text-gray-600">/mo</div>
               </div>
@@ -210,7 +210,7 @@ export default function InsufficientCreditsPage() {
                       }}
                       className="absolute inset-0 rounded-lg blur-sm"
                     />
-                    <span className="relative z-10">$9.99</span>
+                    <span className="relative z-10">$15</span>
                   </motion.div>
                 </div>
                 <div className="text-gray-600">/mo</div>
