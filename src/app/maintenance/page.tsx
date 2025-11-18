@@ -3,6 +3,14 @@
 import { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { motion } from "@/components/LazyMotion";
+import Image from "next/image";
+import dynamic from "next/dynamic";
+import AuthButton from "@/components/AuthButton";
+
+// Lazy load SearchHeader
+const SearchHeader = dynamic(() => import("@/components/SearchHeader"), {
+  ssr: true,
+});
 
 function MaintenanceContent() {
   const router = useRouter();
@@ -60,7 +68,31 @@ function MaintenanceContent() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 px-4">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
+      {/* Header */}
+      <header className="sticky top-0 z-50 border-b border-black/5 bg-white/70 backdrop-blur-md">
+        <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8 h-14 flex items-center justify-between">
+          <a
+            href="/"
+            className="inline-flex items-center gap-2 hover:opacity-90 transition"
+          >
+            <Image
+              src="/Assets/logo.png"
+              alt="PlaneWise"
+              width={24}
+              height={24}
+              className="h-6 w-auto"
+              priority
+            />
+            <span className="font-semibold">PlaneWise</span>
+          </a>
+          <AuthButton />
+        </div>
+      </header>
+      {/* Search Header */}
+      <SearchHeader />
+      {/* Main Content */}
+      <div className="flex items-center justify-center px-4 py-8">
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -176,6 +208,7 @@ function MaintenanceContent() {
           </p>
         </div>
       </motion.div>
+      </div>
     </div>
   );
 }

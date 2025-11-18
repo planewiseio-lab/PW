@@ -144,11 +144,11 @@ export const metadata: Metadata = {
   manifest: "/manifest.json",
   icons: {
     icon: [
-      { url: "/Assets/logo.webp", sizes: "32x32", type: "image/webp" },
-      { url: "/Assets/logo.webp", sizes: "16x16", type: "image/webp" },
+      { url: "/Assets/logo.png", sizes: "32x32", type: "image/png" },
+      { url: "/Assets/logo.png", sizes: "16x16", type: "image/png" },
     ],
-    apple: [{ url: "/Assets/logo.webp", sizes: "180x180", type: "image/webp" }],
-    shortcut: "/Assets/logo.webp",
+    apple: [{ url: "/Assets/logo.png", sizes: "180x180", type: "image/png" }],
+    shortcut: "/Assets/logo.png",
   },
   other: {
     "format-detection": "telephone=no",
@@ -212,7 +212,7 @@ export default function RootLayout({
                 className="inline-flex items-center gap-2 hover:opacity-90 transition"
               >
                 <Image
-                  src="/Assets/logo.webp"
+                  src="/Assets/logo.png"
                   alt="PlaneWise"
                   width={24}
                   height={24}
