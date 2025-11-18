@@ -75,7 +75,6 @@ export default function PricingSection() {
             {
               name: "Pro",
               price: "$15",
-              oldPrice: "$12.99",
               note: "/mo",
               perks: [
                 "Aircraft Lookup and history",
