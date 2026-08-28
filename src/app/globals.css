@@ -181,14 +181,12 @@ body {
 
 .hero-title {
   margin: 0.15rem 0 0;
-  line-height: 0;
-}
-
-.hero-title img {
-  display: block;
-  width: min(17.5rem, 82vw);
-  height: auto;
-  margin: 0 auto;
+  font-family: var(--font-sans), system-ui, sans-serif;
+  font-weight: 700;
+  font-size: clamp(1.9rem, 6.5vw, 2.45rem);
+  letter-spacing: -0.03em;
+  line-height: 1.15;
+  color: var(--blue);
 }
 
 .lede {

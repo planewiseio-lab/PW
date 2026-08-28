@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 import { SearchForm } from "@/components/SearchForm";
 import { ResultSkeleton } from "@/components/ResultPane";
 import { SearchResults } from "@/components/SearchResults";
-import { Logo, Wordmark } from "@/components/Logo";
+import { Logo } from "@/components/Logo";
 import { getLang } from "@/lib/lang";
 import { t } from "@/lib/i18n";
 import { normalizeRegistration } from "@/lib/normalize";
@@ -58,9 +58,7 @@ export default async function Home({ searchParams }: PageProps) {
     <main className="page is-home">
       <div className="hero">
         <Logo size={112} className="hero-logo" title="" />
-        <h1 className="hero-title">
-          <Wordmark />
-        </h1>
+        <h1 className="hero-title">PlaneWise.io</h1>
         <p className="lede">{t(lang, "tagline")}</p>
         <SearchForm lang={lang} defaultValue={query} />
       </div>

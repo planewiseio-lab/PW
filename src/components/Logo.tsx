@@ -20,17 +20,3 @@ export function Logo({ className, size = 32, title = "PlaneWise" }: LogoProps) {
     />
   );
 }
-
-export function Wordmark({ className, alt = "PlaneWise.io" }: { className?: string; alt?: string }) {
-  return (
-    // eslint-disable-next-line @next/next/no-img-element
-    <img
-      src="/logo-wordmark.png"
-      alt={alt}
-      width={360}
-      height={48}
-      className={className}
-      decoding="async"
-    />
-  );
-}
