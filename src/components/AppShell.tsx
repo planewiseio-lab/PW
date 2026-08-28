@@ -13,8 +13,9 @@ export function AppShell({
   return (
     <div className="app-shell">
       <SiteHeader lang={lang} />
-      <AdSlot variant="banner" label={t(lang, "adLabel")} />
+      <AdSlot key="ad-top" placement="top" variant="banner" label={t(lang, "adLabel")} />
       <div className="app-main">{children}</div>
+      <AdSlot key="ad-footer" placement="footer" variant="banner" label={t(lang, "adLabel")} />
       <SiteFooter lang={lang} />
     </div>
   );

@@ -9,7 +9,16 @@ declare global {
   }
 }
 
-export function AdSlot({ label }: { label: string; variant?: "banner" }) {
+type AdPlacement = "top" | "footer";
+
+export function AdSlot({
+  label,
+  placement = "top",
+}: {
+  label: string;
+  variant?: "banner";
+  placement?: AdPlacement;
+}) {
   const pushed = useRef(false);
 
   useEffect(() => {
@@ -23,7 +32,11 @@ export function AdSlot({ label }: { label: string; variant?: "banner" }) {
   }, []);
 
   return (
-    <aside className="ad-slot ad-banner" aria-label={label}>
+    <aside
+      className={`ad-slot ad-banner ad-banner-${placement}`}
+      data-ad-placement={placement}
+      aria-label={label}
+    >
       <p className="ad-caption">{label}</p>
       <ins
         className="adsbygoogle"
@@ -31,7 +44,9 @@ export function AdSlot({ label }: { label: string; variant?: "banner" }) {
         data-ad-client={ADSENSE_CLIENT}
         data-ad-format="horizontal"
         data-full-width-responsive="true"
+        data-ad-slot-name={placement}
       />
     </aside>
   );
 }
+
