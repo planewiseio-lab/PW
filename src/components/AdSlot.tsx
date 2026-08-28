@@ -9,13 +9,7 @@ declare global {
   }
 }
 
-export function AdSlot({
-  label,
-  variant,
-}: {
-  label: string;
-  variant: "banner" | "rail";
-}) {
+export function AdSlot({ label }: { label: string; variant?: "banner" }) {
   const pushed = useRef(false);
 
   useEffect(() => {
@@ -24,22 +18,19 @@ export function AdSlot({
     try {
       (window.adsbygoogle ??= []).push({});
     } catch {
-      /* Ad blockers and missing slots are fine — keep the reserved unit. */
+      /* Ad blockers are fine — keep the reserved banner. */
     }
   }, []);
 
   return (
-    <aside
-      className={variant === "banner" ? "ad-slot ad-banner" : "ad-slot ad-rail"}
-      aria-label={label}
-    >
+    <aside className="ad-slot ad-banner" aria-label={label}>
       <p className="ad-caption">{label}</p>
       <ins
         className="adsbygoogle"
         style={{ display: "block" }}
         data-ad-client={ADSENSE_CLIENT}
-        data-ad-format={variant === "banner" ? "horizontal" : "vertical"}
-        data-full-width-responsive={variant === "banner" ? "true" : "false"}
+        data-ad-format="horizontal"
+        data-full-width-responsive="true"
       />
     </aside>
   );

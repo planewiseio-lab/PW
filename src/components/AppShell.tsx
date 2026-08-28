@@ -10,16 +10,11 @@ export function AppShell({
   lang: Lang;
   children: React.ReactNode;
 }) {
-  const label = t(lang, "adLabel");
   return (
     <div className="app-shell">
       <SiteHeader lang={lang} />
-      <AdSlot variant="banner" label={label} />
-      <div className="stage">
-        <AdSlot variant="rail" label={label} />
-        {children}
-        <AdSlot variant="rail" label={label} />
-      </div>
+      <AdSlot variant="banner" label={t(lang, "adLabel")} />
+      {children}
       <SiteFooter lang={lang} />
     </div>
   );
