@@ -9,6 +9,7 @@ export function SiteFooter({ lang }: { lang: Lang }) {
         <Link href="/legal#privacy">{t(lang, "legalPrivacy")}</Link>
         <Link href="/legal#terms">{t(lang, "legalTerms")}</Link>
         <Link href="/legal#cookies">{t(lang, "legalCookies")}</Link>
+        <Link href="/contact">{t(lang, "contactTitle")}</Link>
       </nav>
     </footer>
   );
