@@ -1,12 +1,12 @@
 import type { Metadata } from "next";
-import { Plus_Jakarta_Sans, Geist_Mono } from "next/font/google";
+import { Comfortaa, Geist_Mono } from "next/font/google";
 import { AppShell } from "@/components/AppShell";
 import { AdSenseScript } from "@/components/AdSenseScript";
 import { getLang } from "@/lib/lang";
 import { ADSENSE_CLIENT } from "@/lib/adsense";
 import "./globals.css";
 
-const sans = Plus_Jakarta_Sans({
+const sans = Comfortaa({
   variable: "--font-sans",
   subsets: ["latin"],
 });
