@@ -61,7 +61,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html
       lang={lang}
-      className={`${sans.variable} ${mono.variable} h-full antialiased`}
+      className={`${sans.variable} ${sans.className} ${mono.variable} h-full antialiased`}
     >
       <body className="min-h-full">
         <AdSenseScript />
