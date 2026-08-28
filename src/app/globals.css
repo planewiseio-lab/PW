@@ -16,23 +16,21 @@
 
 html {
   height: 100%;
-  min-height: 100%;
   min-height: 100vh;
   min-height: 100dvh;
   background: #ffffff;
   background-image: none;
   color: var(--text);
-  overflow-x: hidden;
 }
 
 body {
   margin: 0;
   height: 100%;
-  min-height: 100%;
   min-height: 100vh;
   min-height: 100dvh;
   display: flex;
   flex-direction: column;
+  overflow-x: hidden;
   font-family: var(--font-sans), system-ui, sans-serif;
   background: #ffffff;
   background-image: none;
@@ -40,14 +38,14 @@ body {
 }
 
 .app-shell {
-  flex: 1;
+  flex: 1 0 auto;
   width: 100%;
   min-height: 100%;
   min-height: 100vh;
   min-height: 100dvh;
-  display: flex;
-  flex-direction: column;
-  align-items: stretch;
+  display: grid;
+  grid-template-rows: auto auto 1fr auto;
+  grid-template-columns: minmax(0, 1fr);
   background: #ffffff;
   background-image: none;
 }
@@ -59,10 +57,10 @@ body {
 }
 
 .app-main {
-  flex: 1;
   display: flex;
   flex-direction: column;
   align-items: center;
+  align-self: stretch;
   width: 100%;
   min-width: 0;
 }
@@ -153,10 +151,9 @@ body {
 
 .page {
   flex: 1;
-  align-self: center;
   width: min(40rem, 100%);
   max-width: 40rem;
-  margin: 0;
+  margin: 0 auto;
   padding: 1.25rem 1rem 2rem;
   display: flex;
   flex-direction: column;
@@ -164,6 +161,7 @@ body {
   gap: 1.25rem;
   box-sizing: border-box;
   min-width: 0;
+  min-height: 100%;
 }
 
 .page.is-home {
@@ -578,7 +576,6 @@ ul.chips a {
 }
 
 .site-footer {
-  margin-top: auto;
   padding: 0.7rem 1.25rem 1.05rem;
   background: #ffffff;
   color: var(--muted);
