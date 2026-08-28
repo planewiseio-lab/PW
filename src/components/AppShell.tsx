@@ -14,7 +14,7 @@ export function AppShell({
     <div className="app-shell">
       <SiteHeader lang={lang} />
       <AdSlot variant="banner" label={t(lang, "adLabel")} />
-      {children}
+      <div className="app-main">{children}</div>
       <SiteFooter lang={lang} />
     </div>
   );
