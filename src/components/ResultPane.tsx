@@ -142,7 +142,6 @@ export function ResultPane({
               ))}
             </div>
           ) : null}
-          <p className="photo-note">{t(lang, "photoNote")}</p>
         </div>
       ) : (
         <p className="notice">{t(lang, "noPhoto")}</p>

@@ -399,21 +399,28 @@ ul.chips a {
 }
 
 .fact {
-  display: grid;
-  gap: 0.16rem;
+  display: flex;
+  flex-direction: row;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 0.65rem 1rem;
 }
 
 .fact dt {
   color: var(--muted);
-  font-size: 0.78rem;
+  font-size: 0.82rem;
   font-weight: 500;
+  flex: 0 1 auto;
+  text-align: left;
 }
 
 .fact dd {
   margin: 0;
-  font-size: 1.02rem;
+  font-size: 0.95rem;
   font-weight: 700;
+  text-align: right;
   overflow-wrap: anywhere;
+  min-width: 0;
 }
 
 .photos {
@@ -491,7 +498,6 @@ ul.chips a {
   }
 }
 
-.photo-note,
 .notice {
   margin: 0.15rem 0 0;
   color: var(--muted);

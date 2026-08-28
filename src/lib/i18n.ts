@@ -23,8 +23,6 @@ const fr = {
   icao24: "Mode S",
   previousRegs: "Autres immatriculations",
   statusActive: "Actif",
-  photoNote:
-    "Les photos visent cette immatriculation. Si une source n’a que des vues partielles, le crédit reste affiché.",
   noPhoto:
     "Aucune photographie de cette cellule n’a été trouvée. La fiche ci-dessus reprend uniquement les données publiques disponibles.",
   notFound:
@@ -66,8 +64,6 @@ const en: typeof fr = {
   icao24: "Mode S",
   previousRegs: "Other registrations",
   statusActive: "Active",
-  photoNote:
-    "Photos are of this registration. If a source only has a partial view, the credit is still shown.",
   noPhoto:
     "No photograph of this airframe was found. The fact sheet above only includes available public data.",
   notFound:
