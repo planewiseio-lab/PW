@@ -1,70 +1,62 @@
 import { formatAgeLabel, interpolate, t, type Lang } from "@/lib/i18n";
 import { statusTone, translateStatus } from "@/lib/pretty";
-import type { AircraftFactSheet, Photo } from "@/lib/types";
+import type { AircraftFactSheet } from "@/lib/types";
+import { PhotoGallery } from "@/components/PhotoGallery";
+import { JsonLd } from "@/components/JsonLd";
+import { aircraftJsonLd } from "@/lib/seo";
 
-type Fact = { label: string; value?: string };
+type Fact = { label: string; value: string };
 
-function factsFor(aircraft: AircraftFactSheet, lang: Lang): Fact[] {
-  return [
-    { label: t(lang, "type"), value: aircraft.type },
-    { label: t(lang, "manufacturer"), value: aircraft.manufacturer },
-    { label: t(lang, "modelIcao"), value: aircraft.icaoType },
-    { label: t(lang, "iata"), value: aircraft.iataType },
-    { label: t(lang, "airline"), value: aircraft.operator },
-    { label: t(lang, "owner"), value: aircraft.owner },
-    {
-      label: t(lang, "year"),
-      value: aircraft.yearBuilt != null ? String(aircraft.yearBuilt) : undefined,
-    },
-    {
-      label: t(lang, "age"),
-      value:
-        aircraft.ageYears != null
-          ? formatAgeLabel(aircraft.ageYears, lang)
-          : undefined,
-    },
-    { label: t(lang, "delivery"), value: aircraft.deliveryDate },
-    { label: t(lang, "msn"), value: aircraft.serial },
-    { label: t(lang, "engines"), value: aircraft.engines },
-    { label: t(lang, "country"), value: aircraft.country },
-    { label: t(lang, "icao24"), value: aircraft.icao24 },
-    {
-      label: t(lang, "previousRegs"),
-      value: aircraft.previousRegistrations?.join(", "),
-    },
-  ].filter((fact) => Boolean(fact.value));
+function present(label: string, value?: string): Fact | null {
+  return value ? { label, value } : null;
 }
 
-function PhotoBlock({
-  photo,
-  featured,
-  registration,
-  lang,
-}: {
-  photo: Photo;
-  featured: boolean;
-  registration: string;
-  lang: Lang;
-}) {
-  const credit = `© ${photo.photographer} ${t(lang, "via")} ${photo.sourceName}`;
+function columns(aircraft: AircraftFactSheet, lang: Lang): {
+  left: Fact[];
+  right: Fact[];
+} {
+  const left = [
+    present(t(lang, "type"), aircraft.type),
+    present(t(lang, "manufacturer"), aircraft.manufacturer),
+    present(t(lang, "modelIcao"), aircraft.icaoType),
+    present(t(lang, "iata"), aircraft.iataType),
+    present(t(lang, "airline"), aircraft.operator),
+    present(t(lang, "owner"), aircraft.owner),
+    present(t(lang, "country"), aircraft.country),
+  ].filter((fact): fact is Fact => fact !== null);
+
+  const right = [
+    present(
+      t(lang, "year"),
+      aircraft.yearBuilt != null ? String(aircraft.yearBuilt) : undefined,
+    ),
+    present(
+      t(lang, "age"),
+      aircraft.ageYears != null
+        ? formatAgeLabel(aircraft.ageYears, lang)
+        : undefined,
+    ),
+    present(t(lang, "delivery"), aircraft.deliveryDate),
+    present(t(lang, "msn"), aircraft.serial),
+    present(t(lang, "engines"), aircraft.engines),
+    present(t(lang, "icao24"), aircraft.icao24),
+    present(t(lang, "previousRegs"), aircraft.previousRegistrations?.join(", ")),
+  ].filter((fact): fact is Fact => fact !== null);
+
+  return { left, right };
+}
+
+function FactColumn({ facts }: { facts: Fact[] }) {
+  if (!facts.length) return null;
   return (
-    <figure className={featured ? "photo-figure" : "photo-thumb-figure"}>
-      <a href={photo.link} className="photo-frame">
-        {/* Planespotters ToS: load their URL as-is in the browser, do not proxy. */}
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src={photo.url}
-          alt={interpolate(
-            t(lang, featured ? "photoAlt" : "photoAltExtra"),
-            { reg: registration },
-          )}
-          width={photo.width ?? 800}
-          height={photo.height ?? 530}
-          className={featured ? "photo-main" : "photo-thumb"}
-        />
-        <span className="photo-credit">{credit}</span>
-      </a>
-    </figure>
+    <dl className="facts-col">
+      {facts.map((fact) => (
+        <div key={fact.label} className="fact">
+          <dt>{fact.label}</dt>
+          <dd>{fact.value}</dd>
+        </div>
+      ))}
+    </dl>
   );
 }
 
@@ -75,8 +67,7 @@ export function ResultPane({
   aircraft: AircraftFactSheet;
   lang: Lang;
 }) {
-  const facts = factsFor(aircraft, lang);
-  const [hero, ...gallery] = aircraft.photos;
+  const { left, right } = columns(aircraft, lang);
   const tone = statusTone(aircraft.status);
   const statusLabel =
     tone === "active"
@@ -85,6 +76,7 @@ export function ResultPane({
 
   return (
     <article className="result-card">
+      <JsonLd data={aircraftJsonLd(aircraft)} />
       <header className="result-head">
         <h1 className="result-reg">{aircraft.registration}</h1>
         {statusLabel ? (
@@ -94,38 +86,18 @@ export function ResultPane({
         ) : null}
       </header>
 
-      <dl className="facts">
-        {facts.map((fact) => (
-          <div key={fact.label} className="fact">
-            <dt>{fact.label}</dt>
-            <dd>{fact.value}</dd>
-          </div>
-        ))}
-      </dl>
+      <div className="facts">
+        <FactColumn facts={left} />
+        <FactColumn facts={right} />
+      </div>
 
-      {hero ? (
-        <div className="photos">
-          <PhotoBlock
-            photo={hero}
-            featured
-            registration={aircraft.registration}
-            lang={lang}
-          />
-          {gallery.length > 0 ? (
-            <div className="photo-gallery">
-              {gallery.slice(0, 6).map((photo) => (
-                <PhotoBlock
-                  key={photo.url}
-                  photo={photo}
-                  featured={false}
-                  registration={aircraft.registration}
-                  lang={lang}
-                />
-              ))}
-            </div>
-          ) : null}
-          <p className="photo-note">{t(lang, "photoNote")}</p>
-        </div>
+      {aircraft.photos.length > 0 ? (
+        <PhotoGallery
+          key={aircraft.registration}
+          photos={aircraft.photos.slice(0, 7)}
+          registration={aircraft.registration}
+          lang={lang}
+        />
       ) : (
         <p className="notice">{t(lang, "noPhoto")}</p>
       )}

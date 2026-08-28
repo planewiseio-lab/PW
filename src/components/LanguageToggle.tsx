@@ -38,7 +38,7 @@ export function LanguageToggle({ lang }: Props) {
   }
 
   return (
-    <div className="lang-toggle" role="group" aria-label="Language">
+    <div className="lang-toggle" role="group" aria-label={t(lang, "langGroup")}>
       <button
         type="button"
         className={lang === "fr" ? "is-active" : undefined}

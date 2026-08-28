@@ -4,7 +4,7 @@ export const LANG_COOKIE = "pw-lang";
 
 const fr = {
   tagline:
-    "Recherchez une immatriculation et explorez la fiche, les photos et l’historique — au même endroit.",
+    "Recherchez une immatriculation d’avion (tail number) et explorez la fiche, les photos et l’historique.",
   search: "Rechercher",
   searchAria: "Immatriculation de l’avion",
   placeholder: "C-FRSR, N875BD",
@@ -23,8 +23,6 @@ const fr = {
   icao24: "Mode S",
   previousRegs: "Autres immatriculations",
   statusActive: "Actif",
-  photoNote:
-    "Les photos visent cette immatriculation. Si une source n’a que des vues partielles, le crédit reste affiché.",
   noPhoto:
     "Aucune photographie de cette cellule n’a été trouvée. La fiche ci-dessus reprend uniquement les données publiques disponibles.",
   notFound:
@@ -35,18 +33,27 @@ const fr = {
     "La recherche n’a pas pu aboutir. Réessayez dans un moment — les sources publiques peuvent être temporairement indisponibles.",
   pageNotFound:
     "Cette page n’existe pas. Recherchez une immatriculation ci-dessus.",
-  footer:
-    "Données issues de registres et bases publiques (hexdb, Airport-Data, Planespotters.net, Wikimedia Commons). Les fiches peuvent être incomplètes.",
+  footerCopyright: "© 2026 PlaneWise",
+  legalTitle: "Mentions légales",
+  legalPrivacy: "Confidentialité",
+  legalTerms: "Conditions",
+  legalCookies: "Cookies",
+  legalBack: "Retour à la recherche",
+  contactTitle: "Contact",
+  contactLead: "Contactez-nous par email à",
   via: "via",
   photoAlt: "Photographie de l’avion {reg}",
   photoAltExtra: "Photo supplémentaire de {reg}",
+  photoSelect: "Afficher cette photo de {reg}",
   langFr: "Français",
   langEn: "English",
+  langGroup: "Langue",
+  adLabel: "Publicité",
 };
 
 const en: typeof fr = {
   tagline:
-    "Instantly look up any aircraft registration and explore specs, photos, and flight history — all in one place.",
+    "Look up an aircraft by registration or tail number — specs, photos, and that airframe’s history.",
   search: "Search",
   searchAria: "Aircraft registration",
   placeholder: "C-FRSR, N875BD",
@@ -65,8 +72,6 @@ const en: typeof fr = {
   icao24: "Mode S",
   previousRegs: "Other registrations",
   statusActive: "Active",
-  photoNote:
-    "Photos are of this registration. If a source only has a partial view, the credit is still shown.",
   noPhoto:
     "No photograph of this airframe was found. The fact sheet above only includes available public data.",
   notFound:
@@ -76,13 +81,22 @@ const en: typeof fr = {
   error:
     "The lookup could not be completed. Try again in a moment — public sources may be temporarily unavailable.",
   pageNotFound: "This page does not exist. Search for a registration above.",
-  footer:
-    "Data from public registries and databases (hexdb, Airport-Data, Planespotters.net, Wikimedia Commons). Records may be incomplete.",
+  footerCopyright: "© 2026 PlaneWise",
+  legalTitle: "Legal",
+  legalPrivacy: "Privacy",
+  legalTerms: "Terms",
+  legalCookies: "Cookies",
+  legalBack: "Back to search",
+  contactTitle: "Contact",
+  contactLead: "Send emails to",
   via: "via",
   photoAlt: "Photograph of aircraft {reg}",
   photoAltExtra: "Additional photo of {reg}",
+  photoSelect: "Show this photo of {reg}",
   langFr: "French",
   langEn: "English",
+  langGroup: "Language",
+  adLabel: "Advertisement",
 };
 
 export const messages = { fr, en } as const;
