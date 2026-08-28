@@ -1,2 +1,0 @@
--- Add AIRCRAFT_IMAGES to ActionType enum
-ALTER TYPE "ActionType" ADD VALUE 'AIRCRAFT_IMAGES';

@@ -1,36 +1,37 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# PlaneWise
 
-## Getting Started
+Fiche d’un avion à partir de son **immatriculation** (tail number).  
+Site : [planewise.io](https://planewise.io)
 
-First, run the development server:
+PlaneWise affiche les données publiques disponibles pour une cellule précise — type, constructeur, âge, MSN, exploitant, statut — et, lorsqu’elle existe, **une photographie de cet avion-là**, pas d’un autre du même type.
+
+Aucune clé API n’est requise. Il n’y a pas de backend à héberger : c’est un site Next.js qui interroge des sources publiques côté serveur.
+
+## Lancer en local
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm i && npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Ouvrez [http://localhost:3000](http://localhost:3000), puis essayez par exemple `F-HTYA` ou `A6-EUA`.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+L’interface est en français par défaut, avec un basculeur **FR | ENG** dans l’en-tête (mémorisé dans un cookie).
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Production
 
-## Learn More
+Déploiement standard sur Vercel (`next build`). Aucune variable d’environnement.
 
-To learn more about Next.js, take a look at the following resources:
+## Sources
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+Les recherches sont faites sur le serveur (pas dans le navigateur) et mises en cache quelques heures :
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+- [hexdb.io](https://hexdb.io/) — immatriculation, constructeur, type OACI, exploitant
+- [Airport-Data.com](https://airport-data.com/) — API publique (année, MSN, pays) et fiche HTML (statut, livraison)
+- [Planespotters.net Photo API](https://www.planespotters.net/photo/api) — photo de la cellule, avec crédit photographe (aucune clé)
+- [Wikimedia Commons](https://commons.wikimedia.org/) — photos supplémentaires de la catégorie d’immatriculation, si elle existe
 
-## Deploy on Vercel
+Les champs absents sont omis. PlaneWise n’invente jamais une donnée ni une photo.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## Licence des photos Planespotters
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Les images Planespotters sont chargées depuis leurs URL, avec le nom du photographe et un lien vers la page source, conformément à leurs conditions d’utilisation de l’API photo.
