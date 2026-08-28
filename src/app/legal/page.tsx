@@ -10,6 +10,11 @@ export async function generateMetadata(): Promise<Metadata> {
     title: page.title,
     description: page.intro.slice(0, 160),
     alternates: { canonical: "/legal" },
+    openGraph: {
+      title: page.title,
+      url: "https://planewise.io/legal",
+      description: page.intro.slice(0, 160),
+    },
   };
 }
 

@@ -13,6 +13,14 @@ export async function generateMetadata(): Promise<Metadata> {
         ? `Send emails to ${CONTACT_EMAIL}`
         : `Contactez-nous par email à ${CONTACT_EMAIL}`,
     alternates: { canonical: "/contact" },
+    openGraph: {
+      title: t(lang, "contactTitle"),
+      url: "https://planewise.io/contact",
+      description:
+        lang === "en"
+          ? `Send emails to ${CONTACT_EMAIL}`
+          : `Contactez-nous par email à ${CONTACT_EMAIL}`,
+    },
   };
 }
 

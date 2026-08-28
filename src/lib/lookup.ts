@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { recordsCompatible, identityText } from "./compat";
 import { iataCodeFor } from "./iata";
 import {
@@ -45,7 +46,7 @@ function hasFacts(sheet: AircraftFactSheet): boolean {
   );
 }
 
-export async function lookupAircraft(raw: string): Promise<LookupResult> {
+async function lookupAircraftUncached(raw: string): Promise<LookupResult> {
   const registration = normalizeRegistration(raw);
   if (!registration) return { status: "invalid" };
 
@@ -212,3 +213,6 @@ export async function lookupAircraft(raw: string): Promise<LookupResult> {
     return { status: "error", registration };
   }
 }
+
+export const lookupAircraft = cache(lookupAircraftUncached);
+

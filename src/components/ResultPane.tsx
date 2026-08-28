@@ -2,6 +2,8 @@ import { formatAgeLabel, interpolate, t, type Lang } from "@/lib/i18n";
 import { statusTone, translateStatus } from "@/lib/pretty";
 import type { AircraftFactSheet } from "@/lib/types";
 import { PhotoGallery } from "@/components/PhotoGallery";
+import { JsonLd } from "@/components/JsonLd";
+import { aircraftJsonLd } from "@/lib/seo";
 
 type Fact = { label: string; value: string };
 
@@ -74,6 +76,7 @@ export function ResultPane({
 
   return (
     <article className="result-card">
+      <JsonLd data={aircraftJsonLd(aircraft)} />
       <header className="result-head">
         <h1 className="result-reg">{aircraft.registration}</h1>
         {statusLabel ? (

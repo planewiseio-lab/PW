@@ -4,7 +4,7 @@ export const LANG_COOKIE = "pw-lang";
 
 const fr = {
   tagline:
-    "Recherchez une immatriculation et explorez la fiche, les photos et l’historique — au même endroit.",
+    "Recherchez une immatriculation d’avion (tail number) et explorez la fiche, les photos et l’historique.",
   search: "Rechercher",
   searchAria: "Immatriculation de l’avion",
   placeholder: "C-FRSR, N875BD",
@@ -53,7 +53,7 @@ const fr = {
 
 const en: typeof fr = {
   tagline:
-    "Instantly look up any aircraft registration and explore specs, photos, and flight history — all in one place.",
+    "Look up an aircraft by registration or tail number — specs, photos, and that airframe’s history.",
   search: "Search",
   searchAria: "Aircraft registration",
   placeholder: "C-FRSR, N875BD",
