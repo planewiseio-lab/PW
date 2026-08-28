@@ -2,7 +2,9 @@ import type { Metadata } from "next";
 import { Plus_Jakarta_Sans, Geist_Mono } from "next/font/google";
 import { SiteHeader } from "@/components/SiteHeader";
 import { SiteFooter } from "@/components/SiteFooter";
+import { AdSenseScript } from "@/components/AdSenseScript";
 import { getLang } from "@/lib/lang";
+import { ADSENSE_CLIENT } from "@/lib/adsense";
 import "./globals.css";
 
 const sans = Plus_Jakarta_Sans({
@@ -50,6 +52,9 @@ export const metadata: Metadata = {
     description,
   },
   robots: { index: true, follow: true },
+  other: {
+    "google-adsense-account": ADSENSE_CLIENT,
+  },
 };
 
 export default async function RootLayout({ children }: LayoutProps<"/">) {
@@ -60,6 +65,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
       className={`${sans.variable} ${mono.variable} h-full antialiased`}
     >
       <body className="min-h-full">
+        <AdSenseScript />
         <div className="app-shell">
           <SiteHeader lang={lang} />
           {children}
