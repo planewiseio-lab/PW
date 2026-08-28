@@ -1,6 +1,7 @@
 import { formatAgeLabel, interpolate, t, type Lang } from "@/lib/i18n";
 import { statusTone, translateStatus } from "@/lib/pretty";
-import type { AircraftFactSheet, Photo } from "@/lib/types";
+import type { AircraftFactSheet } from "@/lib/types";
+import { PhotoGallery } from "@/components/PhotoGallery";
 
 type Fact = { label: string; value: string };
 
@@ -57,39 +58,6 @@ function FactColumn({ facts }: { facts: Fact[] }) {
   );
 }
 
-function PhotoBlock({
-  photo,
-  featured,
-  registration,
-  lang,
-}: {
-  photo: Photo;
-  featured: boolean;
-  registration: string;
-  lang: Lang;
-}) {
-  const credit = `© ${photo.photographer} ${t(lang, "via")} ${photo.sourceName}`;
-  return (
-    <figure className={featured ? "photo-figure" : "photo-thumb-figure"}>
-      <a href={photo.link} className="photo-frame">
-        {/* Planespotters ToS: load their URL as-is in the browser, do not proxy. */}
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src={photo.url}
-          alt={interpolate(
-            t(lang, featured ? "photoAlt" : "photoAltExtra"),
-            { reg: registration },
-          )}
-          width={photo.width ?? 800}
-          height={photo.height ?? 530}
-          className={featured ? "photo-main" : "photo-thumb"}
-        />
-        <span className="photo-credit">{credit}</span>
-      </a>
-    </figure>
-  );
-}
-
 export function ResultPane({
   aircraft,
   lang,
@@ -98,7 +66,6 @@ export function ResultPane({
   lang: Lang;
 }) {
   const { left, right } = columns(aircraft, lang);
-  const [hero, ...gallery] = aircraft.photos;
   const tone = statusTone(aircraft.status);
   const statusLabel =
     tone === "active"
@@ -121,28 +88,13 @@ export function ResultPane({
         <FactColumn facts={right} />
       </div>
 
-      {hero ? (
-        <div className="photos">
-          <PhotoBlock
-            photo={hero}
-            featured
-            registration={aircraft.registration}
-            lang={lang}
-          />
-          {gallery.length > 0 ? (
-            <div className="photo-gallery">
-              {gallery.slice(0, 6).map((photo) => (
-                <PhotoBlock
-                  key={photo.url}
-                  photo={photo}
-                  featured={false}
-                  registration={aircraft.registration}
-                  lang={lang}
-                />
-              ))}
-            </div>
-          ) : null}
-        </div>
+      {aircraft.photos.length > 0 ? (
+        <PhotoGallery
+          key={aircraft.registration}
+          photos={aircraft.photos.slice(0, 7)}
+          registration={aircraft.registration}
+          lang={lang}
+        />
       ) : (
         <p className="notice">{t(lang, "noPhoto")}</p>
       )}

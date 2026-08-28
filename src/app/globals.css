@@ -102,7 +102,10 @@ body {
 .lang-toggle button:focus-visible,
 .search-button:focus-visible,
 .search-input:focus-visible,
-.chips a:focus-visible {
+.chips a:focus-visible,
+.photo-thumb-button:focus-visible,
+.legal a:focus-visible,
+.footer-legal a:focus-visible {
   outline: 2px solid var(--blue);
   outline-offset: 2px;
 }
@@ -163,6 +166,14 @@ body {
   width: min(52rem, 100%);
   max-width: 52rem;
   align-items: stretch;
+}
+
+.page.is-legal {
+  width: min(40rem, 100%);
+  max-width: 40rem;
+  align-items: stretch;
+  justify-content: flex-start;
+  text-align: left;
 }
 
 .hero {
@@ -453,6 +464,17 @@ ul.chips a {
   object-fit: cover;
 }
 
+.photo-thumb-button {
+  width: 100%;
+  border: 0;
+  padding: 0;
+  margin: 0;
+  cursor: pointer;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+}
+
 .photo-credit {
   position: absolute;
   right: 0.55rem;
@@ -563,10 +585,23 @@ ul.chips a {
   opacity: 0.7;
 }
 
-.footer-sources {
-  margin-top: 0.15rem;
+.footer-legal {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.2rem 0.85rem;
+  margin: 0.35rem auto 0;
+  width: min(52rem, 100%);
   font-size: 0.7rem;
-  opacity: 0.9;
+}
+
+.footer-legal a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.footer-legal a:hover {
+  color: var(--blue);
 }
 
 .site-footer a {
@@ -576,6 +611,97 @@ ul.chips a {
 
 .site-footer a:hover {
   color: var(--blue);
+}
+
+.legal {
+  width: 100%;
+}
+
+.legal h1 {
+  margin: 0 0 0.35rem;
+  font-size: 1.45rem;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+}
+
+.legal-updated {
+  margin: 0 0 1rem;
+  color: var(--muted);
+  font-size: 0.82rem;
+}
+
+.legal-nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem 1rem;
+  margin: 0 0 1.5rem;
+  padding: 0.7rem 0;
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+}
+
+.legal-nav a {
+  color: var(--blue);
+  font-weight: 700;
+  font-size: 0.88rem;
+  text-decoration: none;
+}
+
+.legal-nav a:hover {
+  text-decoration: underline;
+}
+
+.legal-section {
+  scroll-margin-top: 4.5rem;
+  margin: 0 0 1.75rem;
+}
+
+.legal h2 {
+  margin: 0 0 0.65rem;
+  font-size: 1.12rem;
+  font-weight: 700;
+}
+
+.legal h3 {
+  margin: 1rem 0 0.4rem;
+  font-size: 0.95rem;
+  font-weight: 700;
+}
+
+.legal p,
+.legal li {
+  margin: 0 0 0.7rem;
+  color: var(--text);
+  line-height: 1.55;
+  font-size: 0.92rem;
+}
+
+.legal ul {
+  margin: 0 0 0.7rem;
+  padding-left: 1.15rem;
+}
+
+.legal li {
+  margin-bottom: 0.35rem;
+}
+
+.legal a {
+  color: var(--blue);
+}
+
+.legal-home {
+  margin: 1.5rem 0 0;
+  padding-top: 0.85rem;
+  border-top: 1px solid var(--line);
+}
+
+.legal-home a {
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.legal-home a:hover {
+  text-decoration: underline;
 }
 
 .sr-only {
