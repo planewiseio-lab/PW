@@ -2,37 +2,59 @@ import { formatAgeLabel, interpolate, t, type Lang } from "@/lib/i18n";
 import { statusTone, translateStatus } from "@/lib/pretty";
 import type { AircraftFactSheet, Photo } from "@/lib/types";
 
-type Fact = { label: string; value?: string };
+type Fact = { label: string; value: string };
 
-function factsFor(aircraft: AircraftFactSheet, lang: Lang): Fact[] {
-  return [
-    { label: t(lang, "type"), value: aircraft.type },
-    { label: t(lang, "manufacturer"), value: aircraft.manufacturer },
-    { label: t(lang, "modelIcao"), value: aircraft.icaoType },
-    { label: t(lang, "iata"), value: aircraft.iataType },
-    { label: t(lang, "airline"), value: aircraft.operator },
-    { label: t(lang, "owner"), value: aircraft.owner },
-    {
-      label: t(lang, "year"),
-      value: aircraft.yearBuilt != null ? String(aircraft.yearBuilt) : undefined,
-    },
-    {
-      label: t(lang, "age"),
-      value:
-        aircraft.ageYears != null
-          ? formatAgeLabel(aircraft.ageYears, lang)
-          : undefined,
-    },
-    { label: t(lang, "delivery"), value: aircraft.deliveryDate },
-    { label: t(lang, "msn"), value: aircraft.serial },
-    { label: t(lang, "engines"), value: aircraft.engines },
-    { label: t(lang, "country"), value: aircraft.country },
-    { label: t(lang, "icao24"), value: aircraft.icao24 },
-    {
-      label: t(lang, "previousRegs"),
-      value: aircraft.previousRegistrations?.join(", "),
-    },
-  ].filter((fact) => Boolean(fact.value));
+function present(label: string, value?: string): Fact | null {
+  return value ? { label, value } : null;
+}
+
+function columns(aircraft: AircraftFactSheet, lang: Lang): {
+  left: Fact[];
+  right: Fact[];
+} {
+  const left = [
+    present(t(lang, "type"), aircraft.type),
+    present(t(lang, "manufacturer"), aircraft.manufacturer),
+    present(t(lang, "modelIcao"), aircraft.icaoType),
+    present(t(lang, "iata"), aircraft.iataType),
+    present(t(lang, "airline"), aircraft.operator),
+    present(t(lang, "owner"), aircraft.owner),
+    present(t(lang, "country"), aircraft.country),
+  ].filter((fact): fact is Fact => fact !== null);
+
+  const right = [
+    present(
+      t(lang, "year"),
+      aircraft.yearBuilt != null ? String(aircraft.yearBuilt) : undefined,
+    ),
+    present(
+      t(lang, "age"),
+      aircraft.ageYears != null
+        ? formatAgeLabel(aircraft.ageYears, lang)
+        : undefined,
+    ),
+    present(t(lang, "delivery"), aircraft.deliveryDate),
+    present(t(lang, "msn"), aircraft.serial),
+    present(t(lang, "engines"), aircraft.engines),
+    present(t(lang, "icao24"), aircraft.icao24),
+    present(t(lang, "previousRegs"), aircraft.previousRegistrations?.join(", ")),
+  ].filter((fact): fact is Fact => fact !== null);
+
+  return { left, right };
+}
+
+function FactColumn({ facts }: { facts: Fact[] }) {
+  if (!facts.length) return null;
+  return (
+    <dl className="facts-col">
+      {facts.map((fact) => (
+        <div key={fact.label} className="fact">
+          <dt>{fact.label}</dt>
+          <dd>{fact.value}</dd>
+        </div>
+      ))}
+    </dl>
+  );
 }
 
 function PhotoBlock({
@@ -75,7 +97,7 @@ export function ResultPane({
   aircraft: AircraftFactSheet;
   lang: Lang;
 }) {
-  const facts = factsFor(aircraft, lang);
+  const { left, right } = columns(aircraft, lang);
   const [hero, ...gallery] = aircraft.photos;
   const tone = statusTone(aircraft.status);
   const statusLabel =
@@ -94,14 +116,10 @@ export function ResultPane({
         ) : null}
       </header>
 
-      <dl className="facts">
-        {facts.map((fact) => (
-          <div key={fact.label} className="fact">
-            <dt>{fact.label}</dt>
-            <dd>{fact.value}</dd>
-          </div>
-        ))}
-      </dl>
+      <div className="facts">
+        <FactColumn facts={left} />
+        <FactColumn facts={right} />
+      </div>
 
       {hero ? (
         <div className="photos">

@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import { Plus_Jakarta_Sans, Geist_Mono } from "next/font/google";
-import { SiteHeader } from "@/components/SiteHeader";
-import { SiteFooter } from "@/components/SiteFooter";
+import { AppShell } from "@/components/AppShell";
 import { AdSenseScript } from "@/components/AdSenseScript";
 import { getLang } from "@/lib/lang";
 import { ADSENSE_CLIENT } from "@/lib/adsense";
@@ -66,11 +65,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
     >
       <body className="min-h-full">
         <AdSenseScript />
-        <div className="app-shell">
-          <SiteHeader lang={lang} />
-          {children}
-          <SiteFooter lang={lang} />
-        </div>
+        <AppShell lang={lang}>{children}</AppShell>
       </body>
     </html>
   );

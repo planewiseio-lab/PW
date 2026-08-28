@@ -42,20 +42,6 @@ const fr = {
   langFr: "Français",
   langEn: "English",
   langGroup: "Langue",
-  introTitle: "PlaneWise",
-  introBody:
-    "Une recherche publique : l’immatriculation d’un avion, sa fiche, et une photo de cette cellule-là — pas d’un autre du même type. Pas de compte.",
-  tailTitle: "L’immatriculation",
-  tailBody:
-    "C’est le numéro unique peint sur l’avion (F-HTYA, A6-EUA…). Il désigne cette cellule, même si d’autres du même modèle volent ailleurs. Tiret facultatif.",
-  sheetTitle: "La fiche",
-  sheetBody:
-    "Type, constructeur, âge, MSN, compagnie, statut : uniquement ce qui est public. Une photographie, si l’on en trouve une de cet avion précis.",
-  storiesTitle: "Quelques cellules",
-  storyFhtya: "A350 d’Air France, livré en 2019.",
-  storyA6eua: "A380 d’Emirates.",
-  storyGzbka: "787 de British Airways.",
-  exploreAria: "À propos de PlaneWise",
   adLabel: "Publicité",
 };
 
@@ -98,20 +84,6 @@ const en: typeof fr = {
   langFr: "French",
   langEn: "English",
   langGroup: "Language",
-  introTitle: "PlaneWise",
-  introBody:
-    "A public lookup: an aircraft’s registration, its fact sheet, and a photo of that airframe — not another of the same type. No account.",
-  tailTitle: "The tail number",
-  tailBody:
-    "The unique code painted on the aircraft (F-HTYA, A6-EUA…). It names this airframe, even when others of the same model fly elsewhere. The hyphen is optional.",
-  sheetTitle: "The fact sheet",
-  sheetBody:
-    "Type, manufacturer, age, MSN, operator, status: public data only. A photograph, if one of this exact aircraft is found.",
-  storiesTitle: "A few airframes",
-  storyFhtya: "Air France A350, delivered in 2019.",
-  storyA6eua: "Emirates A380.",
-  storyGzbka: "British Airways 787.",
-  exploreAria: "About PlaneWise",
   adLabel: "Advertisement",
 };
 

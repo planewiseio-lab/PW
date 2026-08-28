@@ -3,8 +3,6 @@ import type { Metadata } from "next";
 import { SearchForm } from "@/components/SearchForm";
 import { ResultSkeleton } from "@/components/ResultPane";
 import { SearchResults } from "@/components/SearchResults";
-import { HomeExplore } from "@/components/HomeExplore";
-import { AdSlot } from "@/components/AdSlot";
 import { Logo, Wordmark } from "@/components/Logo";
 import { getLang } from "@/lib/lang";
 import { t } from "@/lib/i18n";
@@ -52,7 +50,6 @@ export default async function Home({ searchParams }: PageProps) {
         <Suspense fallback={<ResultSkeleton />}>
           <SearchResults query={query} lang={lang} />
         </Suspense>
-        <AdSlot label={t(lang, "adLabel")} />
       </main>
     );
   }
@@ -67,8 +64,6 @@ export default async function Home({ searchParams }: PageProps) {
         <p className="lede">{t(lang, "tagline")}</p>
         <SearchForm lang={lang} defaultValue={query} />
       </div>
-      <HomeExplore lang={lang} />
-      <AdSlot label={t(lang, "adLabel")} />
     </main>
   );
 }
