@@ -1,5 +1,4 @@
 import type { Lang } from "@/lib/i18n";
-import { ADSENSE_CLIENT } from "@/lib/adsense";
 
 export type LegalBlock =
   | { type: "p"; text: string }
@@ -21,9 +20,9 @@ export type LegalPage = {
 
 const fr: LegalPage = {
   title: "Mentions légales",
-  updated: "Dernière mise à jour : 28 août 2026",
+  updated: "Dernière mise à jour : 2 septembre 2026",
   intro:
-    "PlaneWise est un site public d’information sur les aéronefs, exploité sous le nom PlaneWise à l’adresse planewise.io. Aucun compte n’est requis. Cette page décrit la confidentialité, les conditions d’utilisation et les témoins (cookies) liés à la publicité. Nous n’indiquons pas d’adresse postale, de numéro d’entreprise ni de courriel de contact, car ces renseignements ne sont pas publiés.",
+    "PlaneWise est un site public d’information sur les aéronefs, exploité sous le nom PlaneWise à l’adresse planewise.io. Aucun compte n’est requis. Cette page décrit la confidentialité, les conditions d’utilisation et les témoins (cookies) liés à la publicité. Nous n’indiquons pas d’adresse postale, de numéro d’entreprise ni de responsable nommé. Les demandes, y compris celles relatives à la confidentialité, peuvent être envoyées depuis /contact ou à info@planewise.io.",
   sections: [
     {
       id: "privacy",
@@ -39,7 +38,7 @@ const fr: LegalPage = {
         },
         {
           type: "p",
-          text: "Le site est exploité par PlaneWise (planewise.io). Aucune autre identité corporative, adresse ou coordonnée n’est publiée ici. Les demandes relatives à la confidentialité peuvent être présentées par tout moyen de contact que PlaneWise publiera éventuellement sur planewise.io ; nous n’inventons pas de courriel dédié.",
+          text: "Le site est exploité par PlaneWise (planewise.io). Aucune autre identité corporative, adresse postale ou numéro d’entreprise n’est publié ici. Les demandes relatives à la confidentialité peuvent être envoyées depuis /contact ou à info@planewise.io.",
         },
         {
           type: "h3",
@@ -51,9 +50,7 @@ const fr: LegalPage = {
             "Les immatriculations que vous saisissez dans le champ de recherche, afin d’afficher la fiche correspondante.",
             "Un témoin de langue (pw-lang) pour retenir FR ou ENG.",
             "Des données techniques habituelles d’un site web (par exemple, journalisation côté hébergeur : adresse IP, navigateur, pages consultées), utilisées pour faire fonctionner et sécuriser le service.",
-            "Des données collectées par Google AdSense (voir la section Cookies), y compris des témoins de publicité et des identifiants publicitaires. L’identifiant d’éditeur AdSense de ce site est " +
-              ADSENSE_CLIENT +
-              ".",
+            "Des données collectées par Google AdSense (voir la section Cookies), y compris des témoins de publicité et des identifiants publicitaires. Les publicités sont fournies par Google AdSense et des témoins publicitaires peuvent être déposés.",
           ],
         },
         {
@@ -74,7 +71,7 @@ const fr: LegalPage = {
         },
         {
           type: "p",
-          text: "Google (AdSense et services connexes) peut traiter des données, y compris hors du Québec et du Canada, selon ses propres politiques. Les sources de données et de photos d’aéronefs sont consultées pour composer la fiche ; PlaneWise ne revend pas vos recherches à des courtiers en données.",
+          text: "Les sources de données et de photos d’aéronefs sont consultées pour composer la fiche. PlaneWise ne revend pas vos recherches à des courtiers en données. Les publicités sont fournies par Google AdSense ; voir la section Cookies.",
         },
         {
           type: "h3",
@@ -82,11 +79,11 @@ const fr: LegalPage = {
         },
         {
           type: "p",
-          text: "Les recherches ne sont pas associées à un compte. Les journaux d’hébergement, s’ils existent, sont conservés le temps raisonnable nécessaire au fonctionnement et à la sécurité. En cas d’incident de confidentialité présentant un risque de préjudice sérieux, les avis prévus par le droit applicable seront donnés dans la mesure où nous disposons des moyens de vous joindre. Vous pouvez demander l’accès aux renseignements personnels que nous détiendrions sur vous, leur rectification, ou le retrait du consentement pour les traitements non essentiels, sous réserve des exceptions légales. PlaneWise ne publie pas de responsable de la protection des renseignements personnels nommé ; toute demande doit viser PlaneWise / planewise.io.",
+          text: "Les recherches ne sont pas associées à un compte. Les journaux d’hébergement, s’ils existent, sont conservés le temps raisonnable nécessaire au fonctionnement et à la sécurité. En cas d’incident de confidentialité présentant un risque de préjudice sérieux, les avis prévus par le droit applicable seront donnés dans la mesure où nous disposons des moyens de vous joindre. Vous pouvez demander l’accès aux renseignements personnels que nous détiendrions sur vous, leur rectification, ou le retrait du consentement pour les traitements non essentiels, sous réserve des exceptions légales. PlaneWise ne publie pas de responsable de la protection des renseignements personnels nommé ; toute demande doit être envoyée via /contact ou info@planewise.io.",
         },
         {
           type: "p",
-          text: "Le site n’est pas destiné à collecter sciemment des renseignements auprès d’enfants. Si vous croyez qu’un mineur a fourni des renseignements, contactez-nous par le moyen publié sur planewise.io.",
+          text: "Le site n’est pas destiné à collecter sciemment des renseignements auprès d’enfants. Si vous croyez qu’un mineur a fourni des renseignements, contactez-nous via /contact ou info@planewise.io.",
         },
       ],
     },
@@ -158,9 +155,7 @@ const fr: LegalPage = {
       blocks: [
         {
           type: "p",
-          text: "Cette section décrit les témoins et technologies similaires utilisés sur planewise.io, y compris ceux de Google AdSense (identifiant d’éditeur " +
-            ADSENSE_CLIENT +
-            ").",
+          text: "Cette section décrit les témoins et technologies similaires utilisés sur planewise.io. Les publicités sont fournies par Google AdSense et des témoins publicitaires peuvent être déposés.",
         },
         {
           type: "h3",
@@ -204,9 +199,9 @@ const fr: LegalPage = {
 
 const en: LegalPage = {
   title: "Legal",
-  updated: "Last updated: 28 August 2026",
+  updated: "Last updated: 2 September 2026",
   intro:
-    "PlaneWise is a public aircraft-information website operated as PlaneWise at planewise.io. No account is required. This page covers privacy, terms of use, and cookies related to advertising. We do not list a postal address, business number, or contact email because those details are not published.",
+    "PlaneWise is a public aircraft-information website operated as PlaneWise at planewise.io. No account is required. This page covers privacy, terms of use, and cookies related to advertising. We do not list a postal address, business number, or named officer. Privacy and other requests may be sent through /contact or to info@planewise.io.",
   sections: [
     {
       id: "privacy",
@@ -222,7 +217,7 @@ const en: LegalPage = {
         },
         {
           type: "p",
-          text: "The site is operated by PlaneWise (planewise.io). No other corporate identity, address, or contact details are published here. Privacy requests may be made through any contact method PlaneWise later publishes on planewise.io; we do not invent a dedicated email address.",
+          text: "The site is operated by PlaneWise (planewise.io). No other corporate identity, postal address, or business number is published here. Privacy requests may be sent through /contact or to info@planewise.io.",
         },
         {
           type: "h3",
@@ -234,9 +229,7 @@ const en: LegalPage = {
             "Aircraft registrations you type into search, so we can show that airframe’s fact sheet.",
             "A language cookie (pw-lang) to remember FR or ENG.",
             "Ordinary website technical data (for example host logs: IP address, browser, pages viewed) used to operate and secure the service.",
-            "Data collected by Google AdSense (see Cookies), including advertising cookies and ad identifiers. This site’s AdSense publisher ID is " +
-              ADSENSE_CLIENT +
-              ".",
+            "Data collected by Google AdSense (see Cookies), including advertising cookies and ad identifiers. Ads are provided by Google AdSense and advertising cookies may be set.",
           ],
         },
         {
@@ -257,7 +250,7 @@ const en: LegalPage = {
         },
         {
           type: "p",
-          text: "Google (AdSense and related services) may process data, including outside Quebec and Canada, under Google’s own policies. Aircraft data and photo sources are queried to build the fact sheet. PlaneWise does not sell your searches to data brokers.",
+          text: "Aircraft data and photo sources are queried to build the fact sheet. PlaneWise does not sell your searches to data brokers. Ads are provided by Google AdSense; see the Cookies section.",
         },
         {
           type: "h3",
@@ -265,11 +258,11 @@ const en: LegalPage = {
         },
         {
           type: "p",
-          text: "Lookups are not tied to an account. Hosting logs, if any, are kept only as reasonably needed for operations and security. If a confidentiality incident presents a risk of serious harm, notices required by applicable law will be given to the extent we have a way to reach you. You may request access to personal information we hold about you, correction, or withdrawal of consent for non-essential processing, subject to legal exceptions. PlaneWise does not publish a named privacy officer; address requests to PlaneWise / planewise.io.",
+          text: "Lookups are not tied to an account. Hosting logs, if any, are kept only as reasonably needed for operations and security. If a confidentiality incident presents a risk of serious harm, notices required by applicable law will be given to the extent we have a way to reach you. You may request access to personal information we hold about you, correction, or withdrawal of consent for non-essential processing, subject to legal exceptions. PlaneWise does not publish a named privacy officer; send requests through /contact or info@planewise.io.",
         },
         {
           type: "p",
-          text: "The site is not intended to knowingly collect information from children. If you believe a minor provided information, contact us through any method published on planewise.io.",
+          text: "The site is not intended to knowingly collect information from children. If you believe a minor provided information, contact us through /contact or info@planewise.io.",
         },
       ],
     },
@@ -341,9 +334,7 @@ const en: LegalPage = {
       blocks: [
         {
           type: "p",
-          text: "This section describes cookies and similar technologies on planewise.io, including Google AdSense (publisher ID " +
-            ADSENSE_CLIENT +
-            ").",
+          text: "This section describes cookies and similar technologies on planewise.io. Ads are provided by Google AdSense and advertising cookies may be set.",
         },
         {
           type: "h3",
