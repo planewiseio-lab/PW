@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { getLang } from "@/lib/lang";
 import { t } from "@/lib/i18n";
 import { getLegalPage, type LegalBlock } from "@/lib/legal";
@@ -87,7 +88,7 @@ export default async function LegalPage() {
           </section>
         ))}
         <p className="legal-home">
-          <a href="/">{t(lang, "legalBack")}</a>
+          <Link href="/">{t(lang, "legalBack")}</Link>
         </p>
       </article>
     </main>

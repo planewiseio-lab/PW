@@ -38,8 +38,10 @@ export async function generateMetadata({
     });
   }
 
-  const path = `/?q=${encodeURIComponent(registration)}`;
-  const result = await lookupAircraft(q ?? registration);
+  // Legacy ?q= URLs render the fiche but declare the clean URL as canonical,
+  // so search engines consolidate on /F-HTYA.
+  const path = `/${encodeURIComponent(registration)}`;
+  const result = await lookupAircraft(registration);
   if (result.status === "ok") {
     const seo = resultSeo(result.aircraft, lang);
     return pageMeta({
@@ -66,9 +68,10 @@ export default async function Home({ searchParams }: PageProps) {
   const lang = await getLang();
 
   if (query) {
+    const registration = normalizeRegistration(query);
     return (
       <main className="page is-result">
-        <SearchForm lang={lang} defaultValue={query} compact />
+        <SearchForm lang={lang} defaultValue={registration ?? query} compact />
         <Suspense fallback={<ResultSkeleton />}>
           <SearchResults query={query} lang={lang} />
         </Suspense>
@@ -87,7 +90,7 @@ export default async function Home({ searchParams }: PageProps) {
           <span className="sr-only"> — {home.h1Extra}</span>
         </h1>
         <p className="lede">{t(lang, "tagline")}</p>
-        <SearchForm lang={lang} defaultValue={query} />
+        <SearchForm lang={lang} defaultValue="" />
       </div>
     </main>
   );

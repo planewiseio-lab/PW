@@ -1,5 +1,9 @@
+"use client";
+
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { EXAMPLE_REGISTRATIONS } from "@/lib/examples";
+import { normalizeRegistration } from "@/lib/normalize";
 import { t, type Lang } from "@/lib/i18n";
 
 type SearchFormProps = {
@@ -9,11 +13,20 @@ type SearchFormProps = {
 };
 
 export function SearchForm({ lang, defaultValue, compact }: SearchFormProps) {
+  const router = useRouter();
+
+  function onSubmit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const data = new FormData(event.currentTarget);
+    const raw = String(data.get("q") ?? "").trim();
+    const registration = normalizeRegistration(raw);
+    router.push(registration ? `/${encodeURIComponent(registration)}` : "/");
+  }
+
   return (
     <div className={compact ? "search-block is-compact" : "search-block"}>
       <form
-        action="/"
-        method="get"
+        onSubmit={onSubmit}
         role="search"
         className="search-bar"
         key={defaultValue ?? "empty"}
@@ -56,7 +69,7 @@ export function SearchForm({ lang, defaultValue, compact }: SearchFormProps) {
         {EXAMPLE_REGISTRATIONS.map((example) => (
           <li key={example.registration}>
             <Link
-              href={`/?q=${encodeURIComponent(example.registration)}`}
+              href={`/${encodeURIComponent(example.registration)}`}
               title={example.hint}
             >
               {example.registration}

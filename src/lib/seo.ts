@@ -113,7 +113,7 @@ export function websiteJsonLd() {
       "@type": "SearchAction",
       target: {
         "@type": "EntryPoint",
-        urlTemplate: `${SITE_URL}/?q={search_term_string}`,
+        urlTemplate: `${SITE_URL}/{search_term_string}`,
       },
       "query-input": "required name=search_term_string",
     },
@@ -121,7 +121,7 @@ export function websiteJsonLd() {
 }
 
 export function aircraftJsonLd(aircraft: AircraftFactSheet) {
-  const url = `${SITE_URL}/?q=${encodeURIComponent(aircraft.registration)}`;
+  const url = `${SITE_URL}/${encodeURIComponent(aircraft.registration)}`;
   const data: Record<string, unknown> = {
     "@context": "https://schema.org",
     "@type": "Vehicle",
