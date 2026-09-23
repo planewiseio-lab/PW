@@ -1,5 +1,4 @@
 import { Suspense } from "react";
-import type { CSSProperties } from "react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { SearchForm } from "@/components/SearchForm";
@@ -12,6 +11,8 @@ import { t } from "@/lib/i18n";
 import { lookupAircraft } from "@/lib/lookup";
 import { normalizeRegistration } from "@/lib/normalize";
 import { SEED_META, SEED_REGISTRATIONS } from "@/lib/seed";
+import { AirlineCarousel } from "@/components/AirlineCarousel";
+import { PopularCarousel } from "@/components/PopularCarousel";
 import type { AircraftFamily } from "@/lib/seed";
 import {
   fallbackResultSeo,
@@ -45,6 +46,28 @@ function familyLabel(family: AircraftFamily): string {
       return "Airbus A350";
     case "a380":
       return "Airbus A380";
+  }
+}
+
+function familyShort(family: AircraftFamily): string {  switch (family) {
+    case "concorde":
+      return "Concorde";
+    case "737":
+      return "B737";
+    case "747":
+      return "B747";
+    case "767":
+      return "B767";
+    case "777":
+      return "B777";
+    case "787":
+      return "B787";
+    case "a340":
+      return "A340";
+    case "a350":
+      return "A350";
+    case "a380":
+      return "A380";
   }
 }
 
@@ -134,29 +157,24 @@ export default async function Home({ searchParams }: PageProps) {
       </section>
       <section className="home-popular" aria-label={t(lang, "popularTitle")}>
         <h2 className="section-title">{t(lang, "popularTitle")}</h2>
-        <ul className="popular-grid">
-          {popular.map((registration, i) => {
+        <PopularCarousel
+          items={popular.map((registration) => {
             const meta = metaByReg.get(registration);
-            return (
-              <li key={registration} className="popular-card">
-                <Link
-                  href={`/${encodeURIComponent(registration)}`}
-                  style={{ "--i": i } as CSSProperties}
-                >
-                  <span className="popular-reg">{registration}</span>
-                  {meta && (
-                    <span className="popular-family">
-                      {familyLabel(meta.family)}
-                    </span>
-                  )}
-                  {meta?.operator ? (
-                    <span className="popular-operator">{meta.operator}</span>
-                  ) : null}
-                </Link>
-              </li>
-            );
+            return {
+              registration,
+              typeCode: meta ? familyShort(meta.family) : "",
+              family: meta ? familyLabel(meta.family) : "",
+              operator: meta?.operator ?? "",
+            };
           })}
-        </ul>
+        />
+      </section>
+      <section className="home-popular" aria-label={t(lang, "airlinesTitle")}>
+        <h2 className="section-title">{t(lang, "airlinesTitle")}</h2>
+        <AirlineCarousel lang={lang} />
+        <p className="section-more">
+          <Link href="/airlines">{t(lang, "airlinesViewAll")} →</Link>
+        </p>
       </section>
     </main>
   );

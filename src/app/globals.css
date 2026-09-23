@@ -873,6 +873,273 @@ ul.chips a {
   box-shadow: 0 0 14px rgb(29 128 230 / 65%);
 }
 
+.section-more {
+  margin: 1.1rem 0 0;
+  text-align: center;
+}
+
+.section-more a {
+  color: #1d80e6;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.section-more a:hover {
+  text-decoration: underline;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.airline-carousel {
+  margin: 1.4rem 0 0;
+}
+
+.airline-track {
+  display: flex;
+  gap: 0.75rem;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  padding: 0.25rem 0.25rem 0.75rem;
+  scrollbar-width: thin;
+}
+
+.airline-slide {
+  flex: 0 0 auto;
+  width: 10rem;
+  scroll-snap-align: start;
+}
+
+.airline-slide a {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.6rem;
+  min-height: 8.25rem;
+  padding: 1rem 0.75rem;
+  border-radius: 1.05rem;
+  border: 1px solid var(--line);
+  background: #fff;
+  text-decoration: none;
+  box-shadow: 0 6px 18px rgb(26 35 48 / 5%);
+  transition:
+    transform 0.18s ease,
+    box-shadow 0.18s ease,
+    border-color 0.18s ease;
+}
+
+.airline-slide a:hover,
+.airline-slide a:focus-visible {
+  transform: translateY(-4px);
+  border-color: rgb(29 128 230 / 55%);
+  box-shadow:
+    0 16px 36px rgb(29 128 230 / 20%),
+    0 0 0 1px rgb(29 128 230 / 30%),
+    0 0 24px rgb(29 128 230 / 18%);
+}
+
+.airline-logo {
+  height: 2.5rem;
+  width: 100%;
+  max-width: 8.25rem;
+  object-fit: contain;
+}
+
+.airline-glyph {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 2.5rem;
+  font-size: 2rem;
+  color: var(--blue);
+}
+
+.airline-name {
+  font-size: 0.78rem;
+  line-height: 1.3;
+  color: var(--muted);
+  text-align: center;
+}
+
+.carousel-nav {
+  display: flex;
+  gap: 0.5rem;
+  justify-content: center;
+  margin-top: 0.25rem;
+}
+
+.carousel-btn {
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: var(--card);
+  color: var(--text);
+  font-size: 1.35rem;
+  line-height: 1;
+  cursor: pointer;
+  box-shadow: 0 6px 18px rgb(26 35 48 / 5%);
+  transition:
+    transform 0.18s ease,
+    border-color 0.18s ease;
+}
+
+.carousel-btn:hover {
+  transform: translateY(-2px);
+  border-color: rgb(29 128 230 / 55%);
+}
+
+.popular-logo {
+  height: 2.25rem;
+  width: 100%;
+  max-width: 8rem;
+  object-fit: contain;
+}
+
+.popular-glyph {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 2.25rem;
+  font-size: 1.8rem;
+  color: var(--blue);
+}
+
+.popular-carousel {
+  margin: 1.4rem 0 0;
+}
+
+.popular-track {
+  display: flex;
+  gap: 0.75rem;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  padding: 0.25rem 0.25rem 0.75rem;
+  scrollbar-width: thin;
+}
+
+.popular-slide {
+  flex: 0 0 auto;
+  width: 11.5rem;
+  scroll-snap-align: start;
+}
+
+.bp-card {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  height: 100%;
+  min-height: 14.5rem;
+  padding: 0;
+  overflow: hidden;
+  border-radius: 1.1rem;
+  border: 1px solid var(--line);
+  background: var(--card);
+  text-decoration: none;
+  text-align: left;
+  box-shadow: 0 6px 18px rgb(26 35 48 / 6%);
+  transition:
+    transform 0.18s ease,
+    box-shadow 0.18s ease,
+    border-color 0.18s ease;
+}
+
+.bp-card:hover,
+.bp-card:focus-visible {
+  transform: translateY(-4px);
+  border-color: rgb(29 128 230 / 55%);
+  box-shadow:
+    0 16px 36px rgb(29 128 230 / 20%),
+    0 0 24px rgb(29 128 230 / 18%);
+}
+
+.bp-stub {
+  background: linear-gradient(94deg, #1566c2, #1d80e6);
+  color: #fff;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  font-size: 0.8rem;
+  padding: 0.5rem 0.9rem;
+}
+
+.bp-reg {
+  padding: 0.8rem 0.9rem 0;
+  font-family: var(--font-mono), monospace;
+  font-weight: 800;
+  font-size: 1.15rem;
+  color: var(--text);
+}
+
+.bp-perf {
+  margin: 0.55rem 0.9rem 0;
+  border-top: 2px dashed var(--line);
+}
+
+.bp-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0.6rem 0.9rem 0;
+}
+
+.bp-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  min-width: 0;
+}
+
+.bp-label {
+  font-size: 0.62rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+}
+
+.bp-field b {
+  font-size: 0.8rem;
+  color: var(--text);
+}
+
+.bp-barcode {
+  margin: auto 0.9rem 0.9rem;
+  height: 2.2rem;
+  background: repeating-linear-gradient(
+    90deg,
+    var(--text) 0 2px,
+    transparent 2px 4px,
+    var(--text) 4px 7px,
+    transparent 7px 9px,
+    var(--text) 9px 10px,
+    transparent 10px 14px
+  );
+  opacity: 0.85;
+}
+
+.airline-detail-logo {
+  height: 3rem;
+  max-width: 12rem;
+  object-fit: contain;
+  margin-bottom: 0.75rem;
+}
+
+.airline-detail-glyph {
+  display: block;
+  font-size: 2.75rem;
+  color: var(--blue);
+  margin-bottom: 0.75rem;
+}
+
 .popular-grid {
   list-style: none;
   margin: 1.4rem 0 0;
@@ -1116,25 +1383,87 @@ ul.chips a {
   list-style: none;
   margin: 0;
   padding: 0;
+}
+
+.similar-carousel {
+  margin: 1rem 0 0;
+}
+
+.similar-track {
   display: flex;
-  flex-wrap: wrap;
-  justify-content: space-evenly;
-  row-gap: 0.5rem;
+  gap: 0.75rem;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  padding: 0.25rem 0.25rem 0.75rem;
+  scrollbar-width: thin;
 }
 
-.similar-list a {
-  display: inline-block;
-  padding: 0.35rem 0.8rem;
+.similar-slide {
+  flex: 0 0 auto;
+  width: 11rem;
+  scroll-snap-align: start;
+}
+
+.similar-slide a {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.35rem;
+  height: 100%;
+  padding: 1rem 0.75rem;
+  border-radius: 1.05rem;
   border: 1px solid var(--line);
-  border-radius: 999px;
-  background: var(--card);
-  font-family: var(--font-mono), monospace;
-  font-size: 0.9rem;
+  background:
+    radial-gradient(120% 90% at 50% 0%, rgb(29 128 230 / 8%), transparent 60%),
+    var(--card);
   text-decoration: none;
+  text-align: center;
+  box-shadow: 0 6px 18px rgb(26 35 48 / 5%);
+  transition:
+    transform 0.18s ease,
+    box-shadow 0.18s ease,
+    border-color 0.18s ease;
 }
 
-.similar-list a:hover {
-  border-color: var(--blue);
+.similar-slide a:hover,
+.similar-slide a:focus-visible {
+  transform: translateY(-4px);
+  border-color: rgb(29 128 230 / 55%);
+  box-shadow:
+    0 16px 36px rgb(29 128 230 / 20%),
+    0 0 24px rgb(29 128 230 / 18%);
+}
+
+.similar-logo {
+  height: 2rem;
+  width: 100%;
+  max-width: 7.5rem;
+  object-fit: contain;
+}
+
+.similar-glyph {
+  display: flex;
+  align-items: center;
+  height: 2rem;
+  font-size: 1.8rem;
+  color: var(--blue);
+}
+
+.similar-reg {
+  font-family: var(--font-mono), monospace;
+  font-weight: 800;
+  font-size: 1rem;
+  color: var(--text);
+}
+
+.similar-family {
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+
+.similar-operator {
+  color: var(--muted);
+  font-size: 0.75rem;
 }
 
 .similar {

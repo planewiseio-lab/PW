@@ -2,20 +2,32 @@ import Link from "next/link";
 import { formatAgeLabel, interpolate, t, type Lang } from "@/lib/i18n";
 import { statusTone, translateStatus } from "@/lib/pretty";
 import { familyOf, findSimilar } from "@/lib/seed";
+import { airlineByName } from "@/lib/airlines";
 import {
   FAMILY_LABELS,
   FAMILY_SPECS,
 } from "@/lib/specs";
 import type { AircraftFactSheet } from "@/lib/types";
 import { PhotoGallery } from "@/components/PhotoGallery";
+import { SimilarCarousel } from "@/components/SimilarCarousel";
 import { EmptyResult } from "@/components/EmptyResult";
 import { JsonLd } from "@/components/JsonLd";
 import { aircraftJsonLd } from "@/lib/seo";
 
-type Fact = { label: string; value: string };
+type Fact = { label: string; value: string; href?: string };
 
 function present(label: string, value?: string): Fact | null {
   return value ? { label, value } : null;
+}
+
+function airlineFact(lang: Lang, operator?: string): Fact | null {
+  if (!operator) return null;
+  const airline = airlineByName(operator);
+  return {
+    label: t(lang, "airline"),
+    value: operator,
+    href: airline ? `/airlines/${airline.slug}` : undefined,
+  };
 }
 
 function columns(aircraft: AircraftFactSheet, lang: Lang): {
@@ -27,7 +39,7 @@ function columns(aircraft: AircraftFactSheet, lang: Lang): {
     present(t(lang, "manufacturer"), aircraft.manufacturer),
     present(t(lang, "modelIcao"), aircraft.icaoType),
     present(t(lang, "iata"), aircraft.iataType),
-    present(t(lang, "airline"), aircraft.operator),
+    airlineFact(lang, aircraft.operator),
     present(t(lang, "owner"), aircraft.owner),
     present(t(lang, "country"), aircraft.country),
   ].filter((fact): fact is Fact => fact !== null);
@@ -60,7 +72,13 @@ function FactColumn({ facts }: { facts: Fact[] }) {
       {facts.map((fact) => (
         <div key={fact.label} className="fact">
           <dt>{fact.label}</dt>
-          <dd>{fact.value}</dd>
+          <dd>
+            {fact.href ? (
+              <Link href={fact.href}>{fact.value}</Link>
+            ) : (
+              fact.value
+            )}
+          </dd>
         </div>
       ))}
     </dl>
@@ -139,15 +157,7 @@ export function ResultPane({
       {similar.length > 0 ? (
         <section className="similar" aria-label={t(lang, "similarTitle")}>
           <h2>{t(lang, "similarTitle")}</h2>
-          <ul className="similar-list">
-            {similar.map((s) => (
-              <li key={s.registration}>
-                <Link href={`/${encodeURIComponent(s.registration)}`}>
-                  {s.registration}
-                </Link>
-              </li>
-            ))}
-          </ul>
+          <SimilarCarousel items={similar} />
         </section>
       ) : null}
     </article>
