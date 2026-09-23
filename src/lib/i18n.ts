@@ -102,6 +102,19 @@ const fr = {
   countryScandinavia: "Danemark · Norvège · Suède",
   countrySouthKorea: "Corée du Sud",
   countryEthiopia: "Éthiopie",
+  countryIreland: "Irlande",
+  countrySpain: "Espagne",
+  countryChina: "Chine",
+  countryNorway: "Norvège",
+  countryTaiwan: "Taïwan",
+  countryChile: "Chili",
+  countrySouthAfrica: "Afrique du Sud",
+  countryIceland: "Islande",
+  countryPortugal: "Portugal",
+  countryHungary: "Hongrie",
+  countryItaly: "Italie",
+  countryColombia: "Colombie",
+  countryDenmark: "Danemark",
 };
 
 const en: typeof fr = {
@@ -204,6 +217,19 @@ const en: typeof fr = {
   countryScandinavia: "Denmark · Norway · Sweden",
   countrySouthKorea: "South Korea",
   countryEthiopia: "Ethiopia",
+  countryIreland: "Ireland",
+  countrySpain: "Spain",
+  countryChina: "China",
+  countryNorway: "Norway",
+  countryTaiwan: "Taiwan",
+  countryChile: "Chile",
+  countrySouthAfrica: "South Africa",
+  countryIceland: "Iceland",
+  countryPortugal: "Portugal",
+  countryHungary: "Hungary",
+  countryItaly: "Italy",
+  countryColombia: "Colombia",
+  countryDenmark: "Denmark",
 };
 
 export const messages = { fr, en } as const;

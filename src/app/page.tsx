@@ -34,6 +34,8 @@ function familyLabel(family: AircraftFamily): string {
       return "Boeing 737";
     case "747":
       return "Boeing 747";
+    case "757":
+      return "Boeing 757";
     case "767":
       return "Boeing 767";
     case "777":
@@ -46,6 +48,14 @@ function familyLabel(family: AircraftFamily): string {
       return "Airbus A350";
     case "a380":
       return "Airbus A380";
+    case "a320":
+      return "Airbus A320";
+    case "a330":
+      return "Airbus A330";
+    case "e190":
+      return "Embraer E190";
+    case "crj":
+      return "Bombardier CRJ";
   }
 }
 
@@ -56,6 +66,8 @@ function familyShort(family: AircraftFamily): string {  switch (family) {
       return "B737";
     case "747":
       return "B747";
+    case "757":
+      return "B757";
     case "767":
       return "B767";
     case "777":
@@ -68,6 +80,14 @@ function familyShort(family: AircraftFamily): string {  switch (family) {
       return "A350";
     case "a380":
       return "A380";
+    case "a320":
+      return "A320";
+    case "a330":
+      return "A330";
+    case "e190":
+      return "E190";
+    case "crj":
+      return "CRJ";
   }
 }
 

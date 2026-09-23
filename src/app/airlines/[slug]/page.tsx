@@ -28,7 +28,11 @@ export async function generateMetadata({
   const airline = airlineBySlug(slug);
   if (!airline) return {};
   const title = `${airline.name} — ${t(lang, "airlinesTitle")}`;
-  const description = `${airline.name} (${airline.iata}/${airline.icao}, ${t(lang, airline.countryKey)}) — ${t(lang, "trackedTitle")} : ${trackedRegistrations(airline.name).join(", ")}.`;
+  const codes =
+    airline.iata || airline.icao
+      ? ` (${[airline.iata, airline.icao].filter(Boolean).join("/")})`
+      : "";
+  const description = `${airline.name}${codes}, ${t(lang, airline.countryKey)} — ${t(lang, "trackedTitle")} : ${trackedRegistrations(airline.name).join(", ")}.`;
   return pageMeta({
     title,
     description,
@@ -41,8 +45,8 @@ export async function generateMetadata({
 function airlineJsonLd(airline: {
   name: string;
   slug: string;
-  iata: string;
-  icao: string;
+  iata?: string;
+  icao?: string;
   website?: string;
   founded: number;
 }) {
@@ -51,7 +55,7 @@ function airlineJsonLd(airline: {
     "@type": "Airline",
     name: airline.name,
     url: `${SITE_URL}/airlines/${airline.slug}`,
-    iataCode: airline.iata,
+    ...(airline.iata ? { iataCode: airline.iata } : {}),
     foundingDate: String(airline.founded),
     ...(airline.website ? { sameAs: [`https://${airline.website}`] } : {}),
   };
@@ -65,9 +69,15 @@ export default async function AirlinePage({ params }: PageProps) {
   const registrations = trackedRegistrations(airline.name);
 
   const facts: Array<{ label: string; value: string; href?: string }> = [
-    { label: t(lang, "iata"), value: airline.iata },
-    { label: t(lang, "icaoCode"), value: airline.icao },
-    { label: t(lang, "callsign"), value: airline.callsign },
+    ...(airline.iata
+      ? [{ label: t(lang, "iata"), value: airline.iata }]
+      : []),
+    ...(airline.icao
+      ? [{ label: t(lang, "icaoCode"), value: airline.icao }]
+      : []),
+    ...(airline.callsign
+      ? [{ label: t(lang, "callsign"), value: airline.callsign }]
+      : []),
     { label: t(lang, "country"), value: t(lang, airline.countryKey) },
     { label: t(lang, "founded"), value: String(airline.founded) },
     ...(airline.alliance
@@ -103,8 +113,12 @@ export default async function AirlinePage({ params }: PageProps) {
         <h1 className="sr-only">{airline.name}</h1>
         <p className="intro-text">
           {t(lang, airline.countryKey)}
-          {" — "}
-          {airline.iata} · {airline.icao}
+          {airline.iata || airline.icao ? (
+            <>
+              {" — "}
+              {[airline.iata, airline.icao].filter(Boolean).join(" · ")}
+            </>
+          ) : null}
         </p>
       </div>
       <section className="specs" aria-label={airline.name}>
