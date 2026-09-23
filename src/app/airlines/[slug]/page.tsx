@@ -43,7 +43,7 @@ function airlineJsonLd(airline: {
   slug: string;
   iata: string;
   icao: string;
-  website: string;
+  website?: string;
   founded: number;
 }) {
   return {
@@ -53,7 +53,7 @@ function airlineJsonLd(airline: {
     url: `${SITE_URL}/airlines/${airline.slug}`,
     iataCode: airline.iata,
     foundingDate: String(airline.founded),
-    sameAs: [`https://${airline.website}`],
+    ...(airline.website ? { sameAs: [`https://${airline.website}`] } : {}),
   };
 }
 
@@ -74,11 +74,15 @@ export default async function AirlinePage({ params }: PageProps) {
       ? [{ label: t(lang, "alliance"), value: airline.alliance }]
       : []),
     { label: t(lang, "hubs"), value: airline.hubs.join(" · ") },
-    {
-      label: t(lang, "website"),
-      value: airline.website,
-      href: `https://${airline.website}`,
-    },
+    ...(airline.website
+      ? [
+          {
+            label: t(lang, "website"),
+            value: airline.website,
+            href: `https://${airline.website}`,
+          },
+        ]
+      : []),
   ];
 
   return (

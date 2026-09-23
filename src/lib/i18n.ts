@@ -99,6 +99,7 @@ const fr = {
   countryIndia: "Inde",
   countryCanada: "Canada",
   countryMexico: "Mexique",
+  countryScandinavia: "Danemark · Norvège · Suède",
   countrySouthKorea: "Corée du Sud",
   countryEthiopia: "Éthiopie",
 };
@@ -200,6 +201,7 @@ const en: typeof fr = {
   countryIndia: "India",
   countryCanada: "Canada",
   countryMexico: "Mexico",
+  countryScandinavia: "Denmark · Norway · Sweden",
   countrySouthKorea: "South Korea",
   countryEthiopia: "Ethiopia",
 };

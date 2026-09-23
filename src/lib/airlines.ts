@@ -23,8 +23,11 @@ export interface AirlineInfo {
   alliance: Alliance | null;
   /** e.g. ["Paris (CDG)", "Amsterdam (AMS)"] */
   hubs: string[];
-  /** Bare domain, e.g. "airfrance.com". */
-  website: string;
+  /**
+   * Bare domain, e.g. "airfrance.com". Omitted for defunct airlines
+   * (no official site anymore) — pages then skip the website row.
+   */
+  website?: string;
   /**
    * When true, no logo file is shipped for this airline (e.g. licensing)
    * and UIs must render the ✈ glyph fallback instead of the SVG.
@@ -369,6 +372,44 @@ export const AIRLINES: AirlineInfo[] = [
     alliance: "Star Alliance",
     hubs: ["Addis Ababa (ADD)", "Lomé (LFW)", "Lusaka (LUN)"],
     website: "ethiopianairlines.com",
+  },
+  {
+    name: "Northwest Airlines",
+    slug: "northwest-airlines",
+    iata: "NW",
+    icao: "NWA",
+    callsign: "NORTHWEST",
+    countryKey: "countryUSA",
+    founded: 1926,
+    alliance: null,
+    hubs: ["Minneapolis (MSP)", "Detroit (DTW)", "Tokyo (NRT)"],
+    noLogo: true,
+  },
+  {
+    name: "Scandinavian Airlines",
+    slug: "scandinavian-airlines",
+    iata: "SK",
+    icao: "SAS",
+    callsign: "SCANDINAVIAN",
+    countryKey: "countryScandinavia",
+    founded: 1946,
+    alliance: "SkyTeam",
+    hubs: ["Copenhagen (CPH)", "Oslo (OSL)", "Stockholm (ARN)"],
+    website: "flysas.com",
+    noLogo: true,
+  },
+  {
+    name: "Asiana Airlines",
+    slug: "asiana-airlines",
+    iata: "OZ",
+    icao: "AAR",
+    callsign: "ASIANA",
+    countryKey: "countrySouthKorea",
+    founded: 1988,
+    alliance: "Star Alliance",
+    hubs: ["Seoul (ICN)"],
+    website: "flyasiana.com",
+    noLogo: true,
   },
 ];
 

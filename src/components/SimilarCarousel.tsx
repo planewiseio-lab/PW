@@ -1,17 +1,17 @@
 "use client";
 
 import Link from "next/link";
-import { AIRLINES, slugifyAirlineName } from "@/lib/airlines";
+import { airlineByName } from "@/lib/airlines";
 import { FAMILY_LABELS } from "@/lib/specs";
 import type { SeedMeta } from "@/lib/seed";
 import { useAutoScroll } from "./useAutoScroll";
 
-const KNOWN_SLUGS = new Set(AIRLINES.map((a) => a.slug));
-
 /**
  * "Similar aircraft" as an auto-scrolling card carousel.
- * Each card shows the operator's logo (when it's a tracked airline),
- * the registration, the aircraft family and the operator name.
+ * Each card shows the operator's logo (when it's a tracked airline
+ * with a logo file), the registration, the aircraft family and the
+ * operator name. Airlines flagged `noLogo` (e.g. licensing) render
+ * the ✈ glyph fallback instead of a broken image.
  */
 export function SimilarCarousel({ items }: { items: SeedMeta[] }) {
   const trackRef = useAutoScroll<HTMLDivElement>(4000, 300);
@@ -20,10 +20,11 @@ export function SimilarCarousel({ items }: { items: SeedMeta[] }) {
     <div className="similar-carousel">
       <div className="similar-track" ref={trackRef}>
         {items.map((s) => {
-          const slug = slugifyAirlineName(s.operator);
-          const logo = KNOWN_SLUGS.has(slug)
-            ? `/airlines/${slug}.svg`
-            : null;
+          const airline = airlineByName(s.operator);
+          const logo =
+            airline && !airline.noLogo
+              ? `/airlines/${airline.slug}.svg`
+              : null;
           return (
             <div key={s.registration} className="similar-slide">
               <Link href={`/${encodeURIComponent(s.registration)}`}>
