@@ -49,7 +49,6 @@ export async function generateMetadata(): Promise<Metadata> {
       title: home.title,
       description: home.description,
     },
-    robots: { index: true, follow: true },
     alternates: {
       canonical: SITE_URL,
       languages: { fr: SITE_URL, en: SITE_URL },
