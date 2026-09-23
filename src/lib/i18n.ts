@@ -25,14 +25,15 @@ const fr = {
   statusActive: "Actif",
   noPhoto:
     "Aucune photographie de cette cellule n’a été trouvée. La fiche ci-dessus reprend uniquement les données publiques disponibles.",
-  notFound:
-    "Aucune fiche n’a été trouvée pour « {reg} ». Vérifiez le format de l’immatriculation (exemple : F-HTYA, G-ZBKA, N12345).",
+  emptyTitle: "Aucun avion trouvé",
+  emptyFor: "« {reg} » n'a donné aucun résultat dans nos sources.",
+  emptyHint:
+    "Vérifiez le format de l'immatriculation : 2 à 10 caractères, lettres et chiffres, avec ou sans tiret (ex. F-HTYA, G-BOAC, N12345).",
+  emptyTry: "Essayez plutôt :",
   invalid:
     "Cette immatriculation n’est pas reconnue. Utilisez 2 à 10 caractères (lettres et chiffres), avec ou sans tiret.",
   error:
     "La recherche n’a pas pu aboutir. Réessayez dans un moment — les sources publiques peuvent être temporairement indisponibles.",
-  pageNotFound:
-    "Cette page n’existe pas. Recherchez une immatriculation ci-dessus.",
   footerCopyright: "© 2026 PlaneWise",
   legalTitle: "Mentions légales",
   legalPrivacy: "Confidentialité",
@@ -54,6 +55,13 @@ const fr = {
     "PlaneWise est un annuaire gratuit d’immatriculations d’aéronefs. Entrez un tail number — par exemple F-HTYA, N12345 ou JA873A — et obtenez instantanément la fiche de l’avion : type d’appareil, compagnie exploitante, âge, numéro de série et photos de la cellule. Les données proviennent de sources publiques d’aviation et sont mises à jour régulièrement.",
   popularTitle: "Fiches populaires",
   similarTitle: "Appareils similaires",
+  specsTitle: "Fiche technique",
+  specsVariant: "Valeurs typiques — variante {variant}",
+  cruise: "Vitesse de croisière",
+  range: "Autonomie",
+  capacity: "Passagers",
+  powerplant: "Motorisation",
+  built: "Exemplaires produits",
 };
 
 const en: typeof fr = {
@@ -79,13 +87,15 @@ const en: typeof fr = {
   statusActive: "Active",
   noPhoto:
     "No photograph of this airframe was found. The fact sheet above only includes available public data.",
-  notFound:
-    "No record was found for “{reg}”. Check the registration format (for example: F-HTYA, G-ZBKA, N12345).",
+  emptyTitle: "No airframe found",
+  emptyFor: "No results for “{reg}” in our sources.",
+  emptyHint:
+    "Check the registration format: 2 to 10 characters, letters and digits, with or without a hyphen (e.g. F-HTYA, G-BOAC, N12345).",
+  emptyTry: "Try instead:",
   invalid:
     "That registration is not recognized. Use 2 to 10 letters and digits, with or without a hyphen.",
   error:
     "The lookup could not be completed. Try again in a moment — public sources may be temporarily unavailable.",
-  pageNotFound: "This page does not exist. Search for a registration above.",
   footerCopyright: "© 2026 PlaneWise",
   legalTitle: "Legal",
   legalPrivacy: "Privacy",
@@ -107,6 +117,13 @@ const en: typeof fr = {
     "PlaneWise is a free aircraft registration directory. Enter a tail number — for example F-HTYA, N12345 or JA873A — and instantly get that airframe’s fact sheet: aircraft type, operator, age, serial number and photos. Data comes from public aviation sources and is refreshed regularly.",
   popularTitle: "Popular airframes",
   similarTitle: "Similar airframes",
+  specsTitle: "Technical data",
+  specsVariant: "Typical values — {variant} variant",
+  cruise: "Cruise speed",
+  range: "Range",
+  capacity: "Passengers",
+  powerplant: "Powerplant",
+  built: "Aircraft built",
 };
 
 export const messages = { fr, en } as const;

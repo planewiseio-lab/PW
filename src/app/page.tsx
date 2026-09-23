@@ -1,4 +1,5 @@
 import { Suspense } from "react";
+import type { CSSProperties } from "react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { SearchForm } from "@/components/SearchForm";
@@ -10,7 +11,8 @@ import { getLang } from "@/lib/lang";
 import { t } from "@/lib/i18n";
 import { lookupAircraft } from "@/lib/lookup";
 import { normalizeRegistration } from "@/lib/normalize";
-import { SEED_REGISTRATIONS } from "@/lib/seed";
+import { SEED_META, SEED_REGISTRATIONS } from "@/lib/seed";
+import type { AircraftFamily } from "@/lib/seed";
 import {
   fallbackResultSeo,
   homeSeo,
@@ -22,6 +24,29 @@ import {
 type PageProps = {
   searchParams: Promise<{ q?: string }>;
 };
+
+function familyLabel(family: AircraftFamily): string {
+  switch (family) {
+    case "concorde":
+      return "Concorde";
+    case "737":
+      return "Boeing 737";
+    case "747":
+      return "Boeing 747";
+    case "767":
+      return "Boeing 767";
+    case "777":
+      return "Boeing 777";
+    case "787":
+      return "Boeing 787";
+    case "a340":
+      return "Airbus A340";
+    case "a350":
+      return "Airbus A350";
+    case "a380":
+      return "Airbus A380";
+  }
+}
 
 export async function generateMetadata({
   searchParams,
@@ -83,6 +108,7 @@ export default async function Home({ searchParams }: PageProps) {
 
   const home = homeSeo(lang);
   const popular = SEED_REGISTRATIONS.slice(0, 12);
+  const metaByReg = new Map(SEED_META.map((m) => [m.registration, m]));
   return (
     <main className="page is-home">
       <JsonLd data={websiteJsonLd()} />
@@ -96,19 +122,40 @@ export default async function Home({ searchParams }: PageProps) {
         <SearchForm lang={lang} defaultValue="" />
       </div>
       <section className="home-intro" aria-label={t(lang, "homeIntroTitle")}>
-        <h2>{t(lang, "homeIntroTitle")}</h2>
-        <p>{t(lang, "homeIntro")}</p>
+        <div className="glow-card">
+          <h2 className="glow-title">
+            <span aria-hidden="true" className="glow-title-icon">
+              ✈
+            </span>{" "}
+            {t(lang, "homeIntroTitle")}
+          </h2>
+          <p className="intro-text">{t(lang, "homeIntro")}</p>
+        </div>
       </section>
       <section className="home-popular" aria-label={t(lang, "popularTitle")}>
-        <h2>{t(lang, "popularTitle")}</h2>
-        <ul className="popular-list">
-          {popular.map((registration) => (
-            <li key={registration}>
-              <Link href={`/${encodeURIComponent(registration)}`}>
-                {registration}
-              </Link>
-            </li>
-          ))}
+        <h2 className="section-title">{t(lang, "popularTitle")}</h2>
+        <ul className="popular-grid">
+          {popular.map((registration, i) => {
+            const meta = metaByReg.get(registration);
+            return (
+              <li key={registration} className="popular-card">
+                <Link
+                  href={`/${encodeURIComponent(registration)}`}
+                  style={{ "--i": i } as CSSProperties}
+                >
+                  <span className="popular-reg">{registration}</span>
+                  {meta && (
+                    <span className="popular-family">
+                      {familyLabel(meta.family)}
+                    </span>
+                  )}
+                  {meta?.operator ? (
+                    <span className="popular-operator">{meta.operator}</span>
+                  ) : null}
+                </Link>
+              </li>
+            );
+          })}
         </ul>
       </section>
     </main>

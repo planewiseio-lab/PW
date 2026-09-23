@@ -1,9 +1,14 @@
 import Link from "next/link";
 import { formatAgeLabel, interpolate, t, type Lang } from "@/lib/i18n";
 import { statusTone, translateStatus } from "@/lib/pretty";
-import { findSimilar } from "@/lib/seed";
+import { familyOf, findSimilar } from "@/lib/seed";
+import {
+  FAMILY_LABELS,
+  FAMILY_SPECS,
+} from "@/lib/specs";
 import type { AircraftFactSheet } from "@/lib/types";
 import { PhotoGallery } from "@/components/PhotoGallery";
+import { EmptyResult } from "@/components/EmptyResult";
 import { JsonLd } from "@/components/JsonLd";
 import { aircraftJsonLd } from "@/lib/seo";
 
@@ -80,6 +85,8 @@ export function ResultPane({
     aircraft.type,
     aircraft.operator,
   );
+  const family = familyOf(aircraft.type);
+  const specs = family ? FAMILY_SPECS[family] : null;
 
   return (
     <article className="result-card">
@@ -97,6 +104,26 @@ export function ResultPane({
         <FactColumn facts={left} />
         <FactColumn facts={right} />
       </div>
+
+      {specs && family ? (
+        <section className="specs" aria-label={t(lang, "specsTitle")}>
+          <h2>
+            {t(lang, "specsTitle")} — {FAMILY_LABELS[family]}
+          </h2>
+          <p className="specs-variant">
+            {interpolate(t(lang, "specsVariant"), { variant: specs.variant })}
+          </p>
+          <FactColumn
+            facts={[
+              { label: t(lang, "cruise"), value: specs.cruise },
+              { label: t(lang, "range"), value: specs.range },
+              { label: t(lang, "capacity"), value: specs.passengers },
+              { label: t(lang, "powerplant"), value: specs.engines },
+              { label: t(lang, "built"), value: specs.built },
+            ]}
+          />
+        </section>
+      ) : null}
 
       {aircraft.photos.length > 0 ? (
         <PhotoGallery
@@ -134,11 +161,7 @@ export function NotFoundPane({
   registration: string;
   lang: Lang;
 }) {
-  return (
-    <div className="notice-card">
-      <p>{interpolate(t(lang, "notFound"), { reg: registration })}</p>
-    </div>
-  );
+  return <EmptyResult lang={lang} registration={registration} />;
 }
 
 export function InvalidPane({ lang }: { lang: Lang }) {
