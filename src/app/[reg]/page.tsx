@@ -1,5 +1,6 @@
 import { Suspense } from "react";
 import type { Metadata } from "next";
+import { notFound } from "next/navigation";
 import { SearchForm } from "@/components/SearchForm";
 import { ResultSkeleton } from "@/components/ResultPane";
 import { SearchResults } from "@/components/SearchResults";
@@ -25,10 +26,10 @@ function safeDecode(value: string): string {
   }
 }
 
-/** Re-generate fiches at most once a day (Incremental Static Regeneration). */
+/** Pre-render known registrations at build time; others render on demand
+ *  (ISR, regenerated at most once a day). */
 export const revalidate = 86400;
 
-/** Pre-render known registrations at build time; others render on demand. */
 export async function generateStaticParams() {
   return SEED_REGISTRATIONS.map((registration) => ({
     reg: registration,
@@ -70,6 +71,14 @@ export default async function RegistrationPage({ params }: PageProps) {
   const { reg } = await params;
   const lang = await getLang();
   const registration = normalizeRegistration(safeDecode(reg));
+
+  // Unknown registrations: render the not-found UI (app/not-found.tsx).
+  // NOTE (Next 16.3.3 quirk, verified with a minimal repro): notFound()
+  // renders the right page + automatic noindex, but the HTTP status stays
+  // 200 instead of 404 in this setup. Re-test on Vercel after deploy.
+  if (!registration) notFound();
+  const result = await lookupAircraft(registration);
+  if (result.status === "not_found") notFound();
 
   return (
     <main className="page is-result">
