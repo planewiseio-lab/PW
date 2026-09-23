@@ -1,5 +1,7 @@
+import Link from "next/link";
 import { formatAgeLabel, interpolate, t, type Lang } from "@/lib/i18n";
 import { statusTone, translateStatus } from "@/lib/pretty";
+import { findSimilar } from "@/lib/seed";
 import type { AircraftFactSheet } from "@/lib/types";
 import { PhotoGallery } from "@/components/PhotoGallery";
 import { JsonLd } from "@/components/JsonLd";
@@ -73,6 +75,11 @@ export function ResultPane({
     tone === "active"
       ? t(lang, "statusActive")
       : translateStatus(aircraft.status, lang);
+  const similar = findSimilar(
+    aircraft.registration,
+    aircraft.type,
+    aircraft.operator,
+  );
 
   return (
     <article className="result-card">
@@ -101,6 +108,21 @@ export function ResultPane({
       ) : (
         <p className="notice">{t(lang, "noPhoto")}</p>
       )}
+
+      {similar.length > 0 ? (
+        <section className="similar" aria-label={t(lang, "similarTitle")}>
+          <h2>{t(lang, "similarTitle")}</h2>
+          <ul className="similar-list">
+            {similar.map((s) => (
+              <li key={s.registration}>
+                <Link href={`/${encodeURIComponent(s.registration)}`}>
+                  {s.registration}
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
     </article>
   );
 }

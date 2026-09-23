@@ -1,5 +1,6 @@
 import { Suspense } from "react";
 import type { Metadata } from "next";
+import Link from "next/link";
 import { SearchForm } from "@/components/SearchForm";
 import { ResultSkeleton } from "@/components/ResultPane";
 import { SearchResults } from "@/components/SearchResults";
@@ -9,6 +10,7 @@ import { getLang } from "@/lib/lang";
 import { t } from "@/lib/i18n";
 import { lookupAircraft } from "@/lib/lookup";
 import { normalizeRegistration } from "@/lib/normalize";
+import { SEED_REGISTRATIONS } from "@/lib/seed";
 import {
   fallbackResultSeo,
   homeSeo,
@@ -80,6 +82,7 @@ export default async function Home({ searchParams }: PageProps) {
   }
 
   const home = homeSeo(lang);
+  const popular = SEED_REGISTRATIONS.slice(0, 12);
   return (
     <main className="page is-home">
       <JsonLd data={websiteJsonLd()} />
@@ -92,6 +95,22 @@ export default async function Home({ searchParams }: PageProps) {
         <p className="lede">{t(lang, "tagline")}</p>
         <SearchForm lang={lang} defaultValue="" />
       </div>
+      <section className="home-intro" aria-label={t(lang, "homeIntroTitle")}>
+        <h2>{t(lang, "homeIntroTitle")}</h2>
+        <p>{t(lang, "homeIntro")}</p>
+      </section>
+      <section className="home-popular" aria-label={t(lang, "popularTitle")}>
+        <h2>{t(lang, "popularTitle")}</h2>
+        <ul className="popular-list">
+          {popular.map((registration) => (
+            <li key={registration}>
+              <Link href={`/${encodeURIComponent(registration)}`}>
+                {registration}
+              </Link>
+            </li>
+          ))}
+        </ul>
+      </section>
     </main>
   );
 }

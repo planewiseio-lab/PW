@@ -75,6 +75,7 @@ export function PhotoGallery({
                   })}
                   width={photo.width ?? 320}
                   height={photo.height ?? 180}
+                  loading="lazy"
                   className="photo-thumb"
                 />
                 <span className="photo-credit">{creditLine(photo, lang)}</span>

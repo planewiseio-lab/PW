@@ -85,7 +85,11 @@ export function pageMeta({
   return {
     title: absoluteTitle ? { absolute: title } : title,
     description,
-    alternates: { canonical: url },
+    alternates: {
+      canonical: url,
+      // Cookie-based language: both languages served from the same URL.
+      languages: { fr: url, en: url },
+    },
     openGraph: {
       type: "website",
       locale: localeFor(lang),

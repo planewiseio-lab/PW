@@ -49,6 +49,11 @@ const fr = {
   langEn: "English",
   langGroup: "Langue",
   adLabel: "Publicité",
+  homeIntroTitle: "Qu’est-ce que PlaneWise ?",
+  homeIntro:
+    "PlaneWise est un annuaire gratuit d’immatriculations d’aéronefs. Entrez un tail number — par exemple F-HTYA, N12345 ou JA873A — et obtenez instantanément la fiche de l’avion : type d’appareil, compagnie exploitante, âge, numéro de série et photos de la cellule. Les données proviennent de sources publiques d’aviation et sont mises à jour régulièrement.",
+  popularTitle: "Fiches populaires",
+  similarTitle: "Appareils similaires",
 };
 
 const en: typeof fr = {
@@ -97,6 +102,11 @@ const en: typeof fr = {
   langEn: "English",
   langGroup: "Language",
   adLabel: "Advertisement",
+  homeIntroTitle: "What is PlaneWise?",
+  homeIntro:
+    "PlaneWise is a free aircraft registration directory. Enter a tail number — for example F-HTYA, N12345 or JA873A — and instantly get that airframe’s fact sheet: aircraft type, operator, age, serial number and photos. Data comes from public aviation sources and is refreshed regularly.",
+  popularTitle: "Popular airframes",
+  similarTitle: "Similar airframes",
 };
 
 export const messages = { fr, en } as const;

@@ -761,3 +761,58 @@ ul.chips a {
     background-position: -100% 0;
   }
 }
+
+.home-intro,
+.home-popular {
+  width: 100%;
+  max-width: 40rem;
+  margin: 2.2rem auto 0;
+  text-align: left;
+}
+
+.home-intro h2,
+.home-popular h2,
+.similar h2 {
+  font-size: 1.15rem;
+  margin: 0 0 0.6rem;
+  letter-spacing: -0.01em;
+}
+
+.home-intro p {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.6;
+}
+
+.popular-list,
+.similar-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.popular-list a,
+.similar-list a {
+  display: inline-block;
+  padding: 0.35rem 0.8rem;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--card);
+  font-family: var(--font-mono), monospace;
+  font-size: 0.9rem;
+  text-decoration: none;
+}
+
+.popular-list a:hover,
+.similar-list a:hover {
+  border-color: var(--blue);
+}
+
+.similar {
+  margin-top: 1.8rem;
+  padding-top: 1.2rem;
+  border-top: 1px solid var(--line);
+}

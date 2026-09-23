@@ -50,6 +50,10 @@ export async function generateMetadata(): Promise<Metadata> {
       description: home.description,
     },
     robots: { index: true, follow: true },
+    alternates: {
+      canonical: SITE_URL,
+      languages: { fr: SITE_URL, en: SITE_URL },
+    },
     other: {
       "google-adsense-account": ADSENSE_CLIENT,
     },
