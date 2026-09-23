@@ -55,6 +55,7 @@ export async function generateMetadata(): Promise<Metadata> {
     },
     other: {
       "google-adsense-account": ADSENSE_CLIENT,
+      "google-site-verification": "O3iQdWueiZ8XE3hqtlSkPJKaMePXEiG0E5sPQEgxu8g",
     },
   };
 }
