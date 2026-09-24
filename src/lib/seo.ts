@@ -125,24 +125,18 @@ export function websiteJsonLd() {
 }
 
 export function aircraftJsonLd(aircraft: AircraftFactSheet) {
+  // Note: on utilise un type neutre "Thing" plutôt que "Vehicle", car Google
+  // exige offers/review/aggregateRating pour les fiches véhicules et envoie
+  // des alertes (on ne vend aucun appareil).
   const url = `${SITE_URL}/${encodeURIComponent(aircraft.registration)}`;
   const data: Record<string, unknown> = {
     "@context": "https://schema.org",
-    "@type": "Vehicle",
-    additionalType: "https://schema.org/Aircraft",
+    "@type": "Thing",
     name: resultHeadline(aircraft),
     identifier: aircraft.registration,
     url,
   };
-  if (aircraft.type) data.model = aircraft.type;
-  if (aircraft.manufacturer) {
-    data.manufacturer = { "@type": "Organization", name: aircraft.manufacturer };
-  }
-  if (aircraft.yearBuilt != null) {
-    data.productionDate = String(aircraft.yearBuilt);
-  }
   if (aircraft.photos[0]?.url) data.image = aircraft.photos[0].url;
-  if (aircraft.country) data.countryOfOrigin = aircraft.country;
   const descriptionParts = [
     aircraft.registration,
     aircraft.type,
